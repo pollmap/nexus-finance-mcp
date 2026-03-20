@@ -1,0 +1,37 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      BOK_ECOS_API_KEY:
+        type: string
+        description: "Bank of Korea ECOS API key"
+      DART_API_KEY:
+        type: string
+        description: "OpenDART financial disclosure API key"
+      KOSIS_API_KEY:
+        type: string
+        description: "KOSIS (Korean statistics) API key"
+      RONE_API_KEY:
+        type: string
+        description: "Korea Real Estate Board API key"
+      FRED_API_KEY:
+        type: string
+        description: "Federal Reserve FRED API key"
+      KIS_API_KEY:
+        type: string
+        description: "Korea Investment & Securities API key"
+    required: []
+  commandFunction: |-
+    (config) => ({
+      command: "python",
+      args: ["server.py", "--transport", "stdio"],
+      env: {
+        BOK_ECOS_API_KEY: config.BOK_ECOS_API_KEY || "",
+        DART_API_KEY: config.DART_API_KEY || "",
+        KOSIS_API_KEY: config.KOSIS_API_KEY || "",
+        RONE_API_KEY: config.RONE_API_KEY || "",
+        FRED_API_KEY: config.FRED_API_KEY || "",
+        KIS_API_KEY: config.KIS_API_KEY || "",
+      }
+    })

@@ -1,0 +1,21 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+*.egg-info/
+dist/
+build/
+.venv/
+node_modules/
+
+# Logs
+nohup.out
+*.log
+
+# Output
+output/
+
+# IDE
+.vscode/
+.idea/
