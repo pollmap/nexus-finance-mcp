@@ -1,0 +1,63 @@
+{
+    "actorSpecification": 1,
+    "name": "nexus-finance-mcp",
+    "title": "Nexus Finance MCP Server",
+    "description": "48-tool Korean & US financial research MCP server. ECOS rates, KOSIS stats, R-ONE real estate, DART filings, KRX stocks, crypto, DCF valuation, and visualization.",
+    "version": "1.0.0",
+    "buildTag": "latest",
+    "environmentVariables": [
+        {
+            "name": "BOK_ECOS_API_KEY",
+            "description": "Bank of Korea ECOS API key",
+            "isSecret": true
+        },
+        {
+            "name": "DART_API_KEY",
+            "description": "OpenDART financial disclosure API key",
+            "isSecret": true
+        },
+        {
+            "name": "KOSIS_API_KEY",
+            "description": "KOSIS (Korean statistics) API key",
+            "isSecret": true
+        },
+        {
+            "name": "RONE_API_KEY",
+            "description": "Korea Real Estate Board API key",
+            "isSecret": true
+        },
+        {
+            "name": "FRED_API_KEY",
+            "description": "Federal Reserve FRED API key",
+            "isSecret": true
+        },
+        {
+            "name": "KIS_API_KEY",
+            "description": "Korea Investment & Securities API key",
+            "isSecret": true
+        }
+    ],
+    "meta": {
+        "categories": ["FINANCE", "DATA"],
+        "isPublic": true,
+        "isDeprecated": false,
+        "isPaidPerResult": false
+    },
+    "storages": {
+        "dataset": {
+            "actorExampleEntry": {
+                "tool": "get_bok_base_rate",
+                "result": {
+                    "rate": "3.50%",
+                    "date": "2024-01-01"
+                }
+            }
+        }
+    },
+    "standby": {
+        "mode": "development",
+        "build": true,
+        "idleTimeoutSecs": 300
+    },
+    "dockerfile": "../Dockerfile"
+}
