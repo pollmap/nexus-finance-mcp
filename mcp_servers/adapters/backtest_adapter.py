@@ -66,6 +66,16 @@ STRATEGIES = {
         "sell": "N-day return < 0",
         "params": {"period": 20},
     },
+    "combo": {
+        "buy": "multiple strategies agree (AND/OR)",
+        "sell": "multiple strategies agree (AND/OR)",
+        "params": {"strategies": [], "mode": "all"},
+    },
+    "custom": {
+        "buy": "user-defined indicator rules",
+        "sell": "user-defined indicator rules",
+        "params": {"buy_rules": [], "sell_rules": [], "logic": "all"},
+    },
 }
 
 
@@ -187,9 +197,22 @@ class BacktestAdapter:
     }
 
     def _get_signals(self, df: pd.DataFrame, strategy_name: str, params: dict = None) -> pd.Series:
-        """Dispatch to the correct strategy signal generator."""
+        """Dispatch to the correct strategy signal generator.
+
+        Special strategies:
+        - "combo": combine multiple strategies (params["strategies"] = list, params["mode"] = "all"/"any")
+        - "custom": user-defined rules (params["buy_rules"] + params["sell_rules"])
+        """
+        # Combo: combine multiple strategies with AND/OR logic
+        if strategy_name == "combo":
+            return self._apply_combo_strategy(df, params or {})
+
+        # Custom: user-defined indicator-based rules
+        if strategy_name == "custom":
+            return self._apply_custom_strategy(df, params or {})
+
         if strategy_name not in self._STRATEGY_MAP:
-            raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys())}")
+            raise ValueError(f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys()) + ['combo', 'custom']}")
 
         method_name = self._STRATEGY_MAP[strategy_name]
         method = getattr(self, method_name)
@@ -197,6 +220,170 @@ class BacktestAdapter:
         if params:
             merged_params.update(params)
         return method(df, merged_params)
+
+    def _apply_combo_strategy(self, df: pd.DataFrame, params: dict) -> pd.Series:
+        """Combine multiple strategies: AND (all agree) or OR (any agrees).
+
+        params:
+            strategies: list of strategy names (e.g., ["RSI_oversold", "MACD_crossover"])
+            mode: "all" = all must agree (AND), "any" = any one triggers (OR). Default "all".
+            strategy_params: dict of {strategy_name: {param overrides}} (optional)
+        """
+        strategies = params.get("strategies", [])
+        mode = params.get("mode", "all")
+        strategy_params = params.get("strategy_params", {})
+
+        if len(strategies) < 2:
+            raise ValueError("combo strategy requires at least 2 strategies in params['strategies']")
+
+        all_signals = []
+        for strat in strategies:
+            sp = strategy_params.get(strat, None)
+            sig = self._get_signals(df, strat, sp)
+            all_signals.append(sig)
+
+        combined = pd.DataFrame(all_signals).T
+
+        if mode == "all":
+            buy = (combined == 1).all(axis=1).astype(int)
+            sell = (combined == -1).all(axis=1).astype(int) * -1
+        else:  # "any"
+            buy = (combined == 1).any(axis=1).astype(int)
+            sell = (combined == -1).any(axis=1).astype(int) * -1
+
+        signals = buy + sell
+        return signals
+
+    def _apply_custom_strategy(self, df: pd.DataFrame, params: dict) -> pd.Series:
+        """User-defined custom strategy using indicator conditions.
+
+        params:
+            buy_rules: list of conditions, each is {"indicator": str, "op": str, "value": float}
+            sell_rules: list of conditions
+            logic: "all" or "any" (default "all")
+
+        Supported indicators: RSI, MACD, MACD_signal, BB_upper, BB_lower, BB_mid,
+                              SMA_20, SMA_50, SMA_200, EMA_12, EMA_26, price, volume
+        Supported operators: "<", ">", "<=", ">=", "cross_above", "cross_below"
+
+        Example:
+            buy_rules: [{"indicator": "RSI", "op": "<", "value": 30}, {"indicator": "MACD", "op": "cross_above", "value": "MACD_signal"}]
+            sell_rules: [{"indicator": "RSI", "op": ">", "value": 70}]
+        """
+        buy_rules = params.get("buy_rules", [])
+        sell_rules = params.get("sell_rules", [])
+        logic = params.get("logic", "all")
+
+        if not buy_rules or not sell_rules:
+            raise ValueError("custom strategy requires both buy_rules and sell_rules")
+
+        # Pre-compute all indicators
+        indicators = self._compute_all_indicators(df, params)
+
+        signals = pd.Series(0, index=df.index)
+
+        # Evaluate buy conditions
+        buy_conditions = []
+        for rule in buy_rules:
+            cond = self._eval_condition(indicators, rule)
+            buy_conditions.append(cond)
+
+        if buy_conditions:
+            if logic == "all":
+                buy_mask = pd.concat(buy_conditions, axis=1).all(axis=1)
+            else:
+                buy_mask = pd.concat(buy_conditions, axis=1).any(axis=1)
+            signals[buy_mask] = 1
+
+        # Evaluate sell conditions
+        sell_conditions = []
+        for rule in sell_rules:
+            cond = self._eval_condition(indicators, rule)
+            sell_conditions.append(cond)
+
+        if sell_conditions:
+            if logic == "all":
+                sell_mask = pd.concat(sell_conditions, axis=1).all(axis=1)
+            else:
+                sell_mask = pd.concat(sell_conditions, axis=1).any(axis=1)
+            signals[sell_mask] = -1
+
+        return signals
+
+    def _compute_all_indicators(self, df: pd.DataFrame, params: dict) -> Dict[str, pd.Series]:
+        """Pre-compute all technical indicators for custom strategy evaluation."""
+        close = df["close"]
+        indicators = {"price": close, "volume": df["volume"].astype(float)}
+
+        # RSI
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0).rolling(params.get("rsi_period", 14)).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(params.get("rsi_period", 14)).mean()
+        rs = gain / loss
+        indicators["RSI"] = 100 - (100 / (1 + rs))
+
+        # MACD
+        ema12 = close.ewm(span=12).mean()
+        ema26 = close.ewm(span=26).mean()
+        indicators["MACD"] = ema12 - ema26
+        indicators["MACD_signal"] = indicators["MACD"].ewm(span=9).mean()
+        indicators["MACD_histogram"] = indicators["MACD"] - indicators["MACD_signal"]
+        indicators["EMA_12"] = ema12
+        indicators["EMA_26"] = ema26
+
+        # Bollinger Bands
+        sma20 = close.rolling(20).mean()
+        std20 = close.rolling(20).std()
+        indicators["BB_upper"] = sma20 + 2 * std20
+        indicators["BB_lower"] = sma20 - 2 * std20
+        indicators["BB_mid"] = sma20
+
+        # Moving Averages
+        indicators["SMA_20"] = close.rolling(20).mean()
+        indicators["SMA_50"] = close.rolling(50).mean()
+        indicators["SMA_200"] = close.rolling(200).mean()
+
+        return indicators
+
+    def _eval_condition(self, indicators: Dict[str, pd.Series], rule: dict) -> pd.Series:
+        """Evaluate a single condition rule against pre-computed indicators."""
+        ind_name = rule.get("indicator", "")
+        op = rule.get("op", ">")
+        value = rule.get("value")
+
+        if ind_name not in indicators:
+            raise ValueError(f"Unknown indicator: {ind_name}. Available: {list(indicators.keys())}")
+
+        series = indicators[ind_name]
+
+        # Value can be a number or another indicator name
+        if isinstance(value, str) and value in indicators:
+            compare_to = indicators[value]
+        else:
+            compare_to = float(value)
+
+        if op == "<":
+            return series < compare_to
+        elif op == ">":
+            return series > compare_to
+        elif op == "<=":
+            return series <= compare_to
+        elif op == ">=":
+            return series >= compare_to
+        elif op == "cross_above":
+            prev = series.shift(1)
+            if isinstance(compare_to, pd.Series):
+                prev_comp = compare_to.shift(1)
+                return (prev <= prev_comp) & (series > compare_to)
+            return (prev <= compare_to) & (series > compare_to)
+        elif op == "cross_below":
+            prev = series.shift(1)
+            if isinstance(compare_to, pd.Series):
+                prev_comp = compare_to.shift(1)
+                return (prev >= prev_comp) & (series < compare_to)
+            return (prev >= compare_to) & (series < compare_to)
+        else:
+            raise ValueError(f"Unknown operator: {op}. Use: <, >, <=, >=, cross_above, cross_below")
 
     # ── DataFrame builder ──────────────────────────────────────────────
 
@@ -226,57 +413,96 @@ class BacktestAdapter:
         initial_capital: float,
         commission: float,
         tax: float,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        position_size: float = 0.95,
+        allow_short: bool = False,
     ) -> Tuple[float, int, List[Dict], List[Dict]]:
         """
-        Core trade simulation.
+        Core trade simulation with stop-loss, take-profit, position sizing, short support.
 
-        Executes at next day's open price based on previous day's signal.
-        Returns: (final_cash, final_shares, trades, equity_curve)
+        Args:
+            stop_loss: 손절 비율 (예: 0.05 = -5%에서 자동 매도)
+            take_profit: 익절 비율 (예: 0.10 = +10%에서 자동 매도)
+            position_size: 자본 대비 포지션 비중 (0.0~1.0, 기본 0.95)
+            allow_short: 공매도 허용 (기본 False)
         """
         cash = float(initial_capital)
         shares = 0
+        position = 0  # 1=long, -1=short, 0=flat
         trades: List[Dict] = []
         equity: List[Dict] = []
-        last_buy_cost = 0.0
+        entry_price = 0.0
 
         for i in range(1, len(df)):
-            price = float(df.iloc[i]["open"])  # execute at next open
-            signal = int(signals.iloc[i - 1])  # signal from previous close
+            price = float(df.iloc[i]["open"])
+            close_price = float(df.iloc[i]["close"])
+            signal = int(signals.iloc[i - 1])
 
-            if signal == 1 and shares == 0 and price > 0:
-                # BUY: use 95% of cash
-                max_shares = int(cash * 0.95 / (price * (1 + commission)))
-                if max_shares > 0:
-                    cost = max_shares * price * (1 + commission)
-                    cash -= cost
-                    shares = max_shares
-                    last_buy_cost = price * (1 + commission)
-                    trades.append({
-                        "date": str(df.index[i].date()),
-                        "action": "BUY",
-                        "price": round(price),
-                        "shares": shares,
-                    })
+            # Stop-loss / Take-profit check (before new signals)
+            if position == 1 and shares > 0 and entry_price > 0:
+                pnl_pct = (price - entry_price) / entry_price
+                if stop_loss and pnl_pct <= -stop_loss:
+                    signal = -1  # force sell (stop loss)
+                elif take_profit and pnl_pct >= take_profit:
+                    signal = -1  # force sell (take profit)
 
-            elif signal == -1 and shares > 0 and price > 0:
-                # SELL: liquidate all
-                proceeds = shares * price * (1 - commission - tax)
-                pnl = proceeds - (shares * last_buy_cost)
-                cash += proceeds
-                trades.append({
-                    "date": str(df.index[i].date()),
-                    "action": "SELL",
-                    "price": round(price),
-                    "shares": shares,
-                    "pnl": round(pnl),
-                })
-                shares = 0
+            if position == -1 and shares > 0 and entry_price > 0 and allow_short:
+                pnl_pct = (entry_price - price) / entry_price
+                if stop_loss and pnl_pct <= -stop_loss:
+                    signal = 1  # force cover (stop loss)
+                elif take_profit and pnl_pct >= take_profit:
+                    signal = 1  # force cover (take profit)
 
-            portfolio_value = cash + shares * float(df.iloc[i]["close"])
-            equity.append({
-                "date": str(df.index[i].date()),
-                "value": round(portfolio_value),
-            })
+            # LONG entry (or cover short + go long)
+            if signal == 1 and position <= 0 and price > 0:
+                if position == -1 and shares > 0 and allow_short:
+                    # Cover short: P&L = (entry - cover) * shares - costs
+                    short_pnl = shares * (entry_price - price) - shares * price * commission - shares * entry_price * tax
+                    cash += short_pnl
+                    trades.append({"date": str(df.index[i].date()), "action": "COVER", "price": round(price), "shares": shares, "pnl": round(short_pnl)})
+                    shares = 0
+                    position = 0
+
+                if position == 0:
+                    max_shares = int(cash * position_size / (price * (1 + commission)))
+                    if max_shares > 0:
+                        cost = max_shares * price * (1 + commission)
+                        cash -= cost
+                        shares = max_shares
+                        entry_price = price
+                        position = 1
+                        trades.append({"date": str(df.index[i].date()), "action": "BUY", "price": round(price), "shares": shares})
+
+            # LONG exit (or sell + go short)
+            elif signal == -1 and price > 0:
+                if position == 1 and shares > 0:
+                    proceeds = shares * price * (1 - commission - tax)
+                    pnl = proceeds - (shares * entry_price * (1 + commission))
+                    cash += proceeds
+                    trades.append({"date": str(df.index[i].date()), "action": "SELL", "price": round(price), "shares": shares, "pnl": round(pnl)})
+                    shares = 0
+                    position = 0
+
+                if allow_short and position == 0:
+                    # Margin-based short: reserve cash, track entry
+                    max_shares = int(cash * position_size / (price * (1 + commission)))
+                    if max_shares > 0:
+                        shares = max_shares
+                        entry_price = price
+                        position = -1
+                        trades.append({"date": str(df.index[i].date()), "action": "SHORT", "price": round(price), "shares": shares})
+
+            # Portfolio value
+            if position == 1:
+                portfolio_value = cash + shares * close_price
+            elif position == -1:
+                unrealized = shares * (entry_price - close_price)
+                portfolio_value = cash + unrealized
+            else:
+                portfolio_value = cash
+
+            equity.append({"date": str(df.index[i].date()), "value": round(portfolio_value)})
 
         return cash, shares, trades, equity
 
@@ -433,17 +659,25 @@ class BacktestAdapter:
         commission: float = 0.0018,
         tax: float = 0.0018,
         params: Optional[Dict] = None,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        position_size: float = 0.95,
+        allow_short: bool = False,
     ) -> Dict[str, Any]:
         """
         단일 전략 백테스트 실행.
 
         Args:
             ohlcv_data: OHLCV 데이터 (list[dict] with date, open, high, low, close, volume)
-            strategy_name: 전략 이름 (RSI_oversold, MACD_crossover, Bollinger_bounce, MA_cross, Mean_reversion, Momentum)
+            strategy_name: 전략 이름 (RSI_oversold, MACD_crossover, Bollinger_bounce, MA_cross, Mean_reversion, Momentum, custom)
             initial_capital: 초기 자본금 (기본 1,000만원)
-            commission: 매매수수료 (기본 0.18%)
-            tax: 증권거래세 매도시 (기본 0.18%)
+            commission: 매매수수료 (기본 0.18% 한국, 0 미국)
+            tax: 증권거래세 매도시 (기본 0.18% 한국, 0 미국)
             params: 전략 파라미터 오버라이드
+            stop_loss: 손절 비율 (예: 0.05 = -5%, None=비활성)
+            take_profit: 익절 비율 (예: 0.10 = +10%, None=비활성)
+            position_size: 자본 대비 포지션 비중 (0.0~1.0, 기본 0.95)
+            allow_short: 공매도 허용 (기본 False)
 
         Returns:
             metrics + equity_curve + trades
@@ -457,7 +691,11 @@ class BacktestAdapter:
                 return {"error": True, "message": f"Insufficient data: {len(df)} rows. Need at least 60."}
 
             signals = self._get_signals(df, strategy_name, params)
-            cash, shares, trades, equity = self._simulate(df, signals, initial_capital, commission, tax)
+            cash, shares, trades, equity = self._simulate(
+                df, signals, initial_capital, commission, tax,
+                stop_loss=stop_loss, take_profit=take_profit,
+                position_size=position_size, allow_short=allow_short,
+            )
 
             metrics = self._calc_metrics(equity, trades, initial_capital)
 

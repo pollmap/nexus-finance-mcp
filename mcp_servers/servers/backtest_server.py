@@ -56,22 +56,35 @@ class BacktestServer(BaseMCPServer):
             commission: float = 0.0018,
             tax: float = 0.0018,
             params: Optional[dict] = None,
+            stop_loss: Optional[float] = None,
+            take_profit: Optional[float] = None,
+            position_size: float = 0.95,
+            allow_short: bool = False,
         ) -> dict:
             """
-            단일 전략 백테스트 실행. Run a single strategy backtest.
+            전략 백테스트 실행 (커스텀 전략/복합 조건/손익절/공매도 지원).
 
             Args:
                 ohlcv_data: OHLCV 가격 데이터 (list[dict] with date, open, high, low, close, volume)
-                strategy_name: 전략 이름 (RSI_oversold, MACD_crossover, Bollinger_bounce, MA_cross, Mean_reversion, Momentum)
+                strategy_name: 전략 이름. 내장: RSI_oversold, MACD_crossover, Bollinger_bounce, MA_cross, Mean_reversion, Momentum.
+                    특수: "combo" (복합 AND/OR), "custom" (사용자 정의 규칙)
                 initial_capital: 초기 자본금 (기본 1,000만원)
-                commission: 매매수수료 (기본 0.18%)
-                tax: 증권거래세 매도시 (기본 0.18%)
-                params: 전략 파라미터 오버라이드 (선택)
+                commission: 매매수수료 (기본 0.18% 한국, 0 미국)
+                tax: 증권거래세 (기본 0.18% 한국, 0 미국)
+                params: 전략 파라미터 오버라이드. combo용: {"strategies": ["RSI_oversold","MACD_crossover"], "mode": "all"}.
+                    custom용: {"buy_rules": [{"indicator":"RSI","op":"<","value":30}], "sell_rules": [{"indicator":"RSI","op":">","value":70}]}
+                stop_loss: 손절 비율 (예: 0.05 = -5%에서 자동 매도, None=비활성)
+                take_profit: 익절 비율 (예: 0.10 = +10%에서 자동 매도, None=비활성)
+                position_size: 자본 대비 포지션 비중 (0.0~1.0, 기본 0.95)
+                allow_short: 공매도 허용 (기본 False)
 
             Returns:
                 수익률, Sharpe, 최대낙폭, 승률, 매매내역, 자산곡선
             """
-            return adapter.run(ohlcv_data, strategy_name, initial_capital, commission, tax, params)
+            return adapter.run(
+                ohlcv_data, strategy_name, initial_capital, commission, tax,
+                params, stop_loss, take_profit, position_size, allow_short,
+            )
 
         @self.mcp.tool()
         def backtest_compare(
