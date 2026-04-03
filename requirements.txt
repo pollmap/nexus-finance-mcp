@@ -43,6 +43,14 @@ scholarly>=1.7.0
 # === News & Technical Analysis ===
 feedparser>=6.0.0
 
+# === Quant Analysis ===
+scikit-learn>=1.3.0
+
+# === Sentiment & Alternative Data ===
+pytrends>=4.9.0
+vaderSentiment>=3.3.2
+entsoe-py>=0.7.0
+
 # === Web/Async ===
 requests>=2.31.0
 aiohttp>=3.9.0

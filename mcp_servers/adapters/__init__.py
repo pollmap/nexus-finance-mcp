@@ -13,6 +13,8 @@ from .krx_adapter import KRXAdapter
 from .crypto_adapter import CryptoAdapter
 from .yahoo_adapter import YahooAdapter
 from .fred_adapter import FREDAdapter
+from .quant_analysis_adapter import QuantAnalysisAdapter
+from .backtest_adapter import BacktestAdapter
 
 __all__ = [
     "DARTAdapter",
@@ -20,4 +22,6 @@ __all__ = [
     "CryptoAdapter",
     "YahooAdapter",
     "FREDAdapter",
+    "QuantAnalysisAdapter",
+    "BacktestAdapter",
 ]

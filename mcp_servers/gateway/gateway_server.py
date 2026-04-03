@@ -88,6 +88,10 @@ class GatewayServer:
             ("sentiment", "mcp_servers.servers.sentiment_server", "SentimentServer"),
             # Ontology — 데이터 존재론/인과 관계
             ("ontology", "mcp_servers.servers.ontology_server", "OntologyServer"),
+            # Phase 8 — 퀀트 분석 엔진
+            ("quant_analysis", "mcp_servers.servers.quant_analysis_server", "QuantAnalysisServer"),
+            ("timeseries", "mcp_servers.servers.timeseries_server", "TimeseriesServer"),
+            ("backtest", "mcp_servers.servers.backtest_server", "BacktestServer"),
         ]
 
         self._total_servers = len(SERVERS)

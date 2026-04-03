@@ -24,6 +24,11 @@ output/
 # Database files
 memory/*.db
 vault/*.db
+*.db-shm
+*.db-wal
+
+# Test cache
+.pytest_cache/
 
 # IDE
 .vscode/
