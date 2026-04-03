@@ -1,8 +1,8 @@
 # Nexus Finance MCP Server
 
-> **131 tools for Korean & global financial research** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
+> **280 tools for global financial research & quant analysis** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
 
-The most comprehensive Korean financial data MCP server. 27 servers, 15 adapters, 131 tools covering Korean macro, real estate, stocks, crypto, global markets, and enterprise valuation — all through a single gateway.
+50 servers, 33 adapters, 280 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, and backtesting — all through a single gateway.
 
 ## Quick Connect
 
@@ -13,14 +13,18 @@ The most comprehensive Korean financial data MCP server. 27 servers, 15 adapters
   "mcpServers": {
     "nexus-finance": {
       "url": "http://62.171.141.206/mcp",
-      "transport": "streamable-http"
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN"
+      }
     }
   }
 }
 ```
 
-- **Claude Desktop:** `%APPDATA%\Claude\claude_desktop_config.json` 에 위 내용 추가 → 재시작
+- **Claude Desktop:** `%APPDATA%\Claude\claude_desktop_config.json` 에 추가 → 재시작
 - **Claude Code:** `claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp`
+- Bearer 토큰은 관리자에게 문의
 
 ### Self-hosted (직접 설치)
 
@@ -32,166 +36,154 @@ cp .env.template .env   # API 키 설정
 python server.py --transport streamable-http --port 8100
 ```
 
-## Tools (131)
+## Tools (280)
 
-### Korean Economy (한국 경제)
+### Korean Economy (한국 경제) — 25 tools
 
-| Server | Tools | Description |
-|--------|-------|-------------|
-| **ECOS** (7) | 기준금리, M2, GDP, 환율, CPI, PPI, 경상수지 외 | 한국은행 경제통계 (30개 지표) |
-| **KOSIS** (5) | 인구, 실업률, 주택가격, GDP, 가계소득 외 | 통계청 국가통계 (51개 테이블) |
-| **DART** (5) | 기업정보, 재무제표, 재무비율, 대주주, 기업검색 | 금융감독원 공시 (52개 종목) |
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **ECOS** (8) | 기준금리, M2, GDP, 환율, CPI, PPI, 경상수지, 채권금리 | 한국은행 ECOS |
+| **KOSIS** (5) | 인구, 실업률, 주택가격, 통계표 검색/조회 | 통계청 KOSIS |
+| **DART** (7) | 기업정보, 재무제표, 재무비율, 대주주, 현금흐름, 배당, 검색 | 금융감독원 OpenDART |
 | **FSC** (2) | 주가, 채권가격 | 금융위원회 data.go.kr |
 | **Stocks** (5) | 실시간 시세, 검색, 히스토리, 베타, 시장개요 | KIS + pykrx + Yahoo |
 
-### Korean Real Estate (부동산)
+### Korean Real Estate (부동산) — 8 tools
 
-| Server | Tools | Description |
-|--------|-------|-------------|
-| **R-ONE** (6) | 매매가격지수, 전세지수, PIR, 지역비교, 시장요약 | 한국부동산원 (72개 지역) |
-| **Realestate** (2) | 아파트 매매 실거래가, 시군구코드 목록 | 국토부 실거래가 (130+ 시군구) |
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **R-ONE** (6) | 매매가격지수, 전세지수, 전월세전환율, 지역비교, 시장요약, 지역목록 | KOSIS (부동산원 orgId=408) |
+| **Realestate** (2) | 아파트 실거래가, 시군구코드 | 국토부 MOLIT |
 
-### Global Markets
+### Global Markets — 32 tools
 
-| Server | Tools | Description |
-|--------|-------|-------------|
-| **FRED** (via Global Macro) | 40개 시리즈 (금리, GDP, CPI, 고용, 부동산, VIX) | 미국 연준 경제데이터 |
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **Global Macro** (6) | OECD, IMF, BIS, World Bank, 한국 스냅샷, 데이터셋 | 국제기구 API |
 | **US Equity** (4) | 미국 주가, 기업 프로필, 시장 뉴스, 경제일정 | Finnhub |
-| **Global Macro** (6) | OECD, IMF, BIS, World Bank (20개 지표), 한국 스냅샷 | 국제기구 데이터 |
-| **Crypto** (8) | 시세, 오더북, 김프, 거래소 비교, OHLCV | CCXT (Upbit/Binance 등) |
-| **Hist Crypto** (3) | 일봉/시간봉 OHLCV, 시총 상위 코인 | CryptoCompare (51개 코인) |
-| **DeFi** (4) | 프로토콜, TVL, Fear & Greed | DeFi Llama + Alternative.me |
+| **Asia Market** (8) | 홍콩(HSI), 대만(TWSE), 중국 지수/시세/히스토리 | Yahoo Finance |
+| **India** (3) | Nifty/Sensex, 인도 주가, 히스토리 | Yahoo Finance |
+| **Crypto** (8) | 시세, 오더북, 김프, 거래소비교, OHLCV, 스프레드, 거래량 | CCXT (Upbit/Binance) |
+| **DeFi** (4) | 프로토콜 TVL, 체인, Fear & Greed | DefiLlama |
+| **OnChain** (3) | ETH 잔액, 가스, 트랜잭션 | Etherscan |
 
-### Analysis & Valuation
+### Analysis & Visualization — 48 tools
 
-| Server | Tools | Description |
-|--------|-------|-------------|
-| **Valuation** (10) | DCF, WACC, 민감도분석, 피어비교, 크로스마켓 | DART + ECOS 연동 |
-| **Visualization** (10) | 라인, 바, 캔들, 히트맵, 산점도, 워터폴 등 | Plotly + Matplotlib |
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **Valuation** (10) | DCF, WACC, 민감도분석, 피어비교, 크로스마켓, GAAP정규화 | DART + ECOS |
+| **Technical** (5) | RSI, MACD, Bollinger, SMA/EMA, 종합요약 | pykrx |
+| **Viz** (33) | 30종 차트 + 지도 3종 (코로플레스/산점도/플로우) | Plotly + Matplotlib |
 
-### News & Research
+### News & Research — 29 tools
 
-| Server | Tools | Description |
-|--------|-------|-------------|
-| **News** (4) | 뉴스 검색, 감성분석 (98개 키워드), 키워드 볼륨, 트렌드 | Naver API |
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **News** (4) | 뉴스 검색, 감성분석, 키워드 볼륨, 트렌드 | Naver API |
 | **Global News** (3) | GDELT 글로벌 뉴스, 한국 뉴스, 타임라인 | GDELT |
-| **Academic** (9) | arXiv, Semantic Scholar, OpenAlex, 인용분석, 트렌딩 | 학술 데이터 |
+| **Academic** (9) | arXiv, Semantic Scholar, OpenAlex, 인용분석, 트렌딩 | 학술 API |
+| **Research** (6) | NANET, NKIS, 국립중앙도서관, PRISM, RISS, Scholar | 한국 연구기관 |
+| **RSS** (4) | 14개 금융 뉴스 피드 (Bloomberg, WSJ, CNBC, Reuters, FT 등) | RSS |
 | **Prediction** (3) | 예측시장, 이벤트, 마켓 디테일 | Polymarket |
 
-### Real Economy (실물 경제)
+### Real Economy — 30 tools
 
-| Server | Tools | Description |
-|--------|-------|-------------|
-| **Maritime** (4) | BDI, 컨테이너지수, 항만통계 (12개 항만), 운임 스냅샷 | FRED + 참조 |
-| **Aviation** (3) | 출발편 조회, 실시간 항공기, 한국 공항 (14개) | OpenSky |
-| **Energy** (5) | 원유, 천연가스, 에너지 스냅샷, 날씨 예보 (17개 도시) | EIA + Open-Meteo |
-| **Agriculture** (4) | 농산물 가격 (42개 품목코드), FAO 지수, 스냅샷 | KAMIS + FAO |
-| **Trade** (3) | 한국 수출입, 국가코드 (55개국) | UN Comtrade |
-| **Politics** (3) | 국회 법안, 금융 관련 법안, 최근 법안 | 국회 API |
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **Energy** (9) | 원유, 천연가스, OPEC, 전기, EIA, 벙커유, 스냅샷, 날씨 | EIA + Open-Meteo |
+| **Agriculture** (7) | 농산물(42품목), FAO 생산/무역, USDA, 스냅샷 | KAMIS + FAO + USDA |
+| **Maritime** (4) | BDI, 컨테이너지수, 항만통계, 운임 | FRED + 참조 |
+| **Aviation** (3) | 출발편, 실시간 항공기, 한국 공항 | OpenSky |
+| **Trade** (3) | 한국 수출입, 국가코드 | UN Comtrade v1 |
+| **Politics** (3) | 국회 법안, 금융 법안, 최근 법안 | 국회 API |
 | **Patent** (2) | 특허 검색, 트렌딩 | KIPRIS |
 
-### Infrastructure
+### Regulatory & Filings — 18 tools
+
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **SEC** (3) | XBRL 재무데이터, 공시 검색, 공시 텍스트 | SEC EDGAR |
+| **EDINET** (4) | 일본 기업/공시 검색, 문서상세, 기업정보 | 일본 EDINET |
+| **Regulation** (4) | EU 규제, FINRA, 핵심 금융규제 | EUR-Lex + FINRA |
+| **Consumer** (4) | 미국 주택/소매/소비심리, EU HICP | FRED + Eurostat |
+| **Health** (5) | FDA 의약품/리콜, 임상시험, PubMed, WHO | openFDA + NCBI |
+| **Environ** (2) | EPA 대기질, 탄소배출권 | EPA + KRBN ETF |
+
+### Quant Alternative Data — 32 tools
+
+| Server | Tools | Data Source | API 키 |
+|--------|-------|------------|--------|
+| **Space Weather** (5) | 흑점수(1818~), 태양 플레어, Kp지수, 태양풍, CME | SILSO + NASA + NOAA | 불필요 |
+| **Disaster** (6) | 지진, 화산, 산불, 홍수, 활성재해, 재해통계 | USGS + NASA EONET + GDACS | 불필요 |
+| **Climate** (6) | 과거날씨(1940~), 온도이상, 극한기상, ENSO, 도시비교, 곡물날씨 | Open-Meteo + NASA GISS | 불필요 |
+| **Sentiment** (5) | Google Trends, 위키 조회수, VADER, Fear&Greed, 키워드상관 | pytrends + Wikipedia | 불필요 |
+| **Conflict** (5) | 분쟁, 사상자, 국가리스크, 평화지수(163국), 지정학 이벤트 | UCDP + GPI | 토큰 필요 |
+| **Power Grid** (5) | EU 발전믹스, 전력가격, 탄소집약도, 원전상태, 재생에너지 | ENTSO-E + EIA | 선택 |
+
+### Quant Analysis Engine — 22 tools
 
 | Server | Tools | Description |
 |--------|-------|-------------|
-| **Vault** (6) | Obsidian 노트 읽기/쓰기/검색/목록/태그/최근 | 공유 지식베이스 |
-| **OnChain** (3) | ETH 잔액, 가스, 트랜잭션 | Etherscan |
-| **Gateway** (2) | 상태, 도구 목록 | 내부 |
+| **Quant Analysis** (8) | 상관분석, **시차상관**, 회귀분석, 그레인저인과, 공적분, VAR분산분해, 이벤트스터디, 레짐탐지 | 임의의 두 데이터 시리즈 간 관계 분석 |
+| **Time Series** (6) | 시계열분해, 정상성검정(ADF/KPSS), ARIMA예측, 계절성, 구조변화점, 교차상관 | 시계열 패턴 분석 및 예측 |
+| **Backtest** (8) | 전략백테스트(6내장전략), 비교, 최적화, 포트폴리오, 벤치마크, VaR/CVaR, 시그널이력, 낙폭분석 | 수수료/세금 포함 실전 시뮬레이션 |
+
+### Infrastructure — 22 tools
+
+| Server | Tools | Data Source |
+|--------|-------|------------|
+| **Vault** (6) | Obsidian 노트 CRUD + 검색 + 태그 | Obsidian Vault |
+| **Memory** (5) | 벡터+BM25 하이브리드 검색 기억 저장/검색 | SQLite + Ollama |
+| **Vault Index** (3) | 시맨틱 인덱싱, 시맨틱 검색, 유사노트 | Ollama bge-m3 |
+| **Ontology** (5) | 도메인 관계 지도, 인과체인, 영향분석, 도구추천, Vault 저장 | 17개 도메인 그래프 |
+| **Gateway** (3) | 상태, 도구 목록, API 호출 통계 | 내부 |
+
+## Example Workflows
+
+### 퀀트 분석 파이프라인
+
+```
+1. 데이터 수집:  space_sunspot_data() + ecos_get_base_rate() + stocks_history("005930")
+2. 상관 분석:    quant_lagged_correlation(흑점, 코스피, max_lag=24)
+3. 인과 검정:    quant_granger_causality(금리, 아파트, max_lag=12)
+4. 시계열 예측:  ts_forecast(아파트지수, horizon=12)
+5. 전략 백테스트: backtest_run(삼성전자, "RSI_oversold", 5년)
+6. 리스크 분석:  backtest_risk(삼성전자, "Momentum") → VaR/CVaR/Sharpe
+7. 시각화:       viz_line_chart(equity_curve) + viz_heatmap(correlation_matrix)
+```
+
+### 내장 백테스트 전략 (수수료 0.18% + 세금 0.18%)
+
+| Strategy | Logic | Best For |
+|----------|-------|----------|
+| `RSI_oversold` | RSI < 30 매수, > 70 매도 | 과매도 반등 |
+| `MACD_crossover` | MACD-시그널 돌파 | 추세 전환 |
+| `Bollinger_bounce` | 하단밴드 터치 | 변동성 회귀 |
+| `MA_cross` | 20/50 골든크로스 | 중기 추세 |
+| `Mean_reversion` | 평균 -2σ 매수 | 평균회귀 |
+| `Momentum` | N일 수익률 양수 | 모멘텀 |
 
 ## API Keys
 
-| Key | Source | Required | Coverage |
-|-----|--------|----------|----------|
-| `BOK_ECOS_API_KEY` | [ECOS](https://ecos.bok.or.kr) | **Yes** | 30 경제지표, 20 통화 환율 |
-| `DART_API_KEY` | [OpenDART](https://opendart.fss.or.kr) | **Yes** | 52개 종목 재무제표/공시 |
-| `KOSIS_API_KEY` | [KOSIS](https://kosis.kr/openapi/) | Optional | 51개 통계 테이블 |
-| `RONE_API_KEY` | [data.go.kr](https://data.go.kr) 한국부동산원 | Optional | 72개 지역 부동산 지표 |
-| `FRED_API_KEY` | [FRED](https://fred.stlouisfed.org/docs/api/) | Optional | 40개 미국 경제지표 |
-| `MOLIT_API_KEY` | [data.go.kr](https://data.go.kr) 국토부 | Optional | 130+ 시군구 실거래가 |
-| `FINNHUB_API_KEY` | [Finnhub](https://finnhub.io) | Optional | 미국 주식/경제일정 |
-| `NAVER_CLIENT_ID/SECRET` | [Naver Developers](https://developers.naver.com) | Optional | 뉴스 검색/감성분석 |
-| `ETHERSCAN_API_KEY` | [Etherscan](https://etherscan.io/apis) | Optional | 온체인 데이터 |
-| `EIA_API_KEY` | [EIA](https://www.eia.gov/opendata/) | Optional | 에너지 가격 |
-| `KIS_API_KEY` | [한국투자증권](https://apiportal.koreainvestment.com) | Optional | 실시간 한국 주가 |
+| Key | Required | Coverage |
+|-----|----------|----------|
+| `BOK_ECOS_API_KEY` | **Yes** | 한국은행 30+ 경제지표 |
+| `DART_API_KEY` | **Yes** | 금감원 기업공시 |
+| `KOSIS_API_KEY` | Recommended | 통계청 + 부동산원 |
+| `FRED_API_KEY` | Recommended | 미국 연준 |
+| `FINNHUB_API_KEY` | Optional | 미국 주식 |
+| `ETHERSCAN_API_KEY` | Optional | 이더리움 온체인 |
+| `EIA_API_KEY` | Optional | 미국 에너지 |
+| `NAVER_CLIENT_ID/SECRET` | Optional | 네이버 뉴스 |
+| `KIS_API_KEY` | Optional | 한국투자증권 실시간 |
+| `NASA_API_KEY` | Optional | NASA (DEMO_KEY 가능) |
 
-## Usage Examples
-
-```
-"삼성전자 DCF 분석해줘"
-→ DART 실제 재무제표 → ECOS 기준금리 → DCF 적정주가 산출
-
-"현재 한국 매크로 상황"
-→ 기준금리, 환율, GDP, M2, CPI, 실업률, BSI, CSI 스냅샷
-
-"SK하이닉스 vs 마이크론 비교"
-→ K-IFRS ↔ US-GAAP 정규화 → 멀티플 비교 → 코리아 디스카운트 분석
-
-"서울 강남구 아파트 실거래가"
-→ 국토부 실거래가 API (시군구코드 11680)
-
-"전월세전환율 찾아줘"
-→ KOSIS 51개 테이블에서 검색 → DT_30404_N0033
-
-"비트코인 김치 프리미엄"
-→ 업비트 vs 바이낸스 실시간 비교
-
-"한국 수출 동향 (미국, 중국, 베트남)"
-→ UN Comtrade 데이터 (55개국 코드)
-
-"금리 관련 ECOS 통계 검색"
-→ 834개 ECOS 테이블에서 키워드 필터링 → 21건 매칭
-```
-
-## Architecture
-
-```
-Client (Claude Desktop / Claude Code / AI Agent)
-        │
-        ▼ streamable-http
-   Gateway Server (FastMCP v3.x)
-   ├─ /health (헬스체크)
-   ├─ /mcp (MCP 엔드포인트)
-   │
-   ├── 27 Sub-servers
-   │   ├── Korean Economy: ECOS, KOSIS, DART, FSC, Stocks
-   │   ├── Real Estate: R-ONE, Realestate Trans
-   │   ├── Global: FRED/Macro, US Equity, Crypto, DeFi
-   │   ├── Analysis: Valuation, Visualization
-   │   ├── News: News, Global News, Academic, Prediction
-   │   ├── Real Economy: Maritime, Aviation, Energy, Agriculture, Trade, Politics, Patent
-   │   └── Infra: Vault, OnChain, Gateway
-   │
-   ├── 15 Adapters
-   │   DART, KIS, KRX, Yahoo, FRED, CoinGecko, CCXT,
-   │   Naver, Finnhub, Etherscan, CryptoCompare, MOLIT, FSC,
-   │   Global Macro (OECD/IMF/BIS/WB), Phase3 (Maritime/Aviation/...)
-   │
-   └── Core
-       ├── Cache Manager (4-tier TTL)
-       ├── Rate Limiter (per-source)
-       └── Fallback Chain
-```
+Phase 7 대체데이터 (우주/재해/기후/센티멘트) — 대부분 **API 키 불필요**.
 
 ## Data Policy
 
 **Real data only.** No sample data, mock data, or fake data — ever.
 API 호출 실패 시 가짜 데이터로 대체하지 않고 명확한 에러 메시지를 반환합니다.
-
-## Deployment
-
-```bash
-# systemd service
-sudo cp nexus-finance-mcp.service /etc/systemd/system/
-sudo systemctl enable nexus-finance-mcp
-sudo systemctl start nexus-finance-mcp
-
-# Health check
-curl http://127.0.0.1:8100/health
-# {"status":"ok","loaded_servers":27,"tool_count":131}
-
-# nginx reverse proxy (optional, for public access)
-# See /etc/nginx/sites-enabled/default
-```
 
 ## License
 
@@ -199,4 +191,4 @@ MIT
 
 ---
 
-*Part of the [Luxon AI Agent Network](https://github.com/pollmap)*
+*v5.0.0-phase8 | 280 tools / 50 servers | [Luxon AI Agent Network](https://github.com/pollmap)*
