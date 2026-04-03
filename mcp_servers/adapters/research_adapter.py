@@ -6,9 +6,11 @@ Most use data.go.kr unified gateway API key.
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("research_adapter")
 
 
 class ResearchAdapter:
@@ -30,7 +32,7 @@ class ResearchAdapter:
                 "maxCount": count,
                 "output": "json",
             }
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             items = data.get("result", data.get("items", []))
@@ -65,7 +67,7 @@ class ResearchAdapter:
                 "numOfRows": count,
                 "type": "json",
             }
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             body = data.get("response", {}).get("body", {})
@@ -101,7 +103,7 @@ class ResearchAdapter:
                 "numOfRows": count,
                 "type": "json",
             }
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             body = data.get("response", {}).get("body", {})
@@ -136,7 +138,7 @@ class ResearchAdapter:
                 "page_size": count,
                 "kwd": query,
             }
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             items = data.get("docs", data.get("result", []))
@@ -169,7 +171,7 @@ class ResearchAdapter:
                 "numOfRows": count,
                 "type": "json",
             }
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             body = data.get("response", {}).get("body", {})

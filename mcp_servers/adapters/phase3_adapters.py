@@ -7,10 +7,12 @@ Covers: Maritime, Aviation, Energy, Agriculture, Trade, Politics, Patent.
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+_session = get_session("phase3_adapters")
 
 
 # ============================================================
@@ -26,7 +28,7 @@ class MaritimeAdapter:
             api_key = os.getenv("FRED_API_KEY", "")
             params = {"series_id": "DBDI", "api_key": api_key, "file_type": "json",
                       "sort_order": "desc", "limit": 30}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
             return {"success": True, "source": "FRED/DBDI", "count": len(records), "data": records}
@@ -63,7 +65,7 @@ class MaritimeAdapter:
             api_key = os.getenv("FRED_API_KEY", "")
             params = {"series_id": "FBXIUS", "api_key": api_key, "file_type": "json",
                       "sort_order": "desc", "limit": 30}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
             return {"success": True, "source": "FRED/FBXIUS", "index": "Freightos Baltic Index (US)", "count": len(records), "data": records}
@@ -84,7 +86,7 @@ class AviationAdapter:
         try:
             end = int(datetime.now().timestamp())
             begin = end - (hours * 3600)
-            resp = requests.get(f"{self.BASE}/flights/departure", params={"airport": airport, "begin": begin, "end": end}, timeout=20)
+            resp = _session.get(f"{self.BASE}/flights/departure", params={"airport": airport, "begin": begin, "end": end}, timeout=20)
             if resp.status_code == 200:
                 flights = resp.json()[:30]
                 return {"success": True, "airport": airport, "count": len(flights), "flights": flights}
@@ -98,7 +100,7 @@ class AviationAdapter:
             params = {}
             if country:
                 params["icao24"] = country
-            resp = requests.get(f"{self.BASE}/states/all", params=params, timeout=20)
+            resp = _session.get(f"{self.BASE}/states/all", params=params, timeout=20)
             if resp.status_code == 200:
                 data = resp.json()
                 states = data.get("states", [])[:50]
@@ -128,7 +130,7 @@ class EnergyAdapter:
             params = {"api_key": self._api_key, "frequency": "daily", "data[0]": "value",
                       "facets[series][]": "RWTC", "sort[0][column]": "period",
                       "sort[0][direction]": "desc", "length": limit}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json().get("response", {}).get("data", [])
             records = [{"date": d.get("period"), "price": d.get("value"), "unit": "$/barrel"} for d in data]
             return {"success": True, "source": "EIA", "series": "WTI Crude", "count": len(records), "data": records}
@@ -141,7 +143,7 @@ class EnergyAdapter:
             url = f"{self.BASE}/natural-gas/pri/fut/data/"
             params = {"api_key": self._api_key, "frequency": "daily", "data[0]": "value",
                       "sort[0][column]": "period", "sort[0][direction]": "desc", "length": limit}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json().get("response", {}).get("data", [])
             records = [{"date": d.get("period"), "price": d.get("value")} for d in data]
             return {"success": True, "source": "EIA", "series": "Natural Gas", "count": len(records), "data": records}
@@ -164,7 +166,7 @@ class EnergyAdapter:
                       "sort[0][column]": "period", "sort[0][direction]": "desc", "length": limit}
             if series_id:
                 params["facets[series][]"] = series_id
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json().get("response", {}).get("data", [])
             records = [{"date": d.get("period"), "value": d.get("value"), "unit": d.get("units", "")} for d in data]
             return {"success": True, "source": "EIA", "route": route, "count": len(records), "data": records}
@@ -183,7 +185,7 @@ class EnergyAdapter:
             url = "https://api.stlouisfed.org/fred/series/observations"
             params = {"series_id": "DHOILNYH", "api_key": api_key, "file_type": "json",
                       "sort_order": "desc", "limit": 30}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "price": d["value"], "unit": "$/gallon"} for d in data if d["value"] != "."]
             if records:
@@ -209,7 +211,7 @@ class WeatherAdapter:
         try:
             params = {"latitude": lat, "longitude": lon, "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
                       "timezone": "Asia/Seoul", "forecast_days": days}
-            resp = requests.get(self.BASE, params=params, timeout=10)
+            resp = _session.get(self.BASE, params=params, timeout=10)
             data = resp.json()
             daily = data.get("daily", {})
             records = []
@@ -238,7 +240,7 @@ class AgricultureAdapter:
             params = {"action": "periodProductList", "p_productclscode": product_cls_code,
                       "p_regday": today, "p_countrycode": country_code,
                       "p_cert_key": api_key, "p_cert_id": os.getenv("KAMIS_CERT_ID", "luxon"), "p_returntype": "json"}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json()
             raw = data.get("data", {})
             if isinstance(raw, list):
@@ -267,7 +269,7 @@ class AgricultureAdapter:
             params = {"area": area_code, "item": item_code, "element": "5510",
                       "year": ",".join(str(y) for y in range(2015, 2026)),
                       "output_type": "objects", "limit": limit}
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             data = resp.json().get("data", [])
             records = [{"year": d.get("Year"), "value": d.get("Value"), "unit": d.get("Unit"), "item": d.get("Item")} for d in data]
             return {"success": True, "source": "FAOSTAT/QCL", "count": len(records), "data": records}
@@ -281,7 +283,7 @@ class AgricultureAdapter:
             params = {"area": area_code, "item": item_code, "element": "5910",
                       "year": ",".join(str(y) for y in range(2015, 2026)),
                       "output_type": "objects", "limit": limit}
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             data = resp.json().get("data", [])
             records = [{"year": d.get("Year"), "value": d.get("Value"), "unit": d.get("Unit"), "item": d.get("Item")} for d in data]
             return {"success": True, "source": "FAOSTAT/TCL", "count": len(records), "data": records}
@@ -293,7 +295,7 @@ class AgricultureAdapter:
         try:
             url = "https://apps.fas.usda.gov/PSDOnline/api/CommodityData"
             params = {"commodityName": commodity, "countryName": country}
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code == 200:
                 raw = resp.json()
                 data = raw[:20] if isinstance(raw, list) else []
@@ -316,7 +318,7 @@ class TradeAdapter:
         try:
             params = {"reporterCode": reporter, "partnerCode": partner, "flowCode": flow,
                       "cmdCode": hs_code, "period": period, "maxRecords": 20}
-            resp = requests.get(self.BASE + "/getTarifflineData", params=params, timeout=20)
+            resp = _session.get(self.BASE + "/getTarifflineData", params=params, timeout=20)
             if resp.status_code == 200:
                 data = resp.json().get("data", [])
                 return {"success": True, "source": "UN Comtrade", "count": len(data), "data": data[:20]}
@@ -338,7 +340,7 @@ class PoliticsAdapter:
             api_key = os.getenv("ASSEMBLY_API_KEY", os.getenv("DATA_GO_KR_API_KEY", ""))
             url = f"{self.BASE}/TVBPMBILL11"
             params = {"Key": api_key, "Type": "json", "pSize": limit, "AGE": age}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json()
             rows = data.get("TVBPMBILL11", [{}])
             if len(rows) > 1:
@@ -361,7 +363,7 @@ class PatentAdapter:
             api_key = os.getenv("KIPRIS_API_KEY", os.getenv("DATA_GO_KR_API_KEY", ""))
             url = "https://plus.kipris.or.kr/kipo-api/kipi/patUtiModInfoSearchSevice/getAdvancedSearch"
             params = {"ServiceKey": api_key, "word": keyword, "numOfRows": limit, "pageNo": 1}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             if "xml" in resp.headers.get("content-type", ""):
                 import xml.etree.ElementTree as ET
                 root = ET.fromstring(resp.text)

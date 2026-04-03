@@ -1,10 +1,12 @@
 """Sentiment & Attention Adapter — Google Trends, Wikipedia, VADER, Fear&Greed."""
 import logging
 import requests
+from utils.http_client import get_session
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+_session = get_session("sentiment_adapter")
 
 
 class SentimentAdapter:
@@ -82,7 +84,7 @@ class SentimentAdapter:
                     f"/{article_clean}/daily/{start_str}/{end_str}"
                 )
                 headers = {"User-Agent": self._user_agent}
-                resp = requests.get(url, headers=headers, timeout=15)
+                resp = _session.get(url, headers=headers, timeout=15)
 
                 if resp.status_code != 200:
                     results.append({
@@ -168,7 +170,7 @@ class SentimentAdapter:
     def get_fear_greed_multi(self) -> Dict[str, Any]:
         """Crypto Fear & Greed Index — last 30 days with interpretation."""
         try:
-            resp = requests.get(self._fng_url, params={"limit": 30}, timeout=15)
+            resp = _session.get(self._fng_url, params={"limit": 30}, timeout=15)
             if resp.status_code != 200:
                 return {"error": True, "message": f"Fear&Greed API returned {resp.status_code}"}
 

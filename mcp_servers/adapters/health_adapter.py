@@ -2,9 +2,11 @@
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("health_adapter")
 
 
 class HealthAdapter:
@@ -21,7 +23,7 @@ class HealthAdapter:
             params = {"search": query, "limit": limit}
             if self._fda_key:
                 params["api_key"] = self._fda_key
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             results = data.get("results", [])
@@ -47,7 +49,7 @@ class HealthAdapter:
             params = {"search": query, "limit": limit}
             if self._fda_key:
                 params["api_key"] = self._fda_key
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             results = data.get("results", [])
@@ -71,7 +73,7 @@ class HealthAdapter:
         try:
             url = "https://clinicaltrials.gov/api/v2/studies"
             params = {"query.term": query, "filter.overallStatus": status, "pageSize": limit, "format": "json"}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             studies = data.get("studies", [])
@@ -106,7 +108,7 @@ class HealthAdapter:
             params = {"db": "pubmed", "term": query, "retmax": limit, "retmode": "json"}
             if self._ncbi_key:
                 params["api_key"] = self._ncbi_key
-            resp = requests.get(search_url, params=params, timeout=15)
+            resp = _session.get(search_url, params=params, timeout=15)
             search_data = (resp.json() if resp.status_code == 200 else {}).get("esearchresult", {})
             id_list = search_data.get("idlist", [])
 
@@ -118,7 +120,7 @@ class HealthAdapter:
             params = {"db": "pubmed", "id": ",".join(id_list), "retmode": "json"}
             if self._ncbi_key:
                 params["api_key"] = self._ncbi_key
-            resp = requests.get(summary_url, params=params, timeout=15)
+            resp = _session.get(summary_url, params=params, timeout=15)
             result_data = (resp.json() if resp.status_code == 200 else {}).get("result", {})
 
             records = []
@@ -146,7 +148,7 @@ class HealthAdapter:
         try:
             url = f"https://ghoapi.azureedge.net/api/{indicator_code}"
             params = {"$filter": f"SpatialDim eq '{country}'", "$orderby": "TimeDim desc", "$top": 20}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json() if resp.status_code == 200 else {}
 
             values = data.get("value", [])

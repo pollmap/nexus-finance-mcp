@@ -2,9 +2,11 @@
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("environ_adapter")
 
 
 class EnvironAdapter:
@@ -25,7 +27,7 @@ class EnvironAdapter:
                 "edate": f"{year}1231",
                 "state": state,
             }
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             data = resp.json() if resp.status_code == 200 else {}
 
             results = data.get("Data", [])[:20]

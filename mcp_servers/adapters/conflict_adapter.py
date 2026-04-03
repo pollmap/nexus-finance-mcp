@@ -2,10 +2,12 @@
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+_session = get_session("conflict_adapter")
 
 
 class ConflictAdapter:
@@ -32,7 +34,7 @@ class ConflictAdapter:
                 headers["x-ucdp-access-token"] = self._ucdp_token
             else:
                 return {"error": True, "message": "UCDP API requires token. Set UCDP_API_TOKEN env var. Register free at https://ucdp.uu.se/apidocs/"}
-            resp = requests.get(url, params=params, headers=headers, timeout=30)
+            resp = _session.get(url, params=params, headers=headers, timeout=30)
             if resp.status_code != 200:
                 return {"error": True, "message": f"UCDP GED API returned {resp.status_code}"}
 
@@ -82,7 +84,7 @@ class ConflictAdapter:
                 if country:
                     params["Country"] = country
                 headers = {"Accept": "application/json", "x-ucdp-access-token": self._ucdp_token}
-                resp = requests.get(url, params=params, headers=headers, timeout=30)
+                resp = _session.get(url, params=params, headers=headers, timeout=30)
                 if resp.status_code != 200:
                     yearly_data.append({"year": yr, "total_deaths": None, "events": 0, "error": f"HTTP {resp.status_code}"})
                     continue
@@ -122,7 +124,7 @@ class ConflictAdapter:
                 url = f"{self._ucdp_base}/gedevents/25.0.0"
                 params = {"pagesize": 100, "Year": yr, "Country": country_name}
                 headers = {"Accept": "application/json", "x-ucdp-access-token": self._ucdp_token}
-                resp = requests.get(url, params=params, headers=headers, timeout=30)
+                resp = _session.get(url, params=params, headers=headers, timeout=30)
                 if resp.status_code != 200:
                     continue
 
@@ -217,7 +219,7 @@ class ConflictAdapter:
                 "Country": query,
             }
             headers = {"Accept": "application/json"}
-            resp = requests.get(url, params=params, headers=headers, timeout=30)
+            resp = _session.get(url, params=params, headers=headers, timeout=30)
             if resp.status_code != 200:
                 return {"error": True, "message": f"UCDP API returned {resp.status_code}"}
 
@@ -257,7 +259,7 @@ class ConflictAdapter:
                 "event_date_where": "BETWEEN",
                 "limit": 50,
             }
-            resp = requests.get(url, params=params, timeout=30)
+            resp = _session.get(url, params=params, timeout=30)
             if resp.status_code != 200:
                 return {"error": True, "message": f"ACLED API returned {resp.status_code}"}
 

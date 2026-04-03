@@ -7,9 +7,11 @@ Base URL: https://api.etherscan.io/v2/api
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("etherscan_adapter")
 
 BASE_URL = "https://api.etherscan.io/v2/api"
 
@@ -27,7 +29,7 @@ class EtherscanAdapter:
         try:
             params["apikey"] = self._api_key
             params["chainid"] = chainid
-            resp = requests.get(BASE_URL, params=params, timeout=15)
+            resp = _session.get(BASE_URL, params=params, timeout=15)
             data = resp.json()
             if data.get("status") == "1" or data.get("message") == "OK":
                 return {"success": True, "result": data.get("result")}

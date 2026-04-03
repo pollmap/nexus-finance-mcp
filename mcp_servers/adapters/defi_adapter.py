@@ -4,10 +4,11 @@ DeFi Adapter — DefiLlama (TVL/protocols) + Fear & Greed Index.
 Both APIs are completely free, no authentication needed.
 """
 import logging
-import requests
 from typing import Any, Dict
+from utils.http_client import get_session
 
 logger = logging.getLogger(__name__)
+_session = get_session("defi")
 
 DEFILLAMA_BASE = "https://api.llama.fi"
 FEARGREED_URL = "https://api.alternative.me/fng/"
@@ -19,7 +20,7 @@ class DefiLlamaAdapter:
     def get_protocols(self, limit: int = 30) -> Dict[str, Any]:
         """Get top protocols by TVL."""
         try:
-            resp = requests.get(f"{DEFILLAMA_BASE}/protocols", timeout=15)
+            resp = _session.get(f"{DEFILLAMA_BASE}/protocols", timeout=15)
             resp.raise_for_status()
             data = resp.json()
             protocols = [
@@ -40,7 +41,7 @@ class DefiLlamaAdapter:
     def get_protocol(self, slug: str) -> Dict[str, Any]:
         """Get single protocol detail by slug (e.g., 'aave', 'uniswap')."""
         try:
-            resp = requests.get(f"{DEFILLAMA_BASE}/protocol/{slug}", timeout=15)
+            resp = _session.get(f"{DEFILLAMA_BASE}/protocol/{slug}", timeout=15)
             resp.raise_for_status()
             data = resp.json()
             return {
@@ -57,7 +58,7 @@ class DefiLlamaAdapter:
     def get_chains(self) -> Dict[str, Any]:
         """Get TVL by chain."""
         try:
-            resp = requests.get(f"{DEFILLAMA_BASE}/v2/chains", timeout=15)
+            resp = _session.get(f"{DEFILLAMA_BASE}/v2/chains", timeout=15)
             resp.raise_for_status()
             data = resp.json()
             chains = [
@@ -71,7 +72,7 @@ class DefiLlamaAdapter:
     def get_stablecoins(self) -> Dict[str, Any]:
         """Get stablecoin market cap data."""
         try:
-            resp = requests.get(f"{DEFILLAMA_BASE}/stablecoins", timeout=15)
+            resp = _session.get(f"{DEFILLAMA_BASE}/stablecoins", timeout=15)
             resp.raise_for_status()
             data = resp.json()
             stables = []
@@ -92,7 +93,7 @@ class FearGreedAdapter:
     def get_current(self) -> Dict[str, Any]:
         """Get current Fear & Greed value."""
         try:
-            resp = requests.get(f"{FEARGREED_URL}?limit=1&date_format=kr", timeout=10)
+            resp = _session.get(f"{FEARGREED_URL}?limit=1&date_format=kr", timeout=10)
             resp.raise_for_status()
             data = resp.json()
             entry = data.get("data", [{}])[0]
@@ -108,7 +109,7 @@ class FearGreedAdapter:
     def get_history(self, days: int = 30) -> Dict[str, Any]:
         """Get historical Fear & Greed values."""
         try:
-            resp = requests.get(f"{FEARGREED_URL}?limit={days}&date_format=kr", timeout=10)
+            resp = _session.get(f"{FEARGREED_URL}?limit={days}&date_format=kr", timeout=10)
             resp.raise_for_status()
             data = resp.json()
             history = [

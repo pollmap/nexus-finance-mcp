@@ -2,10 +2,12 @@
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+_session = get_session("power_grid_adapter")
 
 
 class PowerGridAdapter:
@@ -123,7 +125,7 @@ class PowerGridAdapter:
             if self._elecmaps_token:
                 headers["auth-token"] = self._elecmaps_token
 
-            resp = requests.get(url, params=params, headers=headers, timeout=15)
+            resp = _session.get(url, params=params, headers=headers, timeout=15)
             if resp.status_code == 401:
                 return {
                     "error": True,
@@ -166,7 +168,7 @@ class PowerGridAdapter:
                 "sort[0][direction]": "desc",
                 "frequency": "daily",
             }
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"EIA API returned {resp.status_code}"}
 
@@ -202,7 +204,7 @@ class PowerGridAdapter:
             if self._elecmaps_token:
                 headers["auth-token"] = self._elecmaps_token
 
-            resp = requests.get(url, params=params, headers=headers, timeout=15)
+            resp = _session.get(url, params=params, headers=headers, timeout=15)
             if resp.status_code == 401:
                 return {
                     "error": True,

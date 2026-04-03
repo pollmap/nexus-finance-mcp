@@ -6,11 +6,13 @@ API v2: https://api.edinet-fsa.go.jp/api/v2/
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 from mcp_servers.core.rate_limiter import get_limiter
 
 logger = logging.getLogger(__name__)
+_session = get_session("edinet_adapter")
 
 BASE_URL = "https://api.edinet-fsa.go.jp/api/v2"
 
@@ -43,7 +45,7 @@ class EDINETAdapter:
 
             url = f"{BASE_URL}/documents.json"
             params = {"date": date, "type": filing_type, "Subscription-Key": self._api_key}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {})
 
             results = data.get("results", [])
@@ -88,7 +90,7 @@ class EDINETAdapter:
                 date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
                 url = f"{BASE_URL}/documents.json"
                 params = {"date": date, "type": filing_type, "Subscription-Key": self._api_key}
-                resp = requests.get(url, params=params, timeout=10)
+                resp = _session.get(url, params=params, timeout=10)
                 data = (resp.json() if resp.status_code == 200 else {})
 
                 for r in data.get("results", []):
@@ -123,7 +125,7 @@ class EDINETAdapter:
             self._rate_limit()
             url = f"{BASE_URL}/documents/{doc_id}"
             params = {"type": 1, "Subscription-Key": self._api_key}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
 
             if resp.status_code == 200:
                 # Type 1 returns metadata JSON
@@ -152,7 +154,7 @@ class EDINETAdapter:
             # EDINET code list API
             url = f"{BASE_URL}/edinetcode.json"
             params = {"Subscription-Key": self._api_key}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {})
 
             results = data.get("results", [])

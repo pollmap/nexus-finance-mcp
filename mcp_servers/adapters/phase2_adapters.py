@@ -8,10 +8,12 @@ Phase 2 Additional Adapters:
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from datetime import datetime
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("phase2_adapters")
 
 
 class CryptoCompareAdapter:
@@ -29,7 +31,7 @@ class CryptoCompareAdapter:
 
     def get_daily_ohlcv(self, fsym: str = "BTC", tsym: str = "USD", limit: int = 100) -> Dict[str, Any]:
         try:
-            resp = requests.get(f"{self.BASE}/histoday", headers=self._headers(),
+            resp = _session.get(f"{self.BASE}/histoday", headers=self._headers(),
                 params={"fsym": fsym, "tsym": tsym, "limit": limit}, timeout=15)
             resp.raise_for_status()
             data = resp.json().get("Data", {}).get("Data", [])
@@ -41,7 +43,7 @@ class CryptoCompareAdapter:
 
     def get_hourly_ohlcv(self, fsym: str = "BTC", tsym: str = "USD", limit: int = 100) -> Dict[str, Any]:
         try:
-            resp = requests.get(f"{self.BASE}/histohour", headers=self._headers(),
+            resp = _session.get(f"{self.BASE}/histohour", headers=self._headers(),
                 params={"fsym": fsym, "tsym": tsym, "limit": limit}, timeout=15)
             resp.raise_for_status()
             data = resp.json().get("Data", {}).get("Data", [])
@@ -53,7 +55,7 @@ class CryptoCompareAdapter:
 
     def get_top_coins(self, tsym: str = "USD", limit: int = 20) -> Dict[str, Any]:
         try:
-            resp = requests.get("https://min-api.cryptocompare.com/data/top/mktcapfull",
+            resp = _session.get("https://min-api.cryptocompare.com/data/top/mktcapfull",
                 headers=self._headers(), params={"tsym": tsym, "limit": limit}, timeout=15)
             coins = []
             for d in resp.json().get("Data", []):
@@ -82,7 +84,7 @@ class FinnhubAdapter:
         if not self._api_key:
             return {"error": True, "message": "FINNHUB_API_KEY not set"}
         try:
-            resp = requests.get(f"{self.BASE}/quote", params=self._params(symbol=symbol), timeout=10)
+            resp = _session.get(f"{self.BASE}/quote", params=self._params(symbol=symbol), timeout=10)
             d = resp.json()
             return {"success": True, "symbol": symbol, "current": d.get("c"), "change": d.get("d"),
                     "change_pct": d.get("dp"), "high": d.get("h"), "low": d.get("l"), "open": d.get("o"),
@@ -94,7 +96,7 @@ class FinnhubAdapter:
         if not self._api_key:
             return {"error": True, "message": "FINNHUB_API_KEY not set"}
         try:
-            resp = requests.get(f"{self.BASE}/stock/profile2", params=self._params(symbol=symbol), timeout=10)
+            resp = _session.get(f"{self.BASE}/stock/profile2", params=self._params(symbol=symbol), timeout=10)
             return {"success": True, **resp.json()}
         except Exception as e:
             return {"error": True, "message": str(e)}
@@ -103,7 +105,7 @@ class FinnhubAdapter:
         if not self._api_key:
             return {"error": True, "message": "FINNHUB_API_KEY not set"}
         try:
-            resp = requests.get(f"{self.BASE}/calendar/economic", params=self._params(), timeout=10)
+            resp = _session.get(f"{self.BASE}/calendar/economic", params=self._params(), timeout=10)
             events = resp.json().get("economicCalendar", [])[:30]
             return {"success": True, "count": len(events), "events": events}
         except Exception as e:
@@ -113,7 +115,7 @@ class FinnhubAdapter:
         if not self._api_key:
             return {"error": True, "message": "FINNHUB_API_KEY not set"}
         try:
-            resp = requests.get(f"{self.BASE}/news", params=self._params(category=category), timeout=10)
+            resp = _session.get(f"{self.BASE}/news", params=self._params(category=category), timeout=10)
             news = [{"headline": n.get("headline"), "source": n.get("source"),
                      "url": n.get("url"), "datetime": n.get("datetime")} for n in resp.json()[:20]]
             return {"success": True, "count": len(news), "news": news}
@@ -157,7 +159,7 @@ class FSCAdapter:
             url = f"{self.BASE}/GetStockSecuritiesInfoService/getStockPriceInfo"
             params = {"serviceKey": self._api_key, "resultType": "json",
                       "likeSrtnCd": stock_code, "numOfRows": num_of_rows}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json()
             items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
             return {"success": True, "stock_code": stock_code, "count": len(items), "data": items[:num_of_rows]}
@@ -168,7 +170,7 @@ class FSCAdapter:
         try:
             url = f"{self.BASE}/GetBondIssuInfoService/getBondPriceInfo"
             params = {"serviceKey": self._api_key, "resultType": "json", "numOfRows": num_of_rows}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = resp.json()
             items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
             return {"success": True, "count": len(items), "data": items}

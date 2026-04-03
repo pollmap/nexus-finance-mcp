@@ -7,10 +7,12 @@ Free: 25,000 calls/day
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
+_session = get_session("naver_adapter")
 
 
 class NaverAdapter:
@@ -45,7 +47,7 @@ class NaverAdapter:
 
         try:
             params = {"query": query, "display": min(display, 100), "sort": sort}
-            resp = requests.get(self.NEWS_URL, headers=self._headers(), params=params, timeout=10)
+            resp = _session.get(self.NEWS_URL, headers=self._headers(), params=params, timeout=10)
             resp.raise_for_status()
             data = resp.json()
 

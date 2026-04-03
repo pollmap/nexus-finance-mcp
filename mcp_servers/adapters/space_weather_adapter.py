@@ -2,10 +2,12 @@
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from datetime import datetime, timedelta
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("space_weather_adapter")
 
 
 class SpaceWeatherAdapter:
@@ -18,7 +20,7 @@ class SpaceWeatherAdapter:
         """SILSO 월별 태양흑점 수 (최근 120개월)."""
         try:
             url = "https://www.sidc.be/SILSO/INFO/snmtotcsv.php"
-            resp = requests.get(url, timeout=20)
+            resp = _session.get(url, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"SILSO API returned {resp.status_code}"}
 
@@ -64,7 +66,7 @@ class SpaceWeatherAdapter:
                 "endDate": end,
                 "api_key": self._nasa_key,
             }
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NASA DONKI returned {resp.status_code}"}
 
@@ -95,7 +97,7 @@ class SpaceWeatherAdapter:
         """NOAA SWPC 행성 Kp 지수 (지자기 활동)."""
         try:
             url = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
-            resp = requests.get(url, timeout=15)
+            resp = _session.get(url, timeout=15)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NOAA SWPC returned {resp.status_code}"}
 
@@ -135,7 +137,7 @@ class SpaceWeatherAdapter:
         """NOAA SWPC 태양풍 플라즈마 데이터 (7일)."""
         try:
             url = "https://services.swpc.noaa.gov/products/solar-wind/plasma-7-day.json"
-            resp = requests.get(url, timeout=15)
+            resp = _session.get(url, timeout=15)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NOAA SWPC returned {resp.status_code}"}
 
@@ -178,7 +180,7 @@ class SpaceWeatherAdapter:
                 "endDate": end,
                 "api_key": self._nasa_key,
             }
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NASA DONKI returned {resp.status_code}"}
 

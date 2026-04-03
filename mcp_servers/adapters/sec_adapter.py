@@ -4,11 +4,13 @@ import os
 import re
 from urllib.parse import urlparse, urlencode
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 from mcp_servers.core.rate_limiter import get_limiter
 
 logger = logging.getLogger(__name__)
+_session = get_session("sec_adapter")
 
 CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "research@nexus.finance")
 HEADERS = {"User-Agent": f"NexusFinanceMCP {CONTACT_EMAIL}", "Accept-Encoding": "gzip, deflate"}
@@ -33,7 +35,7 @@ class SECAdapter:
         """Resolve ticker to CIK (zero-padded 10 digits)."""
         if self._ticker_map is None:
             try:
-                resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=HEADERS, timeout=10)
+                resp = _session.get("https://www.sec.gov/files/company_tickers.json", headers=HEADERS, timeout=10)
                 data = resp.json()
                 SECAdapter._ticker_map = {v["ticker"].upper(): str(v["cik_str"]).zfill(10) for v in data.values()}
             except Exception:
@@ -47,7 +49,7 @@ class SECAdapter:
             url = "https://efts.sec.gov/LATEST/search-index"
             params = {"q": query, "forms": form_type, "dateRange": "custom",
                       "startdt": "2020-01-01", "enddt": "2026-12-31"}
-            resp = requests.get(url, params=params, headers=HEADERS, timeout=15)
+            resp = _session.get(url, params=params, headers=HEADERS, timeout=15)
 
             data = resp.json() if resp.status_code == 200 else {}
             hits = data.get("hits", {}).get("hits", [])[:limit]
@@ -80,7 +82,7 @@ class SECAdapter:
                 return {"error": True, "message": f"Ticker '{ticker}' not found in SEC database"}
 
             url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-            resp = requests.get(url, headers=HEADERS, timeout=15)
+            resp = _session.get(url, headers=HEADERS, timeout=15)
             if resp.status_code != 200:
                 return {"error": True, "message": f"SEC API returned HTTP {resp.status_code}"}
 
@@ -129,7 +131,7 @@ class SECAdapter:
             if parsed.hostname not in ALLOWED_SEC_HOSTS or parsed.scheme not in ("https", "http"):
                 return {"error": True, "message": "Only SEC EDGAR URLs (sec.gov) are allowed"}
 
-            resp = requests.get(filing_url, headers=HEADERS, timeout=20)
+            resp = _session.get(filing_url, headers=HEADERS, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"HTTP {resp.status_code}"}
 

@@ -1,10 +1,12 @@
 """Regulation & Compliance Adapter — EU regulations (EUR-Lex), US FINRA."""
 import logging
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
+_session = get_session("regulation_adapter")
 
 # Key EU financial regulations — curated reference (CELEX numbers verified)
 KEY_REGULATIONS = {

@@ -2,9 +2,11 @@
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+_session = get_session("consumer_adapter")
 
 
 class ConsumerAdapter:
@@ -19,7 +21,7 @@ class ConsumerAdapter:
             url = "https://api.stlouisfed.org/fred/series/observations"
             params = {"series_id": series_id, "api_key": self._fred_key, "file_type": "json",
                       "sort_order": "desc", "limit": limit}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
             return {"success": True, "source": f"FRED/{series_id}", "count": len(records), "data": records}
@@ -56,7 +58,7 @@ class ConsumerAdapter:
         try:
             url = "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/PRC_HICP_MANR/M.RCH_A.CP00.EA/"
             params = {"format": "JSON", "lang": "en"}
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"Eurostat HTTP {resp.status_code}"}
 

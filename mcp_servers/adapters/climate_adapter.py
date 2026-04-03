@@ -3,10 +3,12 @@ import logging
 import csv
 import io
 import requests
+from utils.http_client import get_session
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+_session = get_session("climate_adapter")
 
 
 class ClimateAdapter:
@@ -30,7 +32,7 @@ class ClimateAdapter:
                 "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max",
                 "timezone": "auto",
             }
-            resp = requests.get(self._meteo_base, params=params, timeout=30)
+            resp = _session.get(self._meteo_base, params=params, timeout=30)
             if resp.status_code != 200:
                 return {"error": True, "message": f"Open-Meteo returned {resp.status_code}: {resp.text[:200]}"}
 
@@ -61,7 +63,7 @@ class ClimateAdapter:
     def get_temperature_anomaly(self, period: str = "monthly") -> Dict[str, Any]:
         """NASA GISS global temperature anomaly — last 120 months."""
         try:
-            resp = requests.get(self._giss_url, timeout=20)
+            resp = _session.get(self._giss_url, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NASA GISS returned {resp.status_code}"}
 
@@ -132,7 +134,7 @@ class ClimateAdapter:
                 "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
                 "timezone": "auto",
             }
-            resp = requests.get(self._meteo_base, params=params, timeout=30)
+            resp = _session.get(self._meteo_base, params=params, timeout=30)
             if resp.status_code != 200:
                 return {"error": True, "message": f"Open-Meteo returned {resp.status_code}"}
 
@@ -184,7 +186,7 @@ class ClimateAdapter:
     def get_enso_index(self) -> Dict[str, Any]:
         """NOAA Oceanic Nino Index (ONI) — last 24 quarters."""
         try:
-            resp = requests.get(self._enso_url, timeout=20)
+            resp = _session.get(self._enso_url, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NOAA ENSO returned {resp.status_code}"}
 
@@ -249,7 +251,7 @@ class ClimateAdapter:
                     "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max",
                     "timezone": "auto",
                 }
-                resp = requests.get(self._meteo_base, params=params, timeout=30)
+                resp = _session.get(self._meteo_base, params=params, timeout=30)
                 if resp.status_code != 200:
                     results.append({"name": name, "error": f"HTTP {resp.status_code}"})
                     continue
@@ -306,7 +308,7 @@ class ClimateAdapter:
                     "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max",
                     "timezone": "auto",
                 }
-                resp = requests.get(self._meteo_base, params=params, timeout=30)
+                resp = _session.get(self._meteo_base, params=params, timeout=30)
                 if resp.status_code != 200:
                     results.append({"region": region["name"], "error": f"HTTP {resp.status_code}"})
                     continue

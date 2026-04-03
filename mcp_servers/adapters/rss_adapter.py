@@ -2,10 +2,12 @@
 import logging
 import feedparser
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+_session = get_session("rss_adapter")
 
 # Major financial news RSS feeds (all free, no auth)
 RSS_FEEDS = {

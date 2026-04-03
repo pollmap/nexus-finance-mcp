@@ -9,10 +9,11 @@ Three APIs, all free for read-only:
 No authentication needed for read endpoints. ~60 req/min.
 """
 import logging
-import requests
 from typing import Any, Dict, Optional
+from utils.http_client import get_session
 
 logger = logging.getLogger(__name__)
+_session = get_session("polymarket")
 
 GAMMA_URL = "https://gamma-api.polymarket.com"
 CLOB_URL = "https://clob.polymarket.com"
@@ -25,7 +26,7 @@ class PolymarketAdapter:
         """Get markets list."""
         try:
             params = {"limit": limit, "active": active, "order": "volume", "ascending": False}
-            resp = requests.get(f"{GAMMA_URL}/markets", params=params, timeout=15)
+            resp = _session.get(f"{GAMMA_URL}/markets", params=params, timeout=15)
             resp.raise_for_status()
             data = resp.json()
 
@@ -49,7 +50,7 @@ class PolymarketAdapter:
     def get_market_detail(self, condition_id: str) -> Dict[str, Any]:
         """Get single market detail by condition ID."""
         try:
-            resp = requests.get(f"{GAMMA_URL}/markets/{condition_id}", timeout=15)
+            resp = _session.get(f"{GAMMA_URL}/markets/{condition_id}", timeout=15)
             resp.raise_for_status()
             m = resp.json()
 
@@ -72,7 +73,7 @@ class PolymarketAdapter:
         """Get events (groups of related markets)."""
         try:
             params = {"limit": limit, "active": True, "order": "volume", "ascending": False}
-            resp = requests.get(f"{GAMMA_URL}/events", params=params, timeout=15)
+            resp = _session.get(f"{GAMMA_URL}/events", params=params, timeout=15)
             resp.raise_for_status()
             data = resp.json()
 
@@ -93,7 +94,7 @@ class PolymarketAdapter:
     def get_prices(self, token_id: str) -> Dict[str, Any]:
         """Get current price for a market token."""
         try:
-            resp = requests.get(f"{CLOB_URL}/price", params={"token_id": token_id}, timeout=10)
+            resp = _session.get(f"{CLOB_URL}/price", params={"token_id": token_id}, timeout=10)
             resp.raise_for_status()
             return {"success": True, "token_id": token_id, "price": resp.json()}
         except Exception as e:

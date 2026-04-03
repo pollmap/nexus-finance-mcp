@@ -86,6 +86,8 @@ class GatewayServer:
             ("climate", "mcp_servers.servers.climate_server", "ClimateServer"),
             ("power_grid", "mcp_servers.servers.power_grid_server", "PowerGridServer"),
             ("sentiment", "mcp_servers.servers.sentiment_server", "SentimentServer"),
+            # Ontology — 데이터 존재론/인과 관계
+            ("ontology", "mcp_servers.servers.ontology_server", "OntologyServer"),
         ]
 
         self._total_servers = len(SERVERS)

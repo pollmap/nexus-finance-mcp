@@ -1,11 +1,13 @@
 """Disaster Adapter — USGS Earthquake, NASA EONET, GDACS."""
 import logging
 import requests
+from utils.http_client import get_session
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+_session = get_session("disaster_adapter")
 
 
 class DisasterAdapter:
@@ -28,7 +30,7 @@ class DisasterAdapter:
                 "limit": limit,
                 "orderby": "time",
             }
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"USGS API returned {resp.status_code}"}
 
@@ -74,7 +76,7 @@ class DisasterAdapter:
                 "limit": limit,
                 "status": "all",
             }
-            resp = requests.get(url, params=params, timeout=20)
+            resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
                 return {"error": True, "message": f"NASA EONET returned {resp.status_code}"}
 
@@ -127,7 +129,7 @@ class DisasterAdapter:
             }
             # Try JSON first
             headers = {"Accept": "application/json"}
-            resp = requests.get(url, params=params, headers=headers, timeout=20)
+            resp = _session.get(url, params=params, headers=headers, timeout=20)
 
             if resp.status_code == 200:
                 try:
@@ -161,7 +163,7 @@ class DisasterAdapter:
                     pass
 
             # Fallback: parse XML
-            resp_xml = requests.get(url, params=params, timeout=20)
+            resp_xml = _session.get(url, params=params, timeout=20)
             if resp_xml.status_code != 200:
                 return {"error": True, "message": f"GDACS API returned {resp_xml.status_code}"}
 
@@ -221,7 +223,7 @@ class DisasterAdapter:
                 "alertlevel": "Green;Orange;Red",
             }
             headers = {"Accept": "application/json"}
-            resp = requests.get(url, params=params, headers=headers, timeout=20)
+            resp = _session.get(url, params=params, headers=headers, timeout=20)
 
             if resp.status_code == 200:
                 try:
@@ -253,7 +255,7 @@ class DisasterAdapter:
                     pass
 
             # Fallback XML
-            resp_xml = requests.get(url, params=params, timeout=20)
+            resp_xml = _session.get(url, params=params, timeout=20)
             if resp_xml.status_code != 200:
                 return {"error": True, "message": f"GDACS returned {resp_xml.status_code}"}
             return self._parse_gdacs_xml(resp_xml.text, "all", 7)
@@ -273,7 +275,7 @@ class DisasterAdapter:
             eq_url = "https://earthquake.usgs.gov/fdsnws/event/1/count"
             for min_mag, label in [(4.0, "mag4_plus"), (5.0, "mag5_plus"), (6.0, "mag6_plus"), (7.0, "mag7_plus")]:
                 try:
-                    resp = requests.get(eq_url, params={
+                    resp = _session.get(eq_url, params={
                         "format": "text",
                         "starttime": start,
                         "endtime": end,
@@ -290,7 +292,7 @@ class DisasterAdapter:
                     days_in_year = (datetime.now() - datetime(year, 1, 1)).days
                     if days_in_year <= 0:
                         days_in_year = 365
-                    resp = requests.get("https://eonet.gsfc.nasa.gov/api/v3/events", params={
+                    resp = _session.get("https://eonet.gsfc.nasa.gov/api/v3/events", params={
                         "category": cat,
                         "days": min(days_in_year, 365),
                         "limit": 1,
@@ -300,7 +302,7 @@ class DisasterAdapter:
                         data = resp.json()
                         # EONET doesn't give total count directly; use len of events
                         # Re-fetch with higher limit for count
-                        resp2 = requests.get("https://eonet.gsfc.nasa.gov/api/v3/events", params={
+                        resp2 = _session.get("https://eonet.gsfc.nasa.gov/api/v3/events", params={
                             "category": cat,
                             "days": min(days_in_year, 365),
                             "limit": 500,

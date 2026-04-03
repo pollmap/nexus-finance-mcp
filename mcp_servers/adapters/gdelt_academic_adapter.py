@@ -7,10 +7,12 @@ Both completely free, no API keys needed.
 import logging
 import os
 import requests
+from utils.http_client import get_session
 from typing import Any, Dict, List
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
+_session = get_session("gdelt_academic_adapter")
 
 
 class GDELTAdapter:
@@ -34,7 +36,7 @@ class GDELTAdapter:
             if sourcelang:
                 params["sourcelang"] = sourcelang
 
-            resp = requests.get(self.BASE_URL, params=params, timeout=20)
+            resp = _session.get(self.BASE_URL, params=params, timeout=20)
             resp.raise_for_status()
             data = resp.json()
 
@@ -60,7 +62,7 @@ class GDELTAdapter:
                 "query": query, "mode": "TimelineVol",
                 "format": "json", "timespan": timespan,
             }
-            resp = requests.get(self.BASE_URL, params=params, timeout=20)
+            resp = _session.get(self.BASE_URL, params=params, timeout=20)
             resp.raise_for_status()
             data = resp.json()
             timeline = data.get("timeline", [{}])
@@ -78,7 +80,7 @@ class AcademicAdapter:
         try:
             url = "http://export.arxiv.org/api/query"
             params = {"search_query": f"all:{query}", "max_results": max_results, "sortBy": "submittedDate", "sortOrder": "descending"}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             resp.raise_for_status()
 
             import xml.etree.ElementTree as ET
@@ -107,7 +109,7 @@ class AcademicAdapter:
         try:
             url = "https://api.semanticscholar.org/graph/v1/paper/search"
             params = {"query": query, "limit": limit, "fields": "title,year,citationCount,url,abstract"}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             resp.raise_for_status()
             data = resp.json()
 
@@ -131,7 +133,7 @@ class AcademicAdapter:
         try:
             url = "https://api.openalex.org/works"
             params = {"search": query, "per_page": limit, "sort": "publication_date:desc"}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             resp.raise_for_status()
             data = resp.json()
 
@@ -157,7 +159,7 @@ class AcademicAdapter:
         try:
             url = "http://export.arxiv.org/api/query"
             params = {"id_list": arxiv_id}
-            resp = requests.get(url, params=params, timeout=15)
+            resp = _session.get(url, params=params, timeout=15)
             resp.raise_for_status()
 
             import xml.etree.ElementTree as ET
@@ -201,13 +203,13 @@ class AcademicAdapter:
             if arxiv_id:
                 filter_str = f"ids.openalex:https://arxiv.org/abs/{arxiv_id}"
                 search_url = f"https://api.openalex.org/works?filter={filter_str}"
-                resp = requests.get(search_url, headers=headers, timeout=15)
+                resp = _session.get(search_url, headers=headers, timeout=15)
                 if resp.status_code != 200 or not resp.json().get("results"):
                     search_url = f"https://api.openalex.org/works?search={quote(arxiv_id)}&per_page=1"
-                    resp = requests.get(search_url, headers=headers, timeout=15)
+                    resp = _session.get(search_url, headers=headers, timeout=15)
             elif doi:
                 search_url = f"https://api.openalex.org/works/doi:{doi}"
-                resp = requests.get(search_url, headers=headers, timeout=15)
+                resp = _session.get(search_url, headers=headers, timeout=15)
                 if resp.ok:
                     work = resp.json()
                     work_id = work.get("id", "").split("/")[-1]
@@ -215,7 +217,7 @@ class AcademicAdapter:
                 return {"error": True, "message": f"DOI {doi} not found"}
             else:
                 search_url = f"https://api.openalex.org/works?search={quote(title)}&per_page=1"
-                resp = requests.get(search_url, headers=headers, timeout=15)
+                resp = _session.get(search_url, headers=headers, timeout=15)
 
             resp.raise_for_status()
             data = resp.json()
@@ -235,7 +237,7 @@ class AcademicAdapter:
         cited_by = []
         try:
             cb_url = f"https://api.openalex.org/works?filter=cites:{work_id}&sort=cited_by_count:desc&per_page=10"
-            cb_resp = requests.get(cb_url, headers=headers, timeout=15)
+            cb_resp = _session.get(cb_url, headers=headers, timeout=15)
             if cb_resp.ok:
                 for w in cb_resp.json().get("results", []):
                     cited_by.append({"title": w.get("display_name"), "year": w.get("publication_year"), "citations": w.get("cited_by_count")})
@@ -247,7 +249,7 @@ class AcademicAdapter:
         ref_ids = work.get("referenced_works", [])[:10]
         for ref_id in ref_ids:
             try:
-                r = requests.get(ref_id, headers=headers, timeout=10)
+                r = _session.get(ref_id, headers=headers, timeout=10)
                 if r.ok:
                     rw = r.json()
                     refs.append({"title": rw.get("display_name"), "year": rw.get("publication_year"), "citations": rw.get("cited_by_count")})
@@ -267,7 +269,7 @@ class AcademicAdapter:
         try:
             headers = {"User-Agent": f"NexusFinanceMCP/1.0 (mailto:{os.getenv('CONTACT_EMAIL', 'nexus-finance-mcp@users.noreply.github.com')})"}
             url = f"https://api.openalex.org/authors?search={quote(author_name)}&per_page=1"
-            resp = requests.get(url, headers=headers, timeout=15)
+            resp = _session.get(url, headers=headers, timeout=15)
             resp.raise_for_status()
             results = resp.json().get("results", [])
             if not results:
@@ -282,7 +284,7 @@ class AcademicAdapter:
             recent = []
             try:
                 w_url = f"https://api.openalex.org/works?filter=author.id:{author_id}&sort=publication_date:desc&per_page=5"
-                w_resp = requests.get(w_url, headers=headers, timeout=15)
+                w_resp = _session.get(w_url, headers=headers, timeout=15)
                 if w_resp.ok:
                     for w in w_resp.json().get("results", []):
                         recent.append({"title": w.get("display_name"), "year": w.get("publication_year"), "citations": w.get("cited_by_count")})
@@ -306,7 +308,7 @@ class AcademicAdapter:
         try:
             headers = {"User-Agent": f"NexusFinanceMCP/1.0 (mailto:{os.getenv('CONTACT_EMAIL', 'nexus-finance-mcp@users.noreply.github.com')})"}
             url = f"https://api.openalex.org/concepts?search={quote(query)}&per_page={limit}"
-            resp = requests.get(url, headers=headers, timeout=15)
+            resp = _session.get(url, headers=headers, timeout=15)
             resp.raise_for_status()
             results = resp.json().get("results", [])
 
