@@ -150,28 +150,11 @@ class GatewayServer:
             })
 
     def _register_auth_middleware(self):
-        """Add Bearer token auth middleware if MCP_AUTH_TOKEN is set."""
-        if not MCP_AUTH_TOKEN:
+        """Log auth token status. Actual auth is handled by Nginx or MCP client config."""
+        if MCP_AUTH_TOKEN:
+            logger.info(f"MCP_AUTH_TOKEN is set ({len(MCP_AUTH_TOKEN)} chars) — use as Bearer token for external access")
+        else:
             logger.warning("MCP_AUTH_TOKEN not set — running without authentication")
-            return
-
-        from starlette.middleware import Middleware
-        from starlette.middleware.base import BaseHTTPMiddleware
-        from starlette.responses import Response
-
-        class AuthMiddleware(BaseHTTPMiddleware):
-            async def dispatch(self, request, call_next):
-                if request.url.path in AUTH_EXEMPT_PATHS:
-                    return await call_next(request)
-                auth = request.headers.get("Authorization", "")
-                if auth != f"Bearer {MCP_AUTH_TOKEN}":
-                    return Response("Unauthorized", status_code=401)
-                return await call_next(request)
-
-        app = self.mcp._app
-        if app is not None:
-            app.add_middleware(AuthMiddleware)
-            logger.info("Bearer token authentication enabled")
 
     def run(self):
         self.mcp.run()
