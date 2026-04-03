@@ -80,6 +80,8 @@ DEFAULT_QUOTAS: Dict[str, int] = {
     "coingecko": 50,   # CoinGecko Free: 50 req/min
     "sec": 100,        # SEC EDGAR: ~100 req/min
     "bis": 60,         # BIS: ~60 req/min
+    "edinet": 30,      # EDINET: conservative (gov API)
+    "polymarket": 60,  # Polymarket Gamma: ~60 req/min
     "default": 60,     # Default fallback
 }
 
@@ -147,17 +149,17 @@ class RateLimiter:
             self._stats[service]["rejected"] += tokens
             return False
 
-        # Wait for tokens
-        wait_time = bucket.wait_time(tokens)
-        if wait_time > 0:
-            logger.debug(f"Rate limit: waiting {wait_time:.2f}s for '{service}'")
-            self._stats[service]["waited"] += 1
-            time.sleep(wait_time)
+        # Wait and retry in a loop to handle race conditions
+        while True:
+            wait_time = bucket.wait_time(tokens)
+            if wait_time > 0:
+                logger.debug(f"Rate limit: waiting {wait_time:.2f}s for '{service}'")
+                self._stats[service]["waited"] += 1
+                time.sleep(wait_time)
 
-        # Should succeed after waiting
-        bucket.consume(tokens)
-        self._stats[service]["acquired"] += tokens
-        return True
+            if bucket.consume(tokens):
+                self._stats[service]["acquired"] += tokens
+                return True
 
     async def acquire_async(
         self, service: str, tokens: int = 1, wait: bool = True
@@ -183,16 +185,17 @@ class RateLimiter:
             self._stats[service]["rejected"] += tokens
             return False
 
-        # Wait asynchronously
-        wait_time = bucket.wait_time(tokens)
-        if wait_time > 0:
-            logger.debug(f"Rate limit: waiting {wait_time:.2f}s for '{service}'")
-            self._stats[service]["waited"] += 1
-            await asyncio.sleep(wait_time)
+        # Wait and retry in a loop to handle race conditions
+        while True:
+            wait_time = bucket.wait_time(tokens)
+            if wait_time > 0:
+                logger.debug(f"Rate limit: waiting {wait_time:.2f}s for '{service}'")
+                self._stats[service]["waited"] += 1
+                await asyncio.sleep(wait_time)
 
-        bucket.consume(tokens)
-        self._stats[service]["acquired"] += tokens
-        return True
+            if bucket.consume(tokens):
+                self._stats[service]["acquired"] += tokens
+                return True
 
     def get_available(self, service: str) -> float:
         """Get available tokens for a service."""
@@ -276,11 +279,14 @@ class RateLimitContext:
 
 # Global rate limiter instance (lazy initialization)
 _global_limiter: Optional[RateLimiter] = None
+_limiter_lock = Lock()
 
 
 def get_limiter() -> RateLimiter:
     """Get or create the global rate limiter instance."""
     global _global_limiter
     if _global_limiter is None:
-        _global_limiter = RateLimiter()
+        with _limiter_lock:
+            if _global_limiter is None:
+                _global_limiter = RateLimiter()
     return _global_limiter

@@ -7,7 +7,7 @@ Provides tools for DCF-based equity valuation including:
 - Terminal Value calculation
 - Sensitivity analysis
 
-Note: Phase 3 uses hardcoded test values. Real data integration in Phase 5.
+Uses ECOS real-time data when available, falls back to market defaults with warning.
 """
 import logging
 from dataclasses import dataclass, field
@@ -15,20 +15,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from analyzers.defaults import MARKET_DEFAULTS as TEST_VALUES
+
 logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# Test Values (Phase 3 - will be replaced with real data in Phase 5)
-# ============================================================================
-TEST_VALUES = {
-    "risk_free_rate": 0.035,      # 3.5% (한국은행 기준금리 기반)
-    "market_risk_premium": 0.06,  # 6% (한국 시장 ERP)
-    "default_beta": 1.0,          # 시장 평균
-    "default_tax_rate": 0.22,     # 한국 법인세율 22%
-    "terminal_growth_rate": 0.02, # 영구 성장률 2%
-    "projection_years": 5,        # 5년 추정
-}
 
 
 @dataclass
@@ -119,9 +108,12 @@ class DCFAnalyzer:
             market_risk_premium: Market risk premium (default: 6%)
             terminal_growth_rate: Perpetual growth rate (default: 2%)
         """
-        self.risk_free_rate = risk_free_rate or TEST_VALUES["risk_free_rate"]
-        self.market_risk_premium = market_risk_premium or TEST_VALUES["market_risk_premium"]
-        self.terminal_growth_rate = terminal_growth_rate or TEST_VALUES["terminal_growth_rate"]
+        self.risk_free_rate = risk_free_rate if risk_free_rate is not None else TEST_VALUES["risk_free_rate"]
+        self.market_risk_premium = market_risk_premium if market_risk_premium is not None else TEST_VALUES["market_risk_premium"]
+        self.terminal_growth_rate = terminal_growth_rate if terminal_growth_rate is not None else TEST_VALUES["terminal_growth_rate"]
+
+        if risk_free_rate is None or market_risk_premium is None or terminal_growth_rate is None:
+            logger.warning("DCF using hardcoded TEST_VALUES for missing parameters")
 
         logger.info(
             f"DCF Analyzer initialized: Rf={self.risk_free_rate:.2%}, "
@@ -223,7 +215,7 @@ class DCFAnalyzer:
         Returns:
             List of projected FCFs
         """
-        years = years or TEST_VALUES["projection_years"]
+        years = years if years is not None else TEST_VALUES["projection_years"]
 
         if growth_rates is None:
             # Default: declining growth from 15% to terminal rate
@@ -259,7 +251,7 @@ class DCFAnalyzer:
         Returns:
             Terminal Value
         """
-        g = growth_rate or self.terminal_growth_rate
+        g = growth_rate if growth_rate is not None else self.terminal_growth_rate
 
         if wacc <= g:
             logger.warning(f"WACC ({wacc:.2%}) <= growth rate ({g:.2%}), adjusting")
@@ -307,7 +299,7 @@ class DCFAnalyzer:
         Returns:
             DCFResult with full valuation
         """
-        years = projection_years or TEST_VALUES["projection_years"]
+        years = projection_years if projection_years is not None else TEST_VALUES["projection_years"]
 
         # Step 1: Calculate WACC
         wacc, wacc_components = self.calculate_wacc(financials)

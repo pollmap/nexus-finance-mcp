@@ -2,7 +2,7 @@
 Nexus Finance MCP Server - HTTP/SSE Entry Point.
 
 Luxon AI Agent Network의 금융 데이터 인프라.
-43개 도구 / 5개 서버 / 5개 어댑터를 HTTP 엔드포인트로 제공.
+253 도구 / 46개 서버 / 33개 어댑터를 HTTP 엔드포인트로 제공.
 
 Usage:
     # Streamable HTTP (권장 - Smithery/에이전트용)
@@ -58,8 +58,8 @@ def main():
     )
     parser.add_argument(
         "--host",
-        default=os.getenv("MCP_HOST", "0.0.0.0"),
-        help="Host to bind (default: 0.0.0.0)",
+        default=os.getenv("MCP_HOST", "127.0.0.1"),
+        help="Host to bind (default: 127.0.0.1)",
     )
     parser.add_argument(
         "--port",

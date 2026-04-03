@@ -7,6 +7,7 @@ Public API only — no authentication needed for market data.
 Key feature: Kimchi premium calculation (Korean vs global price spread).
 """
 import logging
+import os
 import time
 from typing import Any, Dict, List, Optional
 
@@ -25,7 +26,7 @@ def _get_exchange(exchange_id: str):
             cls = getattr(ccxt, exchange_id, None)
             if cls is None:
                 return None
-            _exchanges[exchange_id] = cls({"enableRateLimit": True})
+            _exchanges[exchange_id] = cls({"enableRateLimit": True, "timeout": 30000})
         except ImportError:
             logger.error("ccxt not installed. Run: pip install ccxt")
             return None
@@ -168,7 +169,8 @@ class CCXTAdapter:
                 usdt_krw = upbit.fetch_ticker("USDT/KRW")
                 usdt_krw_rate = usdt_krw["last"]
             except Exception:
-                usdt_krw_rate = 1450  # fallback
+                usdt_krw_rate = float(os.environ.get("USDT_KRW_FALLBACK_RATE", "1450"))
+                logger.warning(f"Using fallback USDT/KRW rate: {usdt_krw_rate}")
 
             krw_price = krw_ticker["last"]
             usdt_price = usdt_ticker["last"]

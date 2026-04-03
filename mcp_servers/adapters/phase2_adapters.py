@@ -31,6 +31,7 @@ class CryptoCompareAdapter:
         try:
             resp = requests.get(f"{self.BASE}/histoday", headers=self._headers(),
                 params={"fsym": fsym, "tsym": tsym, "limit": limit}, timeout=15)
+            resp.raise_for_status()
             data = resp.json().get("Data", {}).get("Data", [])
             records = [{"time": d["time"], "open": d["open"], "high": d["high"],
                         "low": d["low"], "close": d["close"], "volume": d["volumefrom"]} for d in data]
@@ -42,6 +43,7 @@ class CryptoCompareAdapter:
         try:
             resp = requests.get(f"{self.BASE}/histohour", headers=self._headers(),
                 params={"fsym": fsym, "tsym": tsym, "limit": limit}, timeout=15)
+            resp.raise_for_status()
             data = resp.json().get("Data", {}).get("Data", [])
             records = [{"time": d["time"], "open": d["open"], "high": d["high"],
                         "low": d["low"], "close": d["close"], "volume": d["volumefrom"]} for d in data]
@@ -125,7 +127,7 @@ class MOLITAdapter:
     def get_apt_trades(self, sigungu_code: str = "11110", year_month: str = "") -> Dict[str, Any]:
         try:
             from PublicDataReader import TransactionPrice
-            api_key = os.getenv("DATA_GO_KR_API_KEY", os.getenv("KOSIS_API_KEY", ""))
+            api_key = os.getenv("MOLIT_API_KEY", os.getenv("DATA_GO_KR_API_KEY", ""))
             if not api_key:
                 return {"error": True, "message": "data.go.kr API key not set"}
             tp = TransactionPrice(api_key)
@@ -148,7 +150,7 @@ class FSCAdapter:
     BASE = "https://apis.data.go.kr/1160100/service"
 
     def __init__(self):
-        self._api_key = os.getenv("DATA_GO_KR_API_KEY", os.getenv("KOSIS_API_KEY", ""))
+        self._api_key = os.getenv("MOLIT_API_KEY", os.getenv("DATA_GO_KR_API_KEY", ""))
 
     def get_stock_price(self, stock_code: str = "005930", num_of_rows: int = 20) -> Dict[str, Any]:
         try:

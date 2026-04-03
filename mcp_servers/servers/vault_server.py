@@ -27,9 +27,14 @@ VAULT_ROOT = Path("/root/obsidian-vault")
 # AGENTS.md 기반 쓰기 권한
 WRITE_PERMS = {
     # VPS agents
-    "hermes": ["00-Inbox/hermes", "01-Projects"],
-    "nexus": ["00-Inbox/nexus", "02-Areas"],
-    "oracle": ["00-Inbox/oracle", "03-Resources"],
+    "hermes": ["00-Inbox/hermes", "01-Projects", "02-Areas/crypto-markets", "02-Areas/macro-analysis"],
+    "nexus": ["00-Inbox/nexus", "02-Areas", "03-Resources/reports", "03-Resources/market-data"],
+    "oracle": ["00-Inbox/oracle", "03-Resources", "02-Areas/personal-finance", "02-Areas/chanhi-profile"],
+    # VPS subagents
+    "merchant": ["00-Inbox/hermes", "01-Projects/acp-marketplace"],
+    "treasurer": ["00-Inbox/hermes", "01-Projects/acp-marketplace"],
+    "prophet": ["00-Inbox/oracle", "03-Resources/research-papers", "01-Projects/decision-arena"],
+    "voyager": ["00-Inbox/nexus", "03-Resources", "01-Projects/cufa-ic-session"],
     # WSL agents
     "gate": ["00-Inbox/gate", "01-Projects"],
     "chief": ["00-Inbox/chief", "01-Projects"],
@@ -39,6 +44,9 @@ WRITE_PERMS = {
 BLOCKED_PREFIXES = (".obsidian", ".git", "scripts", "templates")
 
 
+GIT_STATUS_FILE = VAULT_ROOT / ".git-push-status"
+
+
 def _git_auto_commit(rel_path: str, agent: str):
     """vault_write 후 비동기 git commit + push. 응답을 블로킹하지 않음."""
     import threading
@@ -46,12 +54,23 @@ def _git_auto_commit(rel_path: str, agent: str):
     def _run():
         try:
             subprocess.run(["git", "-C", str(VAULT_ROOT), "add", rel_path],
-                           capture_output=True, timeout=10)
+                           capture_output=True, timeout=10, check=True)
             subprocess.run(["git", "-C", str(VAULT_ROOT), "commit", "-m",
                             f"vault: {agent} wrote {rel_path}"],
-                           capture_output=True, timeout=10)
-            subprocess.run(["git", "-C", str(VAULT_ROOT), "push"],
-                           capture_output=True, timeout=30)
+                           capture_output=True, timeout=10, check=True)
+            result = subprocess.run(["git", "-C", str(VAULT_ROOT), "push"],
+                                    capture_output=True, timeout=30)
+            if result.returncode != 0:
+                err = result.stderr.decode("utf-8", errors="replace").strip()
+                logger.error(f"git push failed for {rel_path}: {err}")
+                GIT_STATUS_FILE.write_text(f"FAIL|{rel_path}|{agent}|{err}\n")
+            else:
+                logger.info(f"git push OK: {rel_path} by {agent}")
+                if GIT_STATUS_FILE.exists():
+                    GIT_STATUS_FILE.unlink()
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"git auto-commit failed: {e}")
+            GIT_STATUS_FILE.write_text(f"FAIL|{rel_path}|{agent}|{e}\n")
         except Exception as e:
             logger.warning(f"git auto-commit failed: {e}")
 
@@ -115,11 +134,18 @@ class VaultServer:
             Obsidian Vault 전문 검색. 키워드로 모든 노트 내용을 검색.
 
             Args:
-                query: 검색어 (정규식 지원)
+                query: 검색어 (고정 문자열 매칭)
                 folder: 특정 폴더로 제한 (예: "02-Areas", "03-Resources/research-papers")
                 tags: 태그 필터 (쉼표 구분, 예: "crypto,defi")
                 count: 최대 결과 수 (기본 10)
             """
+            if len(query) > 200:
+                return {"error": True, "message": "검색어 200자 제한 초과"}
+            if not query.strip():
+                return {"error": True, "message": "검색어를 입력하세요"}
+            if query.lstrip().startswith("-"):
+                return {"error": True, "message": "검색어는 '-'로 시작할 수 없습니다"}
+
             search_dir = VAULT_ROOT
             if folder:
                 search_dir = _safe_path(folder)
@@ -128,7 +154,7 @@ class VaultServer:
 
             try:
                 result = subprocess.run(
-                    ["grep", "-ril", "--include=*.md", query, str(search_dir)],
+                    ["grep", "-Fril", "--include=*.md", query, str(search_dir)],
                     capture_output=True, text=True, timeout=10,
                 )
             except subprocess.TimeoutExpired:
@@ -161,7 +187,7 @@ class VaultServer:
                 # Get matching lines for context
                 try:
                     ctx = subprocess.run(
-                        ["grep", "-in", query, str(p)],
+                        ["grep", "-Fin", query, str(p)],
                         capture_output=True, text=True, timeout=5,
                     )
                     matches = ctx.stdout.strip().split("\n")[:3]

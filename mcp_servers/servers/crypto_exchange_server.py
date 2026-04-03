@@ -125,7 +125,7 @@ class CryptoExchangeServer:
             return {
                 "success": True,
                 "exchange": exchange,
-                "ranking": result["data"][:limit],
+                "ranking": result.get("data", [])[:limit],
             }
 
         @self.mcp.tool()

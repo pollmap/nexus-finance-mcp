@@ -36,22 +36,19 @@ from analyzers.dcf_analyzer import (
     CompanyFinancials,
     DCFResult,
     TEST_VALUES,
-    create_sample_financials,
 )
 from analyzers.relative_value import (
     RelativeValueAnalyzer,
     CompanyMultiples,
-    create_sample_target,
-    create_sample_peer_group,
 )
 from utils.gaap_mapper import GAAPMapper, AccountingStandard
 
 logger = logging.getLogger(__name__)
 
-# Market data defaults (used when real data unavailable)
+# Default market assumptions (used when ECOS real-time data unavailable)
 MARKET_DATA_DEFAULTS = {
-    "risk_free_rate": TEST_VALUES["risk_free_rate"],  # 3.5%
-    "market_risk_premium": TEST_VALUES["market_risk_premium"],  # 6%
+    "risk_free_rate": TEST_VALUES["risk_free_rate"],  # 3.5% (한국 국고채 3년 기준)
+    "market_risk_premium": TEST_VALUES["market_risk_premium"],  # 6% (한국 시장 평균)
 }
 
 
@@ -261,15 +258,15 @@ class ValuationServer:
         @self.mcp.tool()
         def val_dcf_sample(stock_code: str = "005930") -> Dict[str, Any]:
             """
-            샘플 데이터로 DCF 밸류에이션 테스트 (삼성전자)
+            DART 재무제표 기반 자동 DCF 밸류에이션
 
             Args:
-                stock_code: 종목코드 (현재는 005930만 지원)
+                stock_code: 종목코드 (예: "005930" 삼성전자)
 
             Returns:
-                DCF 밸류에이션 결과
+                DCF 밸류에이션 결과 (DART 실제 재무데이터 사용)
             """
-            return self.run_dcf_sample(stock_code)
+            return self.run_dcf_from_dart(stock_code)
 
         @self.mcp.tool()
         def val_sensitivity_analysis(
@@ -363,12 +360,28 @@ class ValuationServer:
         @self.mcp.tool()
         def val_peer_comparison_sample() -> Dict[str, Any]:
             """
-            샘플 피어 비교 분석 (삼성전자 vs 반도체 피어)
+            피어 비교 분석 예시 — val_peer_comparison 도구 사용법 안내
 
             Returns:
-                피어 비교 분석 결과
+                val_peer_comparison 사용 가이드
             """
-            return self.peer_comparison_sample()
+            return {
+                "success": True,
+                "message": "val_peer_comparison 도구를 직접 사용하세요. 샘플 데이터는 제공하지 않습니다.",
+                "usage": {
+                    "tool": "val_peer_comparison",
+                    "required_params": {
+                        "target_code": "종목코드 (예: 005930)",
+                        "target_name": "기업명",
+                        "target_price": "현재 주가",
+                        "target_pe": "PER",
+                        "target_pb": "PBR",
+                        "target_ev_ebitda": "EV/EBITDA",
+                        "peer_data": "[{code, name, pe, pb, ev_ebitda}, ...]",
+                    },
+                    "data_source": "DART 재무제표(dart_financial_statements) + 주가 데이터(stocks_quote)로 파라미터를 구하세요.",
+                },
+            }
 
         @self.mcp.tool()
         def val_cross_market_comparison(
@@ -525,16 +538,71 @@ class ValuationServer:
             logger.error(f"DCF error: {e}")
             return {"error": True, "message": str(e)}
 
-    def run_dcf_sample(self, stock_code: str) -> Dict[str, Any]:
-        """Run DCF with sample data."""
-        if stock_code == "005930":
-            financials = create_sample_financials()
-            return self.run_dcf(financials)
-        else:
-            return {
-                "error": True,
-                "message": f"Sample data not available for {stock_code}. Use val_dcf_valuation with your own data.",
-            }
+    def run_dcf_from_dart(self, stock_code: str) -> Dict[str, Any]:
+        """Run DCF using real DART financial data."""
+        try:
+            from mcp_servers.adapters.dart_adapter import DARTAdapter
+            dart = DARTAdapter()
+
+            if not dart.is_available:
+                return {"error": True, "message": "DART client not initialized. DART_API_KEY를 확인하세요."}
+
+            # Get company info
+            info = dart.get_company_info(stock_code)
+            company_name = "Unknown"
+            if info.get("success"):
+                data = info.get("data", {})
+                company_name = data.get("corp_name", data.get("stock_name", stock_code))
+
+            # Get financial ratios (includes revenue, net_income, etc.)
+            ratios = dart.get_financial_ratios(stock_code)
+            if ratios.get("error") or not ratios.get("ratios"):
+                return {"error": True, "message": f"DART 재무제표 조회 실패: {ratios.get('message', 'No data')}. val_dcf_valuation으로 직접 입력하세요."}
+
+            r = ratios["ratios"]
+            revenue = r.get("revenue", 0)
+            operating_income = r.get("operating_income", 0)
+            net_income = r.get("net_income", 0)
+            total_assets = r.get("total_assets", 0)
+            total_equity = r.get("total_equity", 0)
+            total_debt = r.get("total_debt", 0)
+
+            if revenue == 0:
+                return {"error": True, "message": "DART 재무제표에서 매출액을 찾을 수 없습니다. val_dcf_valuation으로 직접 입력하세요."}
+
+            # Estimate EBIT/EBITDA from operating income
+            ebit = operating_income
+            ebitda = operating_income * 1.15  # rough estimate (depreciation ~15% of EBIT)
+            capex = ebitda * 0.3  # rough capex estimate
+
+            # Build CompanyFinancials
+            financials = CompanyFinancials(
+                stock_code=stock_code,
+                company_name=company_name,
+                revenue=revenue,
+                ebit=ebit,
+                ebitda=ebitda,
+                net_income=net_income,
+                total_debt=total_debt,
+                cash=total_assets * 0.05,  # conservative cash estimate
+                shares_outstanding=max(total_equity / 50000, 1000000),  # rough estimate
+                market_cap=total_equity * 1.5,  # rough market cap
+                capex=capex,
+                tax_rate=0.22,
+                beta=1.0,
+                cost_of_debt=0.04,
+            )
+
+            result = self.run_dcf(financials)
+            if result.get("success"):
+                result["data_source"] = "DART 실제 재무제표"
+                result["fiscal_year"] = ratios.get("year")
+                result["note"] = "EBITDA, CAPEX, 시가총액 등은 추정치. 정확한 분석은 val_dcf_valuation에 직접 입력 권장."
+            return result
+
+        except Exception as e:
+            logger.error(f"DCF from DART error: {e}")
+            return {"error": True, "message": f"DART 기반 DCF 실패: {e}"}
 
     def sensitivity_analysis(
         self,
@@ -617,24 +685,6 @@ class ValuationServer:
         except Exception as e:
             logger.error(f"Peer comparison error: {e}")
             return {"error": True, "message": str(e)}
-
-    def peer_comparison_sample(self) -> Dict[str, Any]:
-        """Run peer comparison with sample data."""
-        target = create_sample_target()
-        peers = create_sample_peer_group()
-
-        result = self._relative.compare_multiples(target, peers)
-
-        return {
-            "success": True,
-            "target": target.company_name,
-            "peers": [p.company_name for p in peers],
-            "peer_average": {k: round(v, 2) for k, v in result.peer_avg.items()},
-            "peer_median": {k: round(v, 2) for k, v in result.peer_median.items()},
-            "percentile_rank": {k: round(v, 1) if v else None for k, v in result.percentile_rank.items()},
-            "implied_prices": {k: round(v, 0) for k, v in result.implied_values.items() if v > 0},
-            "recommendation": result.recommendation,
-        }
 
     def cross_market_comparison(
         self,

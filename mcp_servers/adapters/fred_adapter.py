@@ -33,80 +33,56 @@ from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
 logger = logging.getLogger(__name__)
 
 
-# Key FRED series IDs
+# Key FRED series IDs (35+ indicators)
 FRED_SERIES = {
-    "fed_funds_rate": {
-        "id": "FEDFUNDS",
-        "name": "Federal Funds Effective Rate",
-        "unit": "%",
-        "frequency": "M",
-    },
-    "treasury_10y": {
-        "id": "GS10",
-        "name": "10-Year Treasury Constant Maturity Rate",
-        "unit": "%",
-        "frequency": "M",
-    },
-    "treasury_2y": {
-        "id": "GS2",
-        "name": "2-Year Treasury Constant Maturity Rate",
-        "unit": "%",
-        "frequency": "M",
-    },
-    "gdp": {
-        "id": "GDP",
-        "name": "Gross Domestic Product",
-        "unit": "Billions of Dollars",
-        "frequency": "Q",
-    },
-    "gdp_growth": {
-        "id": "A191RL1Q225SBEA",
-        "name": "Real GDP Growth Rate",
-        "unit": "%",
-        "frequency": "Q",
-    },
-    "cpi": {
-        "id": "CPIAUCSL",
-        "name": "Consumer Price Index",
-        "unit": "Index 1982-84=100",
-        "frequency": "M",
-    },
-    "inflation": {
-        "id": "FPCPITOTLZGUSA",
-        "name": "Inflation Rate (CPI)",
-        "unit": "%",
-        "frequency": "A",
-    },
-    "unemployment": {
-        "id": "UNRATE",
-        "name": "Unemployment Rate",
-        "unit": "%",
-        "frequency": "M",
-    },
-    "m2": {
-        "id": "M2SL",
-        "name": "M2 Money Stock",
-        "unit": "Billions of Dollars",
-        "frequency": "M",
-    },
-    "sp500": {
-        "id": "SP500",
-        "name": "S&P 500 Index",
-        "unit": "Index",
-        "frequency": "D",
-    },
-    "house_price_index": {
-        "id": "CSUSHPINSA",
-        "name": "S&P/Case-Shiller U.S. National Home Price Index",
-        "unit": "Index Jan 2000=100",
-        "frequency": "M",
-    },
-    "mortgage_30y": {
-        "id": "MORTGAGE30US",
-        "name": "30-Year Fixed Rate Mortgage Average",
-        "unit": "%",
-        "frequency": "W",
-    },
+    # === 금리 ===
+    "fed_funds_rate": {"id": "FEDFUNDS", "name": "Federal Funds Effective Rate", "unit": "%", "frequency": "M"},
+    "treasury_3m": {"id": "DTB3", "name": "3-Month Treasury Bill Rate", "unit": "%", "frequency": "D"},
+    "treasury_1y": {"id": "GS1", "name": "1-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_2y": {"id": "GS2", "name": "2-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_3y": {"id": "GS3", "name": "3-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_5y": {"id": "GS5", "name": "5-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_7y": {"id": "GS7", "name": "7-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_10y": {"id": "GS10", "name": "10-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_20y": {"id": "GS20", "name": "20-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "treasury_30y": {"id": "GS30", "name": "30-Year Treasury Rate", "unit": "%", "frequency": "M"},
+    "sofr": {"id": "SOFR", "name": "Secured Overnight Financing Rate", "unit": "%", "frequency": "D"},
+    "aaa_corporate": {"id": "AAA", "name": "Moody's AAA Corporate Bond Yield", "unit": "%", "frequency": "D"},
+    "baa_corporate": {"id": "BAA", "name": "Moody's BAA Corporate Bond Yield", "unit": "%", "frequency": "D"},
+    "ted_spread": {"id": "TEDRATE", "name": "TED Spread", "unit": "%", "frequency": "D"},
+    # === GDP/성장 ===
+    "gdp": {"id": "GDP", "name": "Gross Domestic Product", "unit": "Billions $", "frequency": "Q"},
+    "gdp_growth": {"id": "A191RL1Q225SBEA", "name": "Real GDP Growth Rate", "unit": "%", "frequency": "Q"},
+    # === 물가 ===
+    "cpi": {"id": "CPIAUCSL", "name": "Consumer Price Index (All)", "unit": "Index 1982-84=100", "frequency": "M"},
+    "core_cpi": {"id": "CPILFESL", "name": "Core CPI (excl Food & Energy)", "unit": "Index", "frequency": "M"},
+    "pce": {"id": "PCEPI", "name": "PCE Price Index", "unit": "Index 2017=100", "frequency": "M"},
+    "core_pce": {"id": "PCEPILFE", "name": "Core PCE (excl Food & Energy)", "unit": "Index", "frequency": "M"},
+    "inflation": {"id": "FPCPITOTLZGUSA", "name": "Inflation Rate (CPI YoY)", "unit": "%", "frequency": "A"},
+    "inflation_expect_5y": {"id": "T5YIE", "name": "5-Year Breakeven Inflation", "unit": "%", "frequency": "D"},
+    "inflation_expect_10y": {"id": "T10YIE", "name": "10-Year Breakeven Inflation", "unit": "%", "frequency": "D"},
+    # === 고용 ===
+    "unemployment": {"id": "UNRATE", "name": "Unemployment Rate", "unit": "%", "frequency": "M"},
+    "nonfarm_payroll": {"id": "PAYEMS", "name": "Nonfarm Payrolls", "unit": "Thousands", "frequency": "M"},
+    "initial_claims": {"id": "ICSA", "name": "Initial Jobless Claims", "unit": "Persons", "frequency": "W"},
+    "labor_participation": {"id": "CIVPART", "name": "Labor Force Participation Rate", "unit": "%", "frequency": "M"},
+    "avg_hourly_earnings": {"id": "CES0500000003", "name": "Average Hourly Earnings", "unit": "$", "frequency": "M"},
+    # === 통화 ===
+    "m2": {"id": "M2SL", "name": "M2 Money Stock", "unit": "Billions $", "frequency": "M"},
+    # === 주식 ===
+    "sp500": {"id": "SP500", "name": "S&P 500 Index", "unit": "Index", "frequency": "D"},
+    "vix": {"id": "VIXCLS", "name": "CBOE Volatility Index (VIX)", "unit": "Index", "frequency": "D"},
+    # === 부동산 ===
+    "house_price_index": {"id": "CSUSHPINSA", "name": "Case-Shiller Home Price Index", "unit": "Index", "frequency": "M"},
+    "mortgage_30y": {"id": "MORTGAGE30US", "name": "30-Year Mortgage Rate", "unit": "%", "frequency": "W"},
+    "existing_home_sales": {"id": "EXHOSLUSM495S", "name": "Existing Home Sales", "unit": "Millions", "frequency": "M"},
+    "new_home_sales": {"id": "HSN1F", "name": "New Home Sales", "unit": "Thousands", "frequency": "M"},
+    "building_permits": {"id": "PERMIT", "name": "Building Permits", "unit": "Thousands", "frequency": "M"},
+    # === 경기 ===
+    "retail_sales": {"id": "RSAFS", "name": "Retail Sales", "unit": "Millions $", "frequency": "M"},
+    "industrial_production": {"id": "INDPRO", "name": "Industrial Production Index", "unit": "Index 2017=100", "frequency": "M"},
+    "consumer_sentiment": {"id": "UMCSENT", "name": "Univ. of Michigan Consumer Sentiment", "unit": "Index", "frequency": "M"},
+    "dxy": {"id": "DTWEXBGS", "name": "US Dollar Index (Broad)", "unit": "Index", "frequency": "D"},
 }
 
 
@@ -264,10 +240,8 @@ class FREDAdapter:
             maturity: Maturity period (2y, 5y, 10y, 30y)
         """
         series_map = {
-            "2y": "GS2",
-            "5y": "GS5",
-            "10y": "GS10",
-            "30y": "GS30",
+            "3m": "DTB3", "1y": "GS1", "2y": "GS2", "3y": "GS3",
+            "5y": "GS5", "7y": "GS7", "10y": "GS10", "20y": "GS20", "30y": "GS30",
         }
         series_id = series_map.get(maturity, "GS10")
         result = self.get_series(series_id, start_date, end_date)
@@ -386,7 +360,7 @@ class FREDAdapter:
 
         # Inflation
         result = self.get_inflation()
-        if result.get("inflation_rate_yoy"):
+        if result.get("inflation_rate_yoy") is not None:
             snapshot["indicators"]["inflation_yoy"] = {
                 "value": result["inflation_rate_yoy"],
                 "unit": "%",

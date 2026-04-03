@@ -5,6 +5,7 @@ Academic Adapter — arXiv, Semantic Scholar, OpenAlex paper search.
 Both completely free, no API keys needed.
 """
 import logging
+import os
 import requests
 from typing import Any, Dict, List
 from urllib.parse import quote
@@ -194,7 +195,7 @@ class AcademicAdapter:
     def get_citations(self, arxiv_id: str = "", doi: str = "", title: str = "") -> Dict[str, Any]:
         """Get citation network from OpenAlex. Provide arxiv_id, doi, or title."""
         try:
-            headers = {"User-Agent": "AgentSquad/1.0 (mailto:lch6817556@gmail.com)"}
+            headers = {"User-Agent": f"NexusFinanceMCP/1.0 (mailto:{os.getenv('CONTACT_EMAIL', 'nexus-finance-mcp@users.noreply.github.com')})"}
 
             # Resolve work ID
             if arxiv_id:
@@ -238,7 +239,7 @@ class AcademicAdapter:
             if cb_resp.ok:
                 for w in cb_resp.json().get("results", []):
                     cited_by.append({"title": w.get("display_name"), "year": w.get("publication_year"), "citations": w.get("cited_by_count")})
-        except:
+        except Exception:
             pass
 
         # Referenced works (top 10)
@@ -250,7 +251,7 @@ class AcademicAdapter:
                 if r.ok:
                     rw = r.json()
                     refs.append({"title": rw.get("display_name"), "year": rw.get("publication_year"), "citations": rw.get("cited_by_count")})
-            except:
+            except Exception:
                 continue
 
         return {
@@ -264,7 +265,7 @@ class AcademicAdapter:
     def get_author_info(self, author_name: str) -> Dict[str, Any]:
         """Get author profile from OpenAlex."""
         try:
-            headers = {"User-Agent": "AgentSquad/1.0 (mailto:lch6817556@gmail.com)"}
+            headers = {"User-Agent": f"NexusFinanceMCP/1.0 (mailto:{os.getenv('CONTACT_EMAIL', 'nexus-finance-mcp@users.noreply.github.com')})"}
             url = f"https://api.openalex.org/authors?search={quote(author_name)}&per_page=1"
             resp = requests.get(url, headers=headers, timeout=15)
             resp.raise_for_status()
@@ -285,7 +286,7 @@ class AcademicAdapter:
                 if w_resp.ok:
                     for w in w_resp.json().get("results", []):
                         recent.append({"title": w.get("display_name"), "year": w.get("publication_year"), "citations": w.get("cited_by_count")})
-            except:
+            except Exception:
                 pass
 
             return {
@@ -303,7 +304,7 @@ class AcademicAdapter:
     def search_concepts(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Search academic concepts/topics from OpenAlex."""
         try:
-            headers = {"User-Agent": "AgentSquad/1.0 (mailto:lch6817556@gmail.com)"}
+            headers = {"User-Agent": f"NexusFinanceMCP/1.0 (mailto:{os.getenv('CONTACT_EMAIL', 'nexus-finance-mcp@users.noreply.github.com')})"}
             url = f"https://api.openalex.org/concepts?search={quote(query)}&per_page={limit}"
             resp = requests.get(url, headers=headers, timeout=15)
             resp.raise_for_status()

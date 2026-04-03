@@ -58,6 +58,7 @@ class CacheManager:
         self._l1: LRUCache = LRUCache(maxsize=l1_maxsize)
 
         # L2: TTL cache with time-based expiration
+        self._l2_ttl: int = l2_ttl
         self._l2: TTLCache = TTLCache(maxsize=l2_maxsize, ttl=l2_ttl)
 
         # L3: Persistent disk cache
@@ -82,7 +83,7 @@ class CacheManager:
         if isinstance(key, str):
             return key
         serialized = json.dumps(key, sort_keys=True, default=str)
-        return hashlib.md5(serialized.encode()).hexdigest()
+        return hashlib.sha256(serialized.encode()).hexdigest()
 
     def get(self, namespace: str, key: Any) -> Optional[Any]:
         """
@@ -150,8 +151,13 @@ class CacheManager:
             ttl = self.TTL_CONFIG.get(data_type, self.TTL_CONFIG["default"])
 
         # Set in all tiers
+        # L1: LRU (size-based eviction, no TTL — always set)
         self._l1[cache_key] = value
-        self._l2[cache_key] = value
+        # L2: TTLCache has fixed TTL from __init__. Skip if data needs
+        # shorter TTL to avoid serving stale realtime data.
+        if ttl >= self._l2_ttl:
+            self._l2[cache_key] = value
+        # L3: DiskCache supports per-key TTL
         self._l3.set(cache_key, value, expire=ttl)
 
         logger.debug(f"Cache set: {cache_key} (TTL={ttl}s)")
@@ -279,11 +285,14 @@ def cached(
 
 # Global cache instance (lazy initialization)
 _global_cache: Optional[CacheManager] = None
+_cache_lock = __import__("threading").Lock()
 
 
 def get_cache() -> CacheManager:
     """Get or create the global cache instance."""
     global _global_cache
     if _global_cache is None:
-        _global_cache = CacheManager()
+        with _cache_lock:
+            if _global_cache is None:
+                _global_cache = CacheManager()
     return _global_cache

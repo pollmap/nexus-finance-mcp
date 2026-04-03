@@ -61,9 +61,25 @@ class GlobalMacroServer:
             """한국 경제 국제비교 스냅샷 — GDP, 물가, 실업률을 World Bank에서 조회."""
             indicators = {
                 "GDP (current US$)": "NY.GDP.MKTP.CD",
+                "GDP per capita (US$)": "NY.GDP.PCAP.CD",
                 "GDP growth (%)": "NY.GDP.MKTP.KD.ZG",
                 "Inflation CPI (%)": "FP.CPI.TOTL.ZG",
                 "Unemployment (%)": "SL.UEM.TOTL.ZS",
+                "Govt Debt/GDP (%)": "GC.DOD.TOTL.GD.ZS",
+                "Trade Balance (% GDP)": "NE.RSB.GNFS.ZS",
+                "FDI Inflows (% GDP)": "BX.KLT.DINV.WD.GD.ZS",
+                "Current Account (% GDP)": "BN.CAB.XOKA.GD.ZS",
+                "Population": "SP.POP.TOTL",
+                "Life Expectancy": "SP.DYN.LE00.IN",
+                "Poverty Rate (%)": "SI.POV.DDAY",
+                "Gini Index": "SI.POV.GINI",
+                "Exports (% GDP)": "NE.EXP.GNFS.ZS",
+                "Industry (% GDP)": "NV.IND.TOTL.ZS",
+                "R&D Expenditure (% GDP)": "GB.XPD.RSDV.GD.ZS",
+                "CO2 Emissions (metric tons per capita)": "EN.ATM.CO2E.PC",
+                "Internet Users (%)": "IT.NET.USER.ZS",
+                "Gross Savings (% GDP)": "NY.GNS.ICTR.ZS",
+                "Household Consumption (% GDP)": "NE.CON.PRVT.ZS",
             }
             results = {}
             for name, code in indicators.items():

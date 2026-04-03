@@ -25,10 +25,18 @@ class AviationServer:
         def aviation_korea_airports() -> dict:
             """한국 주요 공항 ICAO 코드."""
             return {"success": True, "airports": [
-                {"name": "인천국제공항", "icao": "RKSI", "iata": "ICN"},
-                {"name": "김포국제공항", "icao": "RKSS", "iata": "GMP"},
-                {"name": "제주국제공항", "icao": "RKPC", "iata": "CJU"},
-                {"name": "김해국제공항", "icao": "RKPK", "iata": "PUS"},
-                {"name": "대구국제공항", "icao": "RKTN", "iata": "TAE"},
-                {"name": "청주국제공항", "icao": "RKTU", "iata": "CJJ"},
+                {"name": "인천국제공항", "icao": "RKSI", "iata": "ICN", "city": "인천"},
+                {"name": "김포국제공항", "icao": "RKSS", "iata": "GMP", "city": "서울"},
+                {"name": "제주국제공항", "icao": "RKPC", "iata": "CJU", "city": "제주"},
+                {"name": "김해국제공항", "icao": "RKPK", "iata": "PUS", "city": "부산"},
+                {"name": "대구국제공항", "icao": "RKTN", "iata": "TAE", "city": "대구"},
+                {"name": "청주국제공항", "icao": "RKTU", "iata": "CJJ", "city": "청주"},
+                {"name": "무안국제공항", "icao": "RKJB", "iata": "MWX", "city": "무안"},
+                {"name": "양양국제공항", "icao": "RKNY", "iata": "YNY", "city": "양양"},
+                {"name": "광주공항", "icao": "RKJJ", "iata": "KWJ", "city": "광주"},
+                {"name": "울산공항", "icao": "RKPU", "iata": "USN", "city": "울산"},
+                {"name": "여수공항", "icao": "RKJY", "iata": "RSU", "city": "여수"},
+                {"name": "포항공항", "icao": "RKTH", "iata": "KPO", "city": "포항"},
+                {"name": "사천공항", "icao": "RKPS", "iata": "HIN", "city": "사천"},
+                {"name": "원주공항", "icao": "RKNW", "iata": "WJU", "city": "원주"},
             ]}

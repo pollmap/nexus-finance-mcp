@@ -15,11 +15,11 @@ class MaritimeServer:
     def _register(self):
         @self.mcp.tool()
         def maritime_bdi() -> dict:
-            """Baltic Dry Index (FRED). 벌크선 운임 지표."""
+            """Baltic Dry Index (FRED). 벌크선 운임 지표. [주의: FRED 시리즈 중단으로 데이터 없을 수 있음]"""
             return self._a.get_bdi_proxy()
         @self.mcp.tool()
         def maritime_container_index() -> dict:
-            """Freightos Baltic Container Index. 컨테이너 운임."""
+            """Freightos Baltic Container Index. 컨테이너 운임. [주의: FRED 시리즈 중단으로 데이터 없을 수 있음]"""
             return self._a.get_container_index()
         @self.mcp.tool()
         def maritime_ports() -> dict:

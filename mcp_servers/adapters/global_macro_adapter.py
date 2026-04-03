@@ -43,26 +43,33 @@ class GlobalMacroAdapter:
         if not self._sdmx:
             return {"error": True, "message": "sdmx1 not installed"}
         try:
-            oecd = self._sdmx.Client("OECD")
-            key = {"LOCATION": country}
-            if subject:
-                key["SUBJECT"] = subject
-
-            data = oecd.data(dataset, key=key)
-            df = data.to_pandas()
-
-            if hasattr(df, 'reset_index'):
-                df = df.reset_index()
-
-            records = df.tail(recent).to_dict("records") if len(df) > 0 else []
-
+            # Try OECD_JSON (stats.oecd.org) first, then new OECD API
+            for client_id in ["OECD_JSON", "OECD"]:
+                try:
+                    client = self._sdmx.Client(client_id, timeout=30)
+                    key = {"LOCATION": country}
+                    if subject:
+                        key["SUBJECT"] = subject
+                    data = client.data(dataset, key=key)
+                    df = data.to_pandas()
+                    if hasattr(df, 'reset_index'):
+                        df = df.reset_index()
+                    records = df.tail(recent).to_dict("records") if len(df) > 0 else []
+                    return {
+                        "success": True,
+                        "source": f"OECD ({client_id})",
+                        "dataset": dataset,
+                        "country": country,
+                        "count": len(records),
+                        "data": records[-recent:],
+                    }
+                except Exception:
+                    continue
             return {
-                "success": True,
-                "source": "OECD",
-                "dataset": dataset,
-                "country": country,
-                "count": len(records),
-                "data": records[-recent:],
+                "error": True,
+                "message": f"OECD dataset '{dataset}' not found. OECD API가 2024년 이후 대폭 변경되었습니다. "
+                           f"한국 경제지표는 ecos_* 도구를, 미국은 FRED 시리즈를 사용하세요. "
+                           f"macro_datasets('OECD')로 사용 가능한 데이터셋을 확인하세요.",
             }
         except Exception as e:
             return {"error": True, "message": f"OECD query failed: {e}"}
@@ -81,7 +88,7 @@ class GlobalMacroAdapter:
         if not self._sdmx:
             return {"error": True, "message": "sdmx1 not installed"}
         try:
-            imf = self._sdmx.Client("IMF")
+            imf = self._sdmx.Client("IMF", timeout=30)
             key = {"REF_AREA": country}
             if indicator:
                 key["INDICATOR"] = indicator
@@ -103,7 +110,11 @@ class GlobalMacroAdapter:
                 "data": records[-recent:],
             }
         except Exception as e:
-            return {"error": True, "message": f"IMF query failed: {e}"}
+            return {
+                "error": True,
+                "message": f"IMF query failed: {e}. IMF SDMX API가 변경되었을 수 있습니다. "
+                           f"한국 데이터는 ecos_* 도구를, 미국은 FRED를, 국제비교는 macro_worldbank를 사용하세요.",
+            }
 
     def get_bis_indicator(
         self, dataset: str = "WS_SPP", country: str = "KR", recent: int = 20
@@ -120,7 +131,7 @@ class GlobalMacroAdapter:
         if not self._sdmx:
             return {"error": True, "message": "sdmx1 not installed"}
         try:
-            bis = self._sdmx.Client("BIS")
+            bis = self._sdmx.Client("BIS", timeout=30)
             key = {"REF_AREA": country}
 
             data = bis.data(dataset, key=key)
@@ -180,7 +191,7 @@ class GlobalMacroAdapter:
         if not self._sdmx:
             return {"error": True, "message": "sdmx1 not installed"}
         try:
-            client = self._sdmx.Client(source)
+            client = self._sdmx.Client(source, timeout=30)
             flows = client.dataflow()
             datasets = []
             for key, flow in list(flows.dataflow.items())[:50]:

@@ -3,6 +3,9 @@ Fallback Chain for resilient data fetching.
 
 Provides automatic fallback to alternative data sources when primary
 sources fail or are unavailable.
+
+NOTE: This module is not currently used by any server. Retained for future
+multi-source fallback patterns. Servers currently call adapters directly.
 """
 import asyncio
 import logging

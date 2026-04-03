@@ -75,6 +75,12 @@ class KRXAdapter:
         except Exception as e:
             logger.error(f"Failed to initialize pykrx: {e}")
 
+    @staticmethod
+    def _validate_stock_code(stock_code: str) -> bool:
+        """Validate Korean stock code format (6 digits)."""
+        import re
+        return bool(re.match(r'^\d{6}$', str(stock_code)))
+
     def _format_date(self, date: datetime) -> str:
         """Format date for pykrx (YYYYMMDD)."""
         return date.strftime("%Y%m%d")
@@ -96,6 +102,8 @@ class KRXAdapter:
         Returns:
             OHLCV data dict
         """
+        if not self._validate_stock_code(stock_code):
+            return {"error": True, "message": f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)"}
         if not self._stock:
             return {"error": True, "message": "pykrx not initialized"}
 
@@ -180,6 +188,8 @@ class KRXAdapter:
         Returns:
             Market cap info dict
         """
+        if not self._validate_stock_code(stock_code):
+            return {"error": True, "message": f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)"}
         if not self._stock:
             return {"error": True, "message": "pykrx not initialized"}
 
@@ -252,19 +262,50 @@ class KRXAdapter:
             if cached:
                 return cached
 
-            # Get index data
-            df = self._stock.get_index_ohlcv_by_date(start_date, end_date, index_code)
+            # Get index data — pykrx may crash on '지수명' KeyError (library bug)
+            df = None
+            try:
+                df = self._stock.get_index_ohlcv_by_date(start_date, end_date, index_code)
+            except KeyError:
+                # pykrx internal bug: IndexTicker '지수명' column missing
+                # Fallback to Yahoo Finance
+                try:
+                    import yfinance as yf
+                    yahoo_map = {"1001": "^KS11", "2001": "^KQ11", "1028": "^KS200"}
+                    yticker = yahoo_map.get(index_code, "^KS11")
+                    sd = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:]}"
+                    ed = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:]}"
+                    ydf = yf.Ticker(yticker).history(start=sd, end=ed)
+                    if ydf is not None and not ydf.empty:
+                        ydf = ydf.reset_index()
+                        ydf.columns = [c.lower().replace(" ", "_") for c in ydf.columns]
+                        if "date" in ydf.columns:
+                            ydf["date"] = ydf["date"].astype(str).str[:10]
+                        df = ydf
+                except Exception:
+                    pass
 
             if df is None or df.empty:
-                return {"success": True, "data": [], "message": "No index data"}
+                return {"success": True, "data": [], "message": "No index data (pykrx 지수명 bug, Yahoo fallback also failed)"}
 
             df = df.reset_index()
 
-            # Handle dynamic column count from pykrx
-            expected_cols = ["date", "open", "high", "low", "close", "volume", "value", "market_cap"]
-            if len(df.columns) == len(expected_cols):
-                df.columns = expected_cols
-            else:
+            # Use same robust Korean→English mapping as get_stock_price
+            korean_to_english = {
+                "날짜": "date", "시가": "open", "고가": "high", "저가": "low",
+                "종가": "close", "거래량": "volume", "거래대금": "value",
+                "등락률": "change", "상장시가총액": "market_cap",
+                "지수명": "index_name", "시가총액": "market_cap",
+            }
+            new_columns = []
+            for col in df.columns:
+                col_str = str(col)
+                if col_str in korean_to_english:
+                    new_columns.append(korean_to_english[col_str])
+                else:
+                    new_columns.append(col_str.lower().replace(" ", "_"))
+            df.columns = new_columns
+            if "date" not in df.columns and len(df.columns) > 0:
                 df.columns = ["date"] + list(df.columns[1:])
             df["date"] = df["date"].astype(str)
             records = df.to_dict("records")
@@ -308,6 +349,8 @@ class KRXAdapter:
         Returns:
             Beta and related statistics
         """
+        if not self._validate_stock_code(stock_code):
+            return {"error": True, "message": f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)"}
         if not self._stock:
             return {"error": True, "message": "pykrx not initialized"}
 
@@ -335,7 +378,20 @@ class KRXAdapter:
             index_df = pd.DataFrame(index_result["data"])
 
             if stock_df.empty or index_df.empty:
-                return {"error": True, "message": "Insufficient data for beta calculation"}
+                return {"error": True, "code": "BETA_NO_DATA", "message": "Insufficient data for beta calculation"}
+
+            # Ensure "close" column exists (pykrx may return Korean names)
+            close_map = {"종가": "close"}
+            for col_name in close_map:
+                if col_name in stock_df.columns and "close" not in stock_df.columns:
+                    stock_df = stock_df.rename(columns={col_name: "close"})
+                if col_name in index_df.columns and "close" not in index_df.columns:
+                    index_df = index_df.rename(columns={col_name: "close"})
+
+            if "close" not in stock_df.columns or "close" not in index_df.columns:
+                return {"error": True, "code": "BETA_COLUMN_MISSING",
+                        "message": f"'close' column not found. Stock cols: {list(stock_df.columns)}, Index cols: {list(index_df.columns)}",
+                        "suggestion": "Try period_days=252 or check stock_code validity"}
 
             # Calculate returns
             stock_df["date"] = pd.to_datetime(stock_df["date"])
@@ -399,7 +455,7 @@ class KRXAdapter:
         try:
             name = self._stock.get_market_ticker_name(stock_code)
             return name if name else stock_code
-        except:
+        except Exception:
             return stock_code
 
     def get_stock_list(self, market: str = "KOSPI") -> Dict[str, Any]:

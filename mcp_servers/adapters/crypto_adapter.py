@@ -39,22 +39,32 @@ class CryptoAdapter:
     Adapter for cryptocurrency data via CoinGecko API.
 
     Free tier: 50 requests/minute
+
+    DEPRECATED: crypto_exchange_server uses CCXTAdapter instead.
+    This adapter is retained for potential CoinGecko-specific use cases.
     """
 
     BASE_URL = "https://api.coingecko.com/api/v3"
 
-    # Common coin IDs
+    # Common coin IDs (top 50 by market cap)
     COINS = {
-        "BTC": "bitcoin",
-        "ETH": "ethereum",
-        "BNB": "binancecoin",
-        "XRP": "ripple",
-        "SOL": "solana",
-        "ADA": "cardano",
-        "DOGE": "dogecoin",
-        "DOT": "polkadot",
-        "MATIC": "matic-network",
-        "LINK": "chainlink",
+        "BTC": "bitcoin", "ETH": "ethereum", "BNB": "binancecoin",
+        "XRP": "ripple", "SOL": "solana", "ADA": "cardano",
+        "DOGE": "dogecoin", "TRX": "tron", "AVAX": "avalanche-2",
+        "DOT": "polkadot", "LINK": "chainlink", "MATIC": "matic-network",
+        "TON": "the-open-network", "SHIB": "shiba-inu", "DAI": "dai",
+        "LTC": "litecoin", "BCH": "bitcoin-cash", "UNI": "uniswap",
+        "ATOM": "cosmos", "XLM": "stellar", "ETC": "ethereum-classic",
+        "NEAR": "near", "ICP": "internet-computer", "APT": "aptos",
+        "FIL": "filecoin", "STX": "blockstack", "ARB": "arbitrum",
+        "IMX": "immutable-x", "OP": "optimism", "HBAR": "hedera-hashgraph",
+        "VET": "vechain", "MKR": "maker", "AAVE": "aave",
+        "ALGO": "algorand", "GRT": "the-graph", "FTM": "fantom",
+        "SAND": "the-sandbox", "MANA": "decentraland", "THETA": "theta-token",
+        "AXS": "axie-infinity", "EGLD": "elrond-erd-2", "EOS": "eos",
+        "FLOW": "flow", "XTZ": "tezos", "CFX": "conflux-token",
+        "NEO": "neo", "KLAY": "klay-token", "CRO": "crypto-com-chain",
+        "USDT": "tether", "USDC": "usd-coin", "SUI": "sui",
     }
 
     def __init__(
@@ -80,8 +90,10 @@ class CryptoAdapter:
 
         logger.info("Crypto adapter initialized")
 
-    def _make_request(self, endpoint: str, params: Dict = None) -> Dict[str, Any]:
-        """Make API request with rate limiting."""
+    MAX_RETRIES = 3
+
+    def _make_request(self, endpoint: str, params: Dict = None, _retry_count: int = 0) -> Dict[str, Any]:
+        """Make API request with rate limiting and bounded retries."""
         self._limiter.acquire("coingecko")
 
         url = f"{self.BASE_URL}/{endpoint}"
@@ -93,9 +105,11 @@ class CryptoAdapter:
 
         except requests.exceptions.HTTPError as e:
             if response.status_code == 429:
-                logger.warning("Rate limited by CoinGecko, waiting...")
-                time.sleep(60)  # Wait 1 minute
-                return self._make_request(endpoint, params)
+                if _retry_count >= self.MAX_RETRIES:
+                    return {"error": True, "message": f"Rate limited by CoinGecko after {self.MAX_RETRIES} retries"}
+                logger.warning(f"Rate limited by CoinGecko, retry {_retry_count + 1}/{self.MAX_RETRIES}...")
+                time.sleep(60)
+                return self._make_request(endpoint, params, _retry_count + 1)
             return {"error": True, "message": f"HTTP Error: {e}"}
 
         except requests.exceptions.RequestException as e:

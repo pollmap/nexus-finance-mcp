@@ -1,4 +1,5 @@
 .env
+.env.*
 __pycache__/
 *.pyc
 *.pyo
@@ -9,12 +10,20 @@ build/
 .venv/
 node_modules/
 
+# Cached data
+docs_cache/
+*.pkl
+
 # Logs
 nohup.out
 *.log
 
 # Output
 output/
+
+# Database files
+memory/*.db
+vault/*.db
 
 # IDE
 .vscode/

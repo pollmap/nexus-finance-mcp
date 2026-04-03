@@ -19,9 +19,10 @@ import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import pandas as pd
+import requests
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -37,56 +38,155 @@ from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
 
 logger = logging.getLogger(__name__)
 
-# Key ECOS stat codes with metadata
+# Key ECOS stat codes with metadata (30 indicators)
 ECOS_STAT_CODES = {
+    # === 금리/통화 ===
     "base_rate": {
-        "code": "722Y001",
-        "item_code": "0101000",
-        "name": "기준금리",
-        "name_en": "Base Rate",
-        "unit": "%",
-        "frequency": "D",  # Daily
+        "code": "722Y001", "item_code": "0101000",
+        "name": "기준금리", "name_en": "Base Rate", "unit": "%", "frequency": "D",
     },
     "m2": {
-        "code": "101Y004",
-        "item_code": "BBHA00",
-        "name": "M2 (광의통화)",
-        "name_en": "M2 Money Supply",
-        "unit": "십억원",
-        "frequency": "M",  # Monthly
+        "code": "101Y004", "item_code": "BBHA00",
+        "name": "M2 (광의통화)", "name_en": "M2 Money Supply", "unit": "십억원", "frequency": "M",
     },
-    "gdp": {
-        "code": "200Y102",
-        "item_code": "10111",
-        "name": "국내총생산(GDP)",
-        "name_en": "GDP",
-        "unit": "십억원",
-        "frequency": "Q",  # Quarterly
+    "market_rate_daily": {
+        "code": "817Y002", "item_code": "0001000",
+        "name": "시장금리(일별)", "name_en": "Market Rate (Daily)", "unit": "%", "frequency": "D",
     },
+    "market_rate_monthly": {
+        "code": "721Y001", "item_code": "0101000",
+        "name": "시장금리(월)", "name_en": "Market Rate (Monthly)", "unit": "%", "frequency": "M",
+    },
+    "cd_rate_91d": {
+        "code": "817Y002", "item_code": "0001001",
+        "name": "CD금리(91일)", "name_en": "CD Rate (91-day)", "unit": "%", "frequency": "D",
+    },
+    "call_rate": {
+        "code": "817Y002", "item_code": "0001002",
+        "name": "콜금리(1일)", "name_en": "Call Rate (Overnight)", "unit": "%", "frequency": "D",
+    },
+    "treasury_3y": {
+        "code": "817Y002", "item_code": "0001003",
+        "name": "국고채(3년)", "name_en": "Treasury Bond (3Y)", "unit": "%", "frequency": "D",
+    },
+    "deposit_rate": {
+        "code": "121Y014", "item_code": "BEABAA2",
+        "name": "예금은행 수신금리", "name_en": "Bank Deposit Rate", "unit": "%", "frequency": "M",
+    },
+    "loan_rate": {
+        "code": "121Y015", "item_code": "BEABAB2",
+        "name": "예금은행 대출금리", "name_en": "Bank Loan Rate", "unit": "%", "frequency": "M",
+    },
+    # === 환율 ===
     "exchange_rate_usd": {
-        "code": "731Y001",
-        "item_code": "0000001",
-        "name": "원/달러 환율",
-        "name_en": "KRW/USD Exchange Rate",
-        "unit": "원",
-        "frequency": "D",
+        "code": "731Y001", "item_code": "0000001",
+        "name": "원/달러 환율", "name_en": "KRW/USD Exchange Rate", "unit": "원", "frequency": "D",
     },
+    # === GDP/성장 ===
+    "gdp": {
+        "code": "200Y102", "item_code": "10111",
+        "name": "국내총생산(GDP)", "name_en": "GDP", "unit": "십억원", "frequency": "Q",
+    },
+    # === 물가 ===
     "cpi": {
-        "code": "901Y009",
-        "item_code": "0",
-        "name": "소비자물가지수",
-        "name_en": "Consumer Price Index",
-        "unit": "2020=100",
-        "frequency": "M",
+        "code": "901Y009", "item_code": "0",
+        "name": "소비자물가지수", "name_en": "Consumer Price Index", "unit": "2020=100", "frequency": "M",
     },
+    "ppi": {
+        "code": "404Y014", "item_code": "0",
+        "name": "생산자물가지수", "name_en": "Producer Price Index", "unit": "2020=100", "frequency": "M",
+    },
+    # === 고용 ===
     "unemployment_rate": {
-        "code": "901Y027",
-        "item_code": "I16AA",
-        "name": "실업률",
-        "name_en": "Unemployment Rate",
-        "unit": "%",
-        "frequency": "M",
+        "code": "901Y027", "item_code": "I16AA",
+        "name": "실업률", "name_en": "Unemployment Rate", "unit": "%", "frequency": "M",
     },
+    "employed": {
+        "code": "901Y027", "item_code": "I16BA",
+        "name": "취업자수", "name_en": "Employed Persons", "unit": "천명", "frequency": "M",
+    },
+    "labor_participation": {
+        "code": "901Y027", "item_code": "I16CA",
+        "name": "경제활동참가율", "name_en": "Labor Force Participation Rate", "unit": "%", "frequency": "M",
+    },
+    # === 가계금융 ===
+    "household_credit": {
+        "code": "151Y001", "item_code": "11100",
+        "name": "가계신용", "name_en": "Household Credit", "unit": "십억원", "frequency": "Q",
+    },
+    "mortgage_loan": {
+        "code": "121Y006", "item_code": "BFAAB1A",
+        "name": "주택담보대출", "name_en": "Mortgage Loans", "unit": "십억원", "frequency": "M",
+    },
+    # === 국제수지/무역 ===
+    "current_account": {
+        "code": "301Y013", "item_code": "000000",
+        "name": "경상수지", "name_en": "Current Account Balance", "unit": "백만달러", "frequency": "M",
+    },
+    "export_customs": {
+        "code": "403Y003", "item_code": "000000",
+        "name": "수출(통관)", "name_en": "Exports (Customs)", "unit": "천달러", "frequency": "M",
+    },
+    "import_customs": {
+        "code": "403Y004", "item_code": "000000",
+        "name": "수입(통관)", "name_en": "Imports (Customs)", "unit": "천달러", "frequency": "M",
+    },
+    # === 경기지표 ===
+    "composite_index": {
+        "code": "901Y067", "item_code": "I29A",
+        "name": "경기종합지수(동행)", "name_en": "Composite Leading Index", "unit": "2020=100", "frequency": "M",
+    },
+    "bsi": {
+        "code": "512Y014", "item_code": "99988",
+        "name": "기업경기실사지수(BSI)", "name_en": "Business Survey Index", "unit": "지수", "frequency": "M",
+    },
+    "csi": {
+        "code": "511Y002", "item_code": "0",
+        "name": "소비자동향지수(CSI)", "name_en": "Consumer Sentiment Index", "unit": "지수", "frequency": "M",
+    },
+    # === 부동산(BOK) ===
+    "house_price_index": {
+        "code": "901Y062", "item_code": "P63AA",
+        "name": "주택매매가격지수", "name_en": "House Price Index (KB)", "unit": "2021.6=100", "frequency": "M",
+    },
+    "jeonse_price_index": {
+        "code": "901Y063", "item_code": "P63BA",
+        "name": "전세가격지수", "name_en": "Jeonse Price Index (KB)", "unit": "2021.6=100", "frequency": "M",
+    },
+    # === 주식/자본시장 ===
+    "stock_market_daily": {
+        "code": "802Y001", "item_code": "0001000",
+        "name": "주식시장(종합주가지수)", "name_en": "Stock Market (KOSPI)", "unit": "포인트", "frequency": "D",
+    },
+    "bond_market": {
+        "code": "901Y015", "item_code": "1070000",
+        "name": "채권시장", "name_en": "Bond Market", "unit": "십억원", "frequency": "M",
+    },
+    # === 산업 ===
+    "industrial_production": {
+        "code": "901Y020", "item_code": "I31A00",
+        "name": "광공업생산지수", "name_en": "Industrial Production Index", "unit": "2020=100", "frequency": "M",
+    },
+    "m1": {
+        "code": "101Y003", "item_code": "BBHA00",
+        "name": "M1 (협의통화)", "name_en": "M1 Narrow Money", "unit": "십억원", "frequency": "M",
+    },
+}
+
+# Korean → English column name mapping for ECOS DataFrame normalization
+ECOS_COL_MAP = {
+    "통계표코드": "stat_code",
+    "통계명": "stat_name",
+    "통계항목코드1": "item_code1",
+    "통계항목명1": "item_name1",
+    "통계항목코드2": "item_code2",
+    "통계항목명2": "item_name2",
+    "통계항목코드3": "item_code3",
+    "통계항목명3": "item_name3",
+    "단위": "unit",
+    "WGT": "weight",
+    "시점": "date",
+    "값": "value",
 }
 
 
@@ -229,7 +329,7 @@ class ECOSServer:
                 date: 기준일 (YYYYMMDD, 기본값: 최신)
 
             Returns:
-                기준금리, M2, GDP, 환율, CPI, 실업률 등 주요 지표
+                기준금리, M2, GDP, 환율 (4개 지표)
             """
             return self.get_macro_snapshot(date)
 
@@ -252,12 +352,27 @@ class ECOSServer:
             """
             return self.get_exchange_rate(currency, start_date, end_date)
 
+        @self.mcp.tool()
+        def ecos_get_bond_yield(
+            maturity: str = "3Y",
+            start_date: str = None,
+            end_date: str = None,
+        ) -> dict:
+            """국고채 수익률 조회 (Rf, WACC 계산용)
+
+            Args:
+                maturity: 만기 (3Y, 5Y, 10Y, 20Y)
+                start_date: 시작일 (YYYYMMDD)
+                end_date: 종료일 (YYYYMMDD)
+            """
+            return self.get_bond_yield(maturity, start_date, end_date)
+
     # Implementation methods
 
     def search_stat_list(self, keyword: str) -> Dict[str, Any]:
-        """Search for statistics by keyword."""
-        if not self._ecos:
-            return {"error": True, "message": "ECOS client not initialized"}
+        """Search for statistics by keyword using ECOS REST API directly."""
+        if not self.api_key:
+            return {"error": True, "message": "BOK_ECOS_API_KEY not set"}
 
         try:
             self._limiter.acquire("ecos")
@@ -268,20 +383,36 @@ class ECOSServer:
             if cached:
                 return cached
 
-            # Search using PublicDataReader
-            df = self._ecos.get_statistic_table_list(keyword)
+            # Fetch full table list from ECOS REST API
+            url = f"https://ecos.bok.or.kr/api/StatisticTableList/{self.api_key}/json/kr/1/1000/"
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
 
-            if df is None or df.empty:
-                return {"success": True, "data": [], "message": f"No results for '{keyword}'"}
+            rows = data.get("StatisticTableList", {}).get("row", [])
+            if not rows:
+                err = data.get("RESULT", {})
+                return {"success": True, "data": [], "message": err.get("MESSAGE", f"No results for '{keyword}'")}
 
-            # Convert to list of dicts
-            results = df.to_dict("records")
+            # Filter by keyword in STAT_NAME (only searchable items)
+            keyword_lower = keyword.lower()
+            matches = [
+                {
+                    "stat_code": r.get("STAT_CODE", ""),
+                    "stat_name": r.get("STAT_NAME", ""),
+                    "cycle": r.get("CYCLE"),
+                    "org_name": r.get("ORG_NAME"),
+                    "searchable": r.get("SRCH_YN"),
+                }
+                for r in rows
+                if keyword_lower in r.get("STAT_NAME", "").lower()
+            ]
 
             response = {
                 "success": True,
                 "keyword": keyword,
-                "count": len(results),
-                "data": results[:50],  # Limit to 50 results
+                "count": len(matches),
+                "data": matches[:50],
             }
 
             self._cache.set("ecos", cache_key, response, "static_meta")
@@ -339,6 +470,9 @@ class ECOSServer:
                     "message": "No data found for the specified parameters",
                 }
 
+            # Normalize Korean column names to English
+            df.rename(columns=ECOS_COL_MAP, inplace=True)
+
             # Process dataframe
             records = df.to_dict("records")
 
@@ -392,8 +526,8 @@ class ECOSServer:
             if result.get("data"):
                 latest = result["data"][-1]
                 result["latest"] = {
-                    "date": latest.get("시점", latest.get("TIME", "")),
-                    "value": latest.get("값", latest.get("DATA_VALUE", "")),
+                    "date": latest.get("date", ""),
+                    "value": latest.get("value", ""),
                 }
 
         return result
@@ -427,8 +561,8 @@ class ECOSServer:
             if result.get("data"):
                 latest = result["data"][-1]
                 result["latest"] = {
-                    "date": latest.get("시점", latest.get("TIME", "")),
-                    "value": latest.get("값", latest.get("DATA_VALUE", "")),
+                    "date": latest.get("date", ""),
+                    "value": latest.get("value", ""),
                 }
 
         return result
@@ -462,8 +596,8 @@ class ECOSServer:
             if result.get("data"):
                 latest = result["data"][-1]
                 result["latest"] = {
-                    "period": latest.get("시점", latest.get("TIME", "")),
-                    "value": latest.get("값", latest.get("DATA_VALUE", "")),
+                    "period": latest.get("date", ""),
+                    "value": latest.get("value", ""),
                 }
 
         return result
@@ -480,13 +614,15 @@ class ECOSServer:
         if end_date is None:
             end_date = datetime.now().strftime("%Y%m%d")
 
-        # Currency code mapping for ECOS
+        # Currency code mapping for ECOS (20 currencies)
         currency_codes = {
-            "USD": "0000001",
-            "EUR": "0000002",
-            "JPY": "0000003",
-            "CNY": "0000053",
-            "GBP": "0000005",
+            "USD": "0000001", "EUR": "0000002", "JPY": "0000003",
+            "GBP": "0000005", "CNY": "0000053", "CHF": "0000007",
+            "AUD": "0000013", "CAD": "0000012", "NZD": "0000023",
+            "HKD": "0000006", "SGD": "0000016", "TWD": "0000020",
+            "THB": "0000022", "MYR": "0000021", "IDR": "0000019",
+            "PHP": "0000017", "INR": "0000018", "SEK": "0000009",
+            "NOK": "0000010", "DKK": "0000008",
         }
 
         item_code = currency_codes.get(currency.upper(), "0000001")
@@ -507,8 +643,53 @@ class ECOSServer:
             if result.get("data"):
                 latest = result["data"][-1]
                 result["latest"] = {
-                    "date": latest.get("시점", latest.get("TIME", "")),
-                    "value": latest.get("값", latest.get("DATA_VALUE", "")),
+                    "date": latest.get("date", ""),
+                    "value": latest.get("value", ""),
+                }
+
+        return result
+
+    def get_bond_yield(
+        self,
+        maturity: str = "3Y",
+        start_date: str = None,
+        end_date: str = None,
+    ) -> Dict[str, Any]:
+        """Get Korean Treasury bond yield."""
+        # 721Y001 = 시장금리(월), 확실하게 데이터 있음
+        maturity_map = {
+            "3Y": "5020000",
+            "5Y": "5030000",
+            "10Y": "5050000",
+            "20Y": "5060000",
+        }
+
+        item_code = maturity_map.get(maturity.upper(), "5020000")
+
+        if start_date is None:
+            start_date = (datetime.now() - timedelta(days=365*2)).strftime("%Y%m")
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y%m")
+
+        result = self.get_stat_data(
+            stat_code="721Y001",
+            item_code=item_code,
+            start_date=start_date,
+            end_date=end_date,
+            frequency="M",
+        )
+
+        if result.get("success"):
+            result["indicator"] = f"국고채({maturity})"
+            result["indicator_en"] = f"Treasury Bond ({maturity})"
+            result["maturity"] = maturity
+            result["unit"] = "%"
+
+            if result.get("data"):
+                latest = result["data"][-1]
+                result["latest"] = {
+                    "date": latest.get("date", ""),
+                    "value": latest.get("value", ""),
                 }
 
         return result

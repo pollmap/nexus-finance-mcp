@@ -132,7 +132,7 @@ class RelativeValueAnalyzer:
         for peer in peers:
             for m in multiples:
                 value = getattr(peer, m, 0)
-                if value and value > 0:  # Only include positive values
+                if value is not None and value > 0:  # Only include positive values
                     peer_data[m].append(value)
 
         # Get target data

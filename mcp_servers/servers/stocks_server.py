@@ -97,6 +97,8 @@ class StocksServer:
             start_date: str = None,
             end_date: str = None,
             market: str = "KR",
+            interval: str = "daily",
+            limit: int = 0,
         ) -> dict:
             """
             과거 주가 데이터 (OHLCV).
@@ -106,16 +108,58 @@ class StocksServer:
                 start_date: 시작일 (YYYYMMDD)
                 end_date: 종료일 (YYYYMMDD)
                 market: KR 또는 US
+                interval: daily(기본), weekly, monthly — 주봉/월봉 리샘플링
+                limit: 최근 N건만 반환 (0=전체)
 
             Returns:
-                일별 OHLCV 데이터
+                OHLCV 데이터
             """
             if market.upper() == "KR":
-                return self._krx.get_stock_price(stock_code, start_date, end_date)
+                result = self._krx.get_stock_price(stock_code, start_date, end_date)
             elif market.upper() == "US" and self._yahoo:
-                return self._yahoo.get_stock_price(stock_code, start_date, end_date)
+                result = self._yahoo.get_stock_price(stock_code, start_date, end_date)
             else:
                 return {"error": True, "message": f"Unsupported market: {market}"}
+
+            if result.get("error") or not result.get("data"):
+                return result
+
+            # Resample if needed
+            if interval in ("weekly", "monthly"):
+                import pandas as pd
+                df = pd.DataFrame(result["data"])
+                df.columns = [c.lower() for c in df.columns]
+                df["date"] = pd.to_datetime(df["date"])
+                df = df.set_index("date").sort_index()
+                rule = "W" if interval == "weekly" else "ME"
+                agg = {}
+                for col in df.columns:
+                    if col == "open":
+                        agg[col] = "first"
+                    elif col == "high":
+                        agg[col] = "max"
+                    elif col == "low":
+                        agg[col] = "min"
+                    elif col == "close":
+                        agg[col] = "last"
+                    elif col in ("volume", "value"):
+                        agg[col] = "sum"
+                    else:
+                        agg[col] = "last"
+                df = df.resample(rule).agg(agg).dropna(subset=["close"])
+                df = df.reset_index()
+                df["date"] = df["date"].astype(str)
+                result["data"] = df.to_dict("records")
+                result["interval"] = interval
+                result["count"] = len(result["data"])
+
+            # Apply limit
+            if limit > 0 and len(result.get("data", [])) > limit:
+                result["data"] = result["data"][-limit:]
+                result["count"] = len(result["data"])
+                result["limited"] = True
+
+            return result
 
         @self.mcp.tool()
         def stocks_beta(
