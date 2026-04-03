@@ -12,10 +12,10 @@ _session = get_session("rss_adapter")
 # Major financial news RSS feeds (all free, no auth)
 RSS_FEEDS = {
     "bloomberg": "https://feeds.bloomberg.com/markets/news.rss",
-    "wsj_markets": "https://feeds.a.wsj.com/wsj/xml/rss/3_7031.xml",
+    "wsj_markets": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
     "cnbc_top": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114",
     "cnbc_world": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100727362",
-    "reuters_business": "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best",
+    "reuters_business": "https://news.google.com/rss/search?q=reuters+finance&hl=en-US&gl=US&ceid=US:en",
     "ft_markets": "https://www.ft.com/markets?format=rss",
     "marketwatch": "https://feeds.marketwatch.com/marketwatch/topstories/",
     "seekingalpha": "https://seekingalpha.com/market_currents.xml",
@@ -25,7 +25,7 @@ RSS_FEEDS = {
     "coindesk": "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "cointelegraph": "https://cointelegraph.com/rss",
     # Asia
-    "nikkei_asia": "https://asia.nikkei.com/rss",
+    "nikkei_asia": "https://asia.nikkei.com/rss/feed/nar",
     "scmp_business": "https://www.scmp.com/rss/91/feed",
 }
 

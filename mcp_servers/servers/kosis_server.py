@@ -433,6 +433,12 @@ class KOSISServer:
         if "prdSe" not in kwargs:
             kwargs["prdSe"] = self.TABLE_PRD_SE.get(tbl_id, "M")
 
+        # Default itmId/objL1 to ALL if not provided
+        if "itmId" not in kwargs:
+            kwargs["itmId"] = "ALL"
+        if "objL1" not in kwargs:
+            kwargs["objL1"] = "ALL"
+
         params = {
             "method": "getList",
             "apiKey": self.api_key,
@@ -671,7 +677,7 @@ class KOSISServer:
             tbl_id=info["tbl_id"],
             start_period=start_year,
             end_period=end_year,
-            itmId="T10",  # 총인구
+            itmId="ALL",
             objL1=region_code,
         )
 

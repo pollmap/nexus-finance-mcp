@@ -313,15 +313,28 @@ class TradeAdapter:
     BASE = "https://comtradeapi.un.org/public/v1/preview"
 
     def get_trade_data(self, reporter: str = "410", partner: str = "0",
-                       flow: str = "X", hs_code: str = "TOTAL", period: str = "2024") -> Dict[str, Any]:
+                       flow: str = "X", hs_code: str = "TOTAL", period: str = "2023") -> Dict[str, Any]:
         """Get trade data. reporter 410=Korea, partner 0=World, flow X=Export/M=Import."""
         try:
+            url = f"{self.BASE}/C/A/HS"
             params = {"reporterCode": reporter, "partnerCode": partner, "flowCode": flow,
-                      "cmdCode": hs_code, "period": period, "maxRecords": 20}
-            resp = _session.get(self.BASE + "/getTarifflineData", params=params, timeout=20)
+                      "cmdCode": hs_code, "period": period}
+            resp = _session.get(url, params=params, timeout=30)
             if resp.status_code == 200:
-                data = resp.json().get("data", [])
-                return {"success": True, "source": "UN Comtrade", "count": len(data), "data": data[:20]}
+                result = resp.json()
+                data = result.get("data", [])
+                records = []
+                for r in data[:20]:
+                    records.append({
+                        "period": r.get("period"),
+                        "reporter": r.get("reporterCode"),
+                        "partner": r.get("partnerCode"),
+                        "flow": r.get("flowCode"),
+                        "commodity": r.get("cmdCode"),
+                        "trade_value": r.get("primaryValue"),
+                        "net_weight_kg": r.get("netWgt"),
+                    })
+                return {"success": True, "source": "UN Comtrade v1", "count": len(records), "data": records}
             return {"error": True, "message": f"HTTP {resp.status_code}"}
         except Exception as e:
             return {"error": True, "message": str(e)}

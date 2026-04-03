@@ -126,6 +126,12 @@ class RONEServer:
             response = self._session.get(url, params=request_params, timeout=30)
             response.raise_for_status()
 
+            # R-ONE API sometimes returns HTML error pages instead of JSON
+            content_type = response.headers.get("content-type", "")
+            if "html" in content_type.lower() or response.text.strip().startswith("<!"):
+                logger.warning(f"R-ONE returned HTML instead of JSON for {endpoint}")
+                return {"error": True, "message": "R-ONE API returned HTML error page. API key may be invalid or endpoint changed. Check data.go.kr for updated API."}
+
             data = response.json()
 
             # R-ONE API wraps response in 'response' > 'body' > 'items'

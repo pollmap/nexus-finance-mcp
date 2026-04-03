@@ -63,7 +63,7 @@ class EtherscanAdapter:
                     "gas_used": tx.get("gasUsed"),
                     "timestamp": tx.get("timeStamp"),
                 })
-            return {"success": True, "address": address, "count": len(txns), "transactions": txns}
+            return {"success": True, "address": address, "count": len(txns), "data": txns}
         return result
 
     def get_gas_price(self, chainid: int = 1) -> Dict[str, Any]:
