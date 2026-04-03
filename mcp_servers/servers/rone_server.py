@@ -78,8 +78,25 @@ REGION_CODES = {
 class RONEServer:
     """R-ONE MCP Server for Korean real estate data."""
 
-    # R-ONE API base URL (한국부동산원 공공데이터)
-    RONE_API_BASE = "https://www.reb.or.kr/r-one/openapi"
+    # KOSIS API (한국부동산원 orgId=408) — reb.or.kr 직접 API가 비활성이므로 KOSIS 경유
+    KOSIS_BASE = "https://kosis.kr/openapi/Param/statisticsParameterData.do"
+
+    # KOSIS 부동산원(408) 주요 테이블
+    KOSIS_TABLES = {
+        "apt_price": {"orgId": "408", "tblId": "DT_30404_B012", "name": "매매가격지수"},
+        "jeonse": {"orgId": "408", "tblId": "DT_30404_B013", "name": "전세가격지수"},
+        "monthly_rent": {"orgId": "408", "tblId": "DT_30404_B001", "name": "월세통합지수"},
+        "jeonse_ratio": {"orgId": "408", "tblId": "DT_30404_N0006_R1", "name": "매매 대비 전세 비율"},
+        "rent_conversion": {"orgId": "408", "tblId": "DT_30404_N0010", "name": "전월세전환율"},
+    }
+
+    # 지역 코드 → KOSIS objL2 코드 매핑
+    KOSIS_REGION_MAP = {
+        "전국": "a0", "서울": "a1", "부산": "b1", "대구": "c1", "인천": "d1",
+        "광주": "e1", "대전": "f1", "울산": "g1", "세종": "h1", "경기": "i1",
+        "강원": "j1", "충북": "k1", "충남": "l1", "전북": "m1", "전남": "n1",
+        "경북": "o1", "경남": "p1", "제주": "q1",
+    }
 
     def __init__(
         self,
@@ -87,19 +104,9 @@ class RONEServer:
         cache: CacheManager = None,
         limiter: RateLimiter = None,
     ):
-        """
-        Initialize R-ONE server.
-
-        Args:
-            api_key: R-ONE API key (uses env var if not provided)
-            cache: Cache manager instance
-            limiter: Rate limiter instance
-        """
-        self.api_key = api_key or os.getenv("RONE_API_KEY", "")
+        self.api_key = api_key or os.getenv("KOSIS_API_KEY", os.getenv("RONE_API_KEY", ""))
         self._cache = cache or get_cache()
         self._limiter = limiter or get_limiter()
-
-        # HTTP session
         self._session = requests.Session()
 
         # Create FastMCP server
@@ -108,58 +115,60 @@ class RONEServer:
 
         logger.info("R-ONE MCP Server initialized")
 
-    def _make_api_request(self, endpoint: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Make R-ONE API request with rate limiting and error handling."""
+    def _kosis_request(self, tbl_key: str, start_period: str, end_period: str,
+                       region: str = None, **extra) -> Dict[str, Any]:
+        """Fetch R-ONE data via KOSIS API (orgId=408)."""
+        if not self.api_key:
+            return {"error": True, "message": "KOSIS_API_KEY (or RONE_API_KEY) not set"}
+
+        tbl = self.KOSIS_TABLES.get(tbl_key)
+        if not tbl:
+            return {"error": True, "message": f"Unknown table: {tbl_key}"}
+
         self._limiter.acquire("rone")
 
-        url = f"{self.RONE_API_BASE}/{endpoint}"
-        request_params = {
-            "serviceKey": self.api_key,
-            "numOfRows": 100,
-            "pageNo": 1,
-            "type": "json",
+        params = {
+            "method": "getList",
+            "apiKey": self.api_key,
+            "format": "json",
+            "jsonVD": "Y",
+            "orgId": tbl["orgId"],
+            "tblId": tbl["tblId"],
+            "startPrdDe": start_period.replace("-", ""),
+            "endPrdDe": end_period.replace("-", ""),
+            "prdSe": "M",
+            "itmId": "ALL",
+            "objL1": "ALL",
+            "objL2": "ALL",
+            "objL3": "", "objL4": "", "objL5": "", "objL6": "", "objL7": "", "objL8": "",
+            **extra,
         }
-        if params:
-            request_params.update(params)
+
+        # Filter by region if specified
+        if region:
+            region_code = self.KOSIS_REGION_MAP.get(region)
+            if region_code:
+                params["objL2"] = region_code
 
         try:
-            response = self._session.get(url, params=request_params, timeout=30)
-            response.raise_for_status()
+            resp = self._session.get(self.KOSIS_BASE, params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
 
-            # R-ONE API sometimes returns HTML error pages instead of JSON
-            content_type = response.headers.get("content-type", "")
-            if "html" in content_type.lower() or response.text.strip().startswith("<!"):
-                logger.warning(f"R-ONE returned HTML instead of JSON for {endpoint}")
-                return {"error": True, "message": "R-ONE API returned HTML error page. API key may be invalid or endpoint changed. Check data.go.kr for updated API."}
+            if isinstance(data, dict) and data.get("err"):
+                return {"error": True, "message": f"KOSIS error: {data.get('errMsg', 'Unknown')}"}
 
-            data = response.json()
+            if isinstance(data, list):
+                return {"success": True, "source": f"KOSIS (부동산원 {tbl['name']})", "data": data, "total_count": len(data)}
 
-            # R-ONE API wraps response in 'response' > 'body' > 'items'
-            if isinstance(data, dict):
-                body = data.get("response", data).get("body", data)
-                items = body.get("items", {})
-                if isinstance(items, dict):
-                    item_list = items.get("item", [])
-                elif isinstance(items, list):
-                    item_list = items
-                else:
-                    item_list = []
-
-                if not isinstance(item_list, list):
-                    item_list = [item_list]
-
-                return {"success": True, "data": item_list, "total_count": body.get("totalCount", len(item_list))}
-
-            return {"success": True, "data": data if isinstance(data, list) else []}
+            return {"success": True, "data": []}
 
         except requests.exceptions.Timeout:
-            return {"error": True, "message": "R-ONE API timeout"}
-        except requests.exceptions.HTTPError as e:
-            return {"error": True, "message": f"R-ONE API HTTP error: {e}"}
-        except ValueError:
-            return {"error": True, "message": "R-ONE API returned invalid JSON"}
+            return {"error": True, "message": "KOSIS API timeout"}
         except requests.exceptions.RequestException as e:
-            return {"error": True, "message": f"R-ONE API request error: {e}"}
+            return {"error": True, "message": f"KOSIS request error: {e}"}
+        except ValueError:
+            return {"error": True, "message": "KOSIS returned invalid JSON"}
 
     def _register_tools(self) -> None:
         """Register MCP tools."""
@@ -263,43 +272,55 @@ class RONEServer:
     # Implementation Methods
     # ========================================================================
 
+    def _format_kosis_price_data(self, raw_data: list, region: str) -> list:
+        """Format KOSIS price index data into clean records."""
+        records = []
+        for r in raw_data:
+            # Filter: 종합(아파트+연립+단독) type only, matching region
+            if region and r.get("C2_NM", "") != region and r.get("C2") != self.KOSIS_REGION_MAP.get(region, ""):
+                continue
+            try:
+                records.append({
+                    "period": r.get("PRD_DE", ""),
+                    "region": r.get("C2_NM", ""),
+                    "type": r.get("C1_NM", ""),
+                    "indicator": r.get("ITM_NM", ""),
+                    "value": float(r.get("DT", 0)) if r.get("DT") else None,
+                    "unit": r.get("UNIT_NM", ""),
+                })
+            except (ValueError, TypeError):
+                continue
+        records.sort(key=lambda x: x["period"])
+        return records
+
     def get_apt_price_index(
         self,
         region: str,
         start_month: str = None,
         end_month: str = None,
     ) -> Dict[str, Any]:
-        """Get apartment price index — real API only, no fake data."""
-        if not self.api_key:
-            return {"error": True, "message": "RONE_API_KEY not set. data.go.kr에서 한국부동산원 API 키를 발급받아 .env에 설정하세요."}
-
+        """Get apartment price index via KOSIS (부동산원 orgId=408)."""
         if start_month is None:
-            start_month = (datetime.now() - timedelta(days=365)).strftime("%Y-%m")
+            start_month = (datetime.now() - timedelta(days=365)).strftime("%Y%m")
         if end_month is None:
-            end_month = datetime.now().strftime("%Y-%m")
+            end_month = datetime.now().strftime("%Y%m")
 
         cache_key = {"method": "apt_price", "region": region, "start": start_month, "end": end_month}
         cached = self._cache.get("rone", cache_key)
         if cached:
             return cached
 
-        region_code = REGION_CODES.get(region, "0000000000")
-        api_result = self._make_api_request("getAptTradingPriceIndex", {
-            "regionCode": region_code,
-            "startMonth": start_month.replace("-", ""),
-            "endMonth": end_month.replace("-", ""),
-        })
-
+        api_result = self._kosis_request("apt_price", start_month, end_month, region=region)
         if api_result.get("error"):
-            return {"error": True, "message": f"R-ONE API 호출 실패: {api_result['message']}. data.go.kr API 키를 확인하세요."}
+            return api_result
 
-        items = api_result.get("data", [])
+        items = self._format_kosis_price_data(api_result.get("data", []), region)
         response = {
             "success": True,
             "indicator": "아파트매매가격지수",
             "region": region,
             "period": {"start": start_month, "end": end_month},
-            "data_source": "rone_api",
+            "data_source": "KOSIS (부동산원)",
             "count": len(items),
             "data": items,
             "latest": items[-1] if items else None,
@@ -314,37 +335,28 @@ class RONEServer:
         start_month: str = None,
         end_month: str = None,
     ) -> Dict[str, Any]:
-        """Get jeonse (deposit lease) price index — real API only."""
-        if not self.api_key:
-            return {"error": True, "message": "RONE_API_KEY not set. data.go.kr에서 API 키를 발급받으세요."}
-
+        """Get jeonse price index via KOSIS (부동산원 orgId=408)."""
         if start_month is None:
-            start_month = (datetime.now() - timedelta(days=365)).strftime("%Y-%m")
+            start_month = (datetime.now() - timedelta(days=365)).strftime("%Y%m")
         if end_month is None:
-            end_month = datetime.now().strftime("%Y-%m")
+            end_month = datetime.now().strftime("%Y%m")
 
         cache_key = {"method": "jeonse", "region": region, "start": start_month, "end": end_month}
         cached = self._cache.get("rone", cache_key)
         if cached:
             return cached
 
-        region_code = REGION_CODES.get(region, "0000000000")
-        api_result = self._make_api_request("getAptJeonsePriceIndex", {
-            "regionCode": region_code,
-            "startMonth": start_month.replace("-", ""),
-            "endMonth": end_month.replace("-", ""),
-        })
-
+        api_result = self._kosis_request("jeonse", start_month, end_month, region=region)
         if api_result.get("error"):
-            return {"error": True, "message": f"R-ONE API 호출 실패: {api_result['message']}"}
+            return api_result
 
-        items = api_result.get("data", [])
+        items = self._format_kosis_price_data(api_result.get("data", []), region)
         response = {
             "success": True,
             "indicator": "전세가격지수",
             "region": region,
             "period": {"start": start_month, "end": end_month},
-            "data_source": "rone_api",
+            "data_source": "KOSIS (부동산원)",
             "count": len(items),
             "data": items,
             "latest": items[-1] if items else None,
@@ -366,36 +378,34 @@ class RONEServer:
         return "매우 높은 부담"
 
     def get_pir(self, region: str) -> Dict[str, Any]:
-        """Get Price to Income Ratio — real API only."""
-        if not self.api_key:
-            return {"error": True, "message": "RONE_API_KEY not set. data.go.kr에서 API 키를 발급받으세요."}
-
+        """Get Price to Income Ratio — 전월세전환율 via KOSIS."""
         cache_key = {"method": "pir", "region": region}
         cached = self._cache.get("rone", cache_key)
         if cached:
             return cached
 
-        region_code = REGION_CODES.get(region, "0000000000")
-        api_result = self._make_api_request("getPIR", {
-            "regionCode": region_code,
-        })
+        end = datetime.now().strftime("%Y%m")
+        start = (datetime.now() - timedelta(days=365)).strftime("%Y%m")
 
-        if api_result.get("error"):
-            return {"error": True, "message": f"R-ONE API 호출 실패: {api_result['message']}"}
+        result = self._kosis_request("rent_conversion", start, end, region=region)
+        if result.get("error"):
+            return result
 
-        items = api_result.get("data", [])
-        pir_value = float(items[0].get("pir", 0)) if items else 0
-        affordability = self._interpret_pir(pir_value)
+        raw = result.get("data", [])
+        items = self._format_kosis_price_data(raw, region)
+
+        if not items:
+            return {"error": True, "message": f"PIR/전월세전환율 데이터 없음 (region={region}). 데이터가 아직 발표되지 않았을 수 있습니다."}
 
         response = {
             "success": True,
-            "indicator": "PIR (소득대비주택가격)",
+            "indicator": "전월세전환율",
             "region": region,
-            "pir": pir_value,
-            "interpretation": affordability,
-            "note": f"중위가구가 중위주택을 구입하려면 {pir_value:.1f}년 소득이 필요",
-            "data_source": "rone_api",
+            "data_source": "KOSIS (부동산원)",
+            "count": len(items),
             "data": items,
+            "latest": items[-1] if items else None,
+            "note": "전월세전환율: 전세→월세 전환 시 적용되는 환산율 (%). 높을수록 임대인에게 유리.",
         }
 
         self._cache.set("rone", cache_key, response, "daily_data")
@@ -407,91 +417,68 @@ class RONEServer:
 
         for region in regions:
             result = self.get_apt_price_index(region)
-            if result.get("success") and result.get("latest"):
-                latest = result["latest"]
+            if result.get("success") and result.get("data"):
+                latest = result.get("latest", {})
                 comparison.append({
                     "region": region,
-                    "index": latest.get("index"),
-                    "change_mom": latest.get("change_mom"),
-                    "change_yoy": latest.get("change_yoy"),
+                    "latest_value": latest.get("value"),
+                    "latest_period": latest.get("period"),
+                    "indicator": latest.get("indicator"),
+                    "unit": latest.get("unit"),
+                    "record_count": result.get("count", 0),
                 })
 
-        # Sort by YoY change
-        comparison.sort(key=lambda x: x.get("change_yoy", 0), reverse=True)
+        comparison.sort(key=lambda x: x.get("latest_value") or 0, reverse=True)
 
         return {
             "success": True,
             "indicator": "아파트매매가격지수 비교",
             "regions": regions,
             "data": comparison,
-            "highest_growth": comparison[0]["region"] if comparison else None,
-            "lowest_growth": comparison[-1]["region"] if comparison else None,
+            "data_source": "KOSIS (부동산원)",
         }
 
     def get_market_summary(self) -> Dict[str, Any]:
-        """Get overall market summary."""
+        """Get overall market summary via KOSIS."""
         if not self.api_key:
-            return {"error": True, "message": "RONE_API_KEY not set. data.go.kr에서 API 키를 발급받으세요."}
+            return {"error": True, "message": "KOSIS_API_KEY not set"}
 
         seoul = self.get_apt_price_index("서울")
         nationwide = self.get_apt_price_index("전국")
-        seoul_pir = self.get_pir("서울")
-        nationwide_pir = self.get_pir("전국")
         seoul_jeonse = self.get_jeonse_index("서울")
 
-        # If all APIs failed, return error
         if seoul.get("error") and nationwide.get("error"):
-            return {"error": True, "message": "R-ONE API 호출 실패. API 키를 확인하세요."}
+            return {"error": True, "message": "데이터 조회 실패. KOSIS_API_KEY를 확인하세요."}
 
         summary = {
             "success": True,
             "timestamp": datetime.now().isoformat(),
-            "data_source": "rone_api",
+            "data_source": "KOSIS (부동산원)",
         }
 
-        # Apartment prices (safe access with .get())
         latest_seoul = seoul.get("latest") or {}
         if latest_seoul:
             summary["seoul_apt"] = {
-                "index": latest_seoul.get("index"),
-                "change_mom": latest_seoul.get("change_mom"),
-                "change_yoy": latest_seoul.get("change_yoy"),
+                "period": latest_seoul.get("period"),
+                "value": latest_seoul.get("value"),
+                "unit": latest_seoul.get("unit"),
             }
 
         latest_nationwide = nationwide.get("latest") or {}
         if latest_nationwide:
             summary["nationwide_apt"] = {
-                "index": latest_nationwide.get("index"),
-                "change_mom": latest_nationwide.get("change_mom"),
-                "change_yoy": latest_nationwide.get("change_yoy"),
+                "period": latest_nationwide.get("period"),
+                "value": latest_nationwide.get("value"),
+                "unit": latest_nationwide.get("unit"),
             }
 
-        # PIR
-        summary["pir"] = {
-            "서울": seoul_pir.get("pir"),
-            "전국": nationwide_pir.get("pir"),
-        }
-
-        # Jeonse
         latest_jeonse = seoul_jeonse.get("latest") or {}
         if latest_jeonse:
             summary["seoul_jeonse"] = {
-                "index": latest_jeonse.get("index"),
-                "change_mom": latest_jeonse.get("change_mom"),
+                "period": latest_jeonse.get("period"),
+                "value": latest_jeonse.get("value"),
+                "unit": latest_jeonse.get("unit"),
             }
-
-        # Market assessment (safe)
-        seoul_yoy = float(latest_seoul.get("change_yoy", 0) or 0)
-        if seoul_yoy > 5:
-            summary["market_condition"] = "과열"
-        elif seoul_yoy > 2:
-            summary["market_condition"] = "상승"
-        elif seoul_yoy > -2:
-            summary["market_condition"] = "보합"
-        elif seoul_yoy > -5:
-            summary["market_condition"] = "하락"
-        else:
-            summary["market_condition"] = "급락"
 
         return summary
 
