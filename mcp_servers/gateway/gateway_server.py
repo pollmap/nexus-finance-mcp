@@ -92,6 +92,10 @@ class GatewayServer:
             ("quant_analysis", "mcp_servers.servers.quant_analysis_server", "QuantAnalysisServer"),
             ("timeseries", "mcp_servers.servers.timeseries_server", "TimeseriesServer"),
             ("backtest", "mcp_servers.servers.backtest_server", "BacktestServer"),
+            # Phase 9 — 프로페셔널 퀀트
+            ("factor_engine", "mcp_servers.servers.factor_engine_server", "FactorEngineServer"),
+            ("signal_lab", "mcp_servers.servers.signal_lab_server", "SignalLabServer"),
+            ("portfolio_optimizer", "mcp_servers.servers.portfolio_optimizer_server", "PortfolioOptimizerServer"),
         ]
 
         self._total_servers = len(SERVERS)
