@@ -36,7 +36,7 @@ cp .env.template .env   # API 키 설정
 python server.py --transport streamable-http --port 8100
 ```
 
-## Tools (316)
+## Tools (364)
 
 ### Korean Economy (한국 경제) — 27 tools
 
