@@ -1,8 +1,8 @@
 # Nexus Finance MCP Server
 
-> **316 tools for global financial research & quant analysis** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
+> **364 tools for global financial research & quant analysis** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
 
-56 servers, 316 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, and PhD-level math (Kalman, Hurst, wavelets, fractals, Monte Carlo) — all through a single gateway.
+64 servers, 364 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, PhD-level math, statistical arbitrage, Black-Litterman, HRP, Heston stochastic vol, Almgren-Chriss execution, market microstructure (VPIN/Kyle's λ), crypto derivatives (funding rate arb), on-chain analytics (MVRV/NVT), López de Prado ML pipeline, and alpha research toolkit — all through a single gateway.
 
 ## Quick Connect
 
@@ -195,6 +195,25 @@ python server.py --transport streamable-http --port 8100
 | `NASA_API_KEY` | Optional | NASA (DEMO_KEY 가능) |
 
 Phase 7 대체데이터 (우주/재해/기후/센티멘트) — 대부분 **API 키 불필요**.
+Phase 11-12 퀀트 도구 — **추가 API 키 불필요** (기존 패키지로 구현).
+
+## Phase 11 — Academic Alpha Core (24 tools / 4 servers)
+
+| Server | Tools | Key Methods |
+|--------|-------|-------------|
+| **stat_arb** (6) | OU fit, pairs distance, spread z-score, copula, half-life, backtest | Ornstein-Uhlenbeck MLE, Gatev distance, Clayton/Gumbel copula |
+| **portfolio_advanced** (6) | RMT clean, Black-Litterman, HRP, Johansen, info theory, compare | Marchenko-Pastur, BL posterior, recursive bisection, transfer entropy |
+| **stochvol** (6) | Heston, jump-diffusion, VRP, Almgren-Chriss, VWAP, market impact | Heston calibration, Merton jump, optimal execution trajectory |
+| **microstructure** (6) | Kyle's λ, Lee-Ready, Roll spread, Amihud, OBI, VPIN | Price impact regression, trade classification, toxicity flow |
+
+## Phase 12 — Crypto Quant + ML Pipeline (24 tools / 4 servers)
+
+| Server | Tools | Key Methods |
+|--------|-------|-------------|
+| **crypto_quant** (6) | Funding rate, basis term, funding arb, OI, liquidation levels, carry BT | Perp funding, cash-and-carry, leverage cascade |
+| **onchain_advanced** (6) | Exchange flow, MVRV, realized cap, HODL waves, whale alert, NVT | Blockchain.com API, BDD ratio, network valuation |
+| **ml_pipeline** (6) | Volume bars, frac diff, triple barrier, meta-label, purged CV, feat imp | López de Prado AFML full pipeline |
+| **alpha_research** (6) | Turnover, decay, crowding, capacity, regime switch, combine | Grinold-Kahn, IC curve, factor regression, IR optimization |
 
 ## Data Policy
 
@@ -207,4 +226,4 @@ MIT
 
 ---
 
-*v7.0.0-phase10 | 316 tools / 56 servers | [Luxon AI Agent Network](https://github.com/pollmap)*
+*v8.0.0-phase12 | 364 tools / 64 servers | [Luxon AI Agent Network](https://github.com/pollmap)*

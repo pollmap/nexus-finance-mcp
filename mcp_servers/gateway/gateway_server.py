@@ -27,7 +27,7 @@ class GatewayServer:
         self._loaded = []
         self._failed = []
 
-        logger.info("Initializing Nexus Finance MCP Gateway v7.0 (Phase 10)...")
+        logger.info("Initializing Nexus Finance MCP Gateway v8.0 (Phase 12)...")
 
         SERVERS = [
             # v2.0
@@ -100,6 +100,16 @@ class GatewayServer:
             ("historical_data", "mcp_servers.servers.historical_data_server", "HistoricalDataServer"),
             ("volatility_model", "mcp_servers.servers.volatility_model_server", "VolatilityModelServer"),
             ("advanced_math", "mcp_servers.servers.advanced_math_server", "AdvancedMathServer"),
+            # Phase 11 — Academic Alpha Core
+            ("stat_arb", "mcp_servers.servers.stat_arb_server", "StatArbServer"),
+            ("portfolio_advanced", "mcp_servers.servers.portfolio_advanced_server", "PortfolioAdvancedServer"),
+            ("stochvol", "mcp_servers.servers.stochvol_server", "StochVolServer"),
+            ("microstructure", "mcp_servers.servers.microstructure_server", "MicrostructureServer"),
+            # Phase 12 — Crypto Quant + ML Pipeline
+            ("crypto_quant", "mcp_servers.servers.crypto_quant_server", "CryptoQuantServer"),
+            ("onchain_advanced", "mcp_servers.servers.onchain_advanced_server", "OnchainAdvancedServer"),
+            ("ml_pipeline", "mcp_servers.servers.ml_pipeline_server", "MLPipelineServer"),
+            ("alpha_research", "mcp_servers.servers.alpha_research_server", "AlphaResearchServer"),
         ]
 
         self._total_servers = len(SERVERS)
@@ -131,7 +141,7 @@ class GatewayServer:
         @self.mcp.tool()
         def gateway_status() -> dict:
             """Gateway status."""
-            return {"status": "online", "version": "7.0.0-phase10", "loaded": len(self._loaded), "failed": len(self._failed), "servers": self._loaded}
+            return {"status": "online", "version": "8.0.0-phase12", "loaded": len(self._loaded), "failed": len(self._failed), "servers": self._loaded}
 
         @self.mcp.tool()
         async def list_available_tools() -> dict:
@@ -154,7 +164,7 @@ class GatewayServer:
             tool_count = len(tools)
             return JSONResponse({
                 "status": "ok",
-                "version": "7.0.0-phase10",
+                "version": "8.0.0-phase12",
                 "loaded_servers": len(self._loaded),
                 "failed_servers": len(self._failed),
                 "tool_count": tool_count,
