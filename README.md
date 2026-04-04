@@ -38,7 +38,7 @@ python server.py --transport streamable-http --port 8100
 
 ## Tools (316)
 
-### Korean Economy (한국 경제) — 25 tools
+### Korean Economy (한국 경제) — 27 tools
 
 | Server | Tools | Data Source |
 |--------|-------|------------|
@@ -55,7 +55,7 @@ python server.py --transport streamable-http --port 8100
 | **R-ONE** (6) | 매매가격지수, 전세지수, 전월세전환율, 지역비교, 시장요약, 지역목록 | KOSIS (부동산원 orgId=408) |
 | **Realestate** (2) | 아파트 실거래가, 시군구코드 | 국토부 MOLIT |
 
-### Global Markets — 32 tools
+### Global Markets — 36 tools
 
 | Server | Tools | Data Source |
 |--------|-------|------------|
@@ -86,7 +86,7 @@ python server.py --transport streamable-http --port 8100
 | **RSS** (4) | 14개 금융 뉴스 피드 (Bloomberg, WSJ, CNBC, Reuters, FT 등) | RSS |
 | **Prediction** (3) | 예측시장, 이벤트, 마켓 디테일 | Polymarket |
 
-### Real Economy — 30 tools
+### Real Economy — 31 tools
 
 | Server | Tools | Data Source |
 |--------|-------|------------|
@@ -98,7 +98,7 @@ python server.py --transport streamable-http --port 8100
 | **Politics** (3) | 국회 법안, 금융 법안, 최근 법안 | 국회 API |
 | **Patent** (2) | 특허 검색, 트렌딩 | KIPRIS |
 
-### Regulatory & Filings — 18 tools
+### Regulatory & Filings — 22 tools
 
 | Server | Tools | Data Source |
 |--------|-------|------------|
