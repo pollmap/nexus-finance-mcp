@@ -43,12 +43,12 @@ class EnergyServer:
             """OPEC 원유 생산량 (EIA 국제 데이터)."""
             return self._energy.get_opec_production()
         @self.mcp.tool()
-        def weather_forecast(lat: float = 37.5665, lon: float = 126.978, days: int = 7) -> dict:
-            """날씨 예보 (Open-Meteo). 기본=서울. 기온, 강수량."""
+        def energy_weather_forecast(lat: float = 37.5665, lon: float = 126.978, days: int = 7) -> dict:
+            """날씨 예보 (Open-Meteo). 기본=서울. 기온, 강수량. 에너지 수요 예측용."""
             return self._weather.get_forecast(lat, lon, days)
         @self.mcp.tool()
-        def weather_major_cities() -> dict:
-            """한국 전체 광역시도 날씨 (17개 시도)."""
+        def energy_weather_cities() -> dict:
+            """한국 전체 광역시도 날씨 (17개 시도). 에너지 수요/냉난방 분석용."""
             cities = [
                 ("서울", 37.5665, 126.978), ("부산", 35.1796, 129.0756),
                 ("대구", 35.8714, 128.6014), ("인천", 37.4563, 126.7052),

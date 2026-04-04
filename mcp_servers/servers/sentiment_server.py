@@ -27,7 +27,7 @@ class SentimentServer:
             return self._a.get_news_sentiment(headlines)
         @self.mcp.tool()
         def sentiment_fear_greed_multi() -> dict:
-            """Crypto Fear & Greed Index (30일) + 해석. 극단적 공포=매수 신호, 극단적 탐욕=매도 신호."""
+            """Crypto Fear & Greed Index 30일 히스토리 + 해석 + 통계. defi_feargreed()은 단일/커스텀 일수, 이 도구는 30일 고정 + 분석."""
             return self._a.get_fear_greed_multi()
         @self.mcp.tool()
         def sentiment_keyword_correlation(keyword: str, stock_symbol: str, days: int = 180) -> dict:

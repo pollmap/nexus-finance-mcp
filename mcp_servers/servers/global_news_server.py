@@ -19,17 +19,17 @@ class GlobalNewsServer:
 
     def _register_tools(self):
         @self.mcp.tool()
-        def gdelt_search(query: str, max_records: int = 20, lang: str = "", timespan: str = "7d") -> dict:
+        def global_news_search(query: str, max_records: int = 20, lang: str = "", timespan: str = "7d") -> dict:
             """GDELT 글로벌 뉴스 검색 (100+언어, 15분 업데이트). lang: korean, english 등. timespan: 1d,7d,30d."""
             return self._gdelt.search_articles(query, max_records=max_records, sourcelang=lang, timespan=timespan)
 
         @self.mcp.tool()
-        def gdelt_timeline(query: str, timespan: str = "30d") -> dict:
+        def global_news_timeline(query: str, timespan: str = "30d") -> dict:
             """GDELT 뉴스량 타임라인 — 키워드 관련 기사 수 추이."""
             return self._gdelt.get_timeline(query, timespan)
 
         @self.mcp.tool()
-        def gdelt_korea_news(query: str = "South Korea economy", max_records: int = 15) -> dict:
+        def global_news_korea(query: str = "South Korea economy", max_records: int = 15) -> dict:
             """한국 관련 글로벌 뉴스 (영어권 매체에서 한국을 어떻게 보도하는지)."""
             return self._gdelt.search_articles(f"{query} South Korea", max_records=max_records, sourcelang="english", timespan="7d")
 
