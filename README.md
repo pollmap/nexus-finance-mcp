@@ -1,8 +1,8 @@
 # Nexus Finance MCP Server
 
-> **280 tools for global financial research & quant analysis** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
+> **316 tools for global financial research & quant analysis** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
 
-50 servers, 33 adapters, 280 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, and backtesting — all through a single gateway.
+56 servers, 316 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, and PhD-level math (Kalman, Hurst, wavelets, fractals, Monte Carlo) — all through a single gateway.
 
 ## Quick Connect
 
@@ -36,7 +36,7 @@ cp .env.template .env   # API 키 설정
 python server.py --transport streamable-http --port 8100
 ```
 
-## Tools (280)
+## Tools (316)
 
 ### Korean Economy (한국 경제) — 25 tools
 
@@ -128,6 +128,22 @@ python server.py --transport streamable-http --port 8100
 | **Time Series** (6) | 시계열분해, 정상성검정(ADF/KPSS), ARIMA예측, 계절성, 구조변화점, 교차상관 | 시계열 패턴 분석 및 예측 |
 | **Backtest** (8) | 전략백테스트(6내장전략), 비교, 최적화, 포트폴리오, 벤치마크, VaR/CVaR, 시그널이력, 낙폭분석 | 수수료/세금 포함 실전 시뮬레이션 |
 
+### Professional Quant (Phase 9) — 18 tools
+
+| Server | Tools | Description |
+|--------|-------|-------------|
+| **Factor Engine** (6) | 모멘텀, 가치, 퀄리티, 저변동성, 사이즈, 역추세 팩터 | Fama-French 스타일 팩터 분석 |
+| **Signal Lab** (6) | 시그널 스캔(walk-forward IC), 시그널 결합, 워크포워드, IC분석, 시그널 랭크, 시그널 디케이 | 알파 시그널 발굴 + 앙상블 |
+| **Portfolio Optimizer** (6) | Markowitz 최적화, 리스크패리티, 켈리기준, 효율적 프론티어, 상관행렬, 리밸런싱 | 최적 포트폴리오 구성 |
+
+### PhD-Level Quant Math (Phase 10) — 18 tools
+
+| Server | Tools | Description |
+|--------|-------|-------------|
+| **Historical Data** (6) | Shiller(1871~), French Factors(1926~), NBER 경기순환(1854~), FRED 초장기, 금/원유, 세기횡단분석 | 150년 역사 데이터 |
+| **Volatility Model** (6) | GARCH, EGARCH, 변동성 표면, HMM 레짐, 앙상블 예측, VIX 기간구조 | 박사급 변동성 모델링 |
+| **Advanced Math** (6) | 칼만 필터, 허스트 지수, 정보 엔트로피, 웨이블릿 분해, 프랙탈 차원, 몬테카를로 시뮬레이션 | 르네상스 펀드 수준 수학 |
+
 ### Infrastructure — 22 tools
 
 | Server | Tools | Data Source |
@@ -191,4 +207,4 @@ MIT
 
 ---
 
-*v5.0.0-phase8 | 280 tools / 50 servers | [Luxon AI Agent Network](https://github.com/pollmap)*
+*v7.0.0-phase10 | 316 tools / 56 servers | [Luxon AI Agent Network](https://github.com/pollmap)*
