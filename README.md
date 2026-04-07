@@ -1,25 +1,72 @@
-# Nexus Finance MCP Server
+<p align="center">
+  <h1 align="center">Nexus Finance MCP Server</h1>
+  <p align="center">
+    <strong>The most comprehensive financial MCP server — 396 tools across 64 servers</strong>
+  </p>
+  <p align="center">
+    <a href="#quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start"></a>
+    <a href="#tools-396"><img src="https://img.shields.io/badge/Tools-396-green?style=for-the-badge" alt="396 Tools"></a>
+    <a href="#api-keys"><img src="https://img.shields.io/badge/API_Keys-optional-orange?style=for-the-badge" alt="API Keys"></a>
+  </p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/version-v8.0.0--phase14-blue" alt="Version">
+    <img src="https://img.shields.io/badge/servers-64-brightgreen" alt="64 Servers">
+    <img src="https://img.shields.io/badge/tools-396-brightgreen" alt="396 Tools">
+    <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python 3.12+">
+    <img src="https://img.shields.io/badge/transport-streamable--http-purple" alt="Transport">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+    <a href="https://smithery.ai"><img src="https://img.shields.io/badge/Smithery-registered-orange" alt="Smithery"></a>
+  </p>
+</p>
 
-> **396 tools for global financial research & quant analysis** — Built for AI agents by [Luxon AI](https://github.com/pollmap).
+---
 
-64 servers, 396 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, PhD-level math, statistical arbitrage, Black-Litterman, HRP, Heston stochastic vol, Almgren-Chriss execution, market microstructure (VPIN/Kyle's λ), crypto derivatives (funding rate arb), on-chain analytics (MVRV/NVT), López de Prado ML pipeline, alpha research toolkit, and 33 visualization types — all through a single gateway.
+Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, PhD-level math, statistical arbitrage, Black-Litterman, HRP, Heston stochastic vol, Almgren-Chriss execution, market microstructure (VPIN/Kyle's λ), crypto derivatives (funding rate arb), on-chain analytics (MVRV/NVT), López de Prado ML pipeline, alpha research toolkit, and 33 visualization types — all through a single MCP gateway.
 
-## Documentation
+Built for AI agents by [Luxon AI](https://github.com/pollmap).
 
-> 상세 문서는 [`docs/`](docs/) 디렉토리 참조
+## Table of Contents
 
-| 문서 | 내용 |
-|------|------|
-| [Usage Guide](docs/USAGE_GUIDE.md) | 5가지 입력 패턴, 워크플로우 예제 |
-| [Parsing Guide](docs/PARSING_GUIDE.md) | 응답 포맷 스펙, 파싱 전략 |
-| [Tool Catalog](docs/TOOL_CATALOG.md) | 396도구 복잡도/도메인별 분류 |
-| [Error Reference](docs/ERROR_REFERENCE.md) | 에러 코드, 재시도 전략 |
-| [Architecture](docs/ARCHITECTURE.md) | 시스템 아키텍처, 캐싱, 레이트 리밋 |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | 운영 디버깅 가이드 |
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Tools (396)](#tools-396)
+- [Response Format](#response-format)
+- [Example Workflows](#example-workflows)
+- [API Keys](#api-keys)
+- [Architecture](#architecture)
+- [Documentation](#documentation)
+- [Data Policy](#data-policy)
+- [Contributing](#contributing)
+- [License](#license)
 
-## Quick Connect
+## Features
 
-### Claude Desktop / Claude Code (원격 접속)
+| Feature | Description |
+|---------|-------------|
+| **396 Tools / 64 Servers** | World's largest financial MCP — Korean + global markets, quant, crypto, alternative data |
+| **Single Gateway** | One endpoint, all tools — FastMCP mount architecture with streamable-http transport |
+| **Real Data Only** | Zero mock/sample data. Every response comes from live APIs with graceful error handling |
+| **PhD-Level Quant** | GARCH, Heston, Black-Litterman, HRP, Kalman filter, López de Prado ML pipeline |
+| **150+ Year History** | Shiller (1871~), NBER cycles (1854~), French factors (1926~), FRED century-scale |
+| **33 Chart Types** | Line, candlestick, heatmap, treemap, sankey, choropleth map, violin, radar, and more |
+| **Semantic Memory** | Hybrid vector + BM25 search, Obsidian Vault integration, ontology graph |
+| **Smithery Ready** | Listed on [Smithery](https://smithery.ai) marketplace — plug and play |
+| **Bearer Auth** | Optional token-based authentication for production deployments |
+
+## Quick Start
+
+### Option 1: Remote (Hosted)
+
+Connect instantly — no installation required.
+
+**Claude Code (one command):**
+
+```bash
+claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp --header "Authorization: Bearer YOUR_TOKEN"
+```
+
+**Claude Desktop (`claude_desktop_config.json`):**
 
 ```json
 {
@@ -35,19 +82,75 @@
 }
 ```
 
-- **Claude Desktop:** `%APPDATA%\Claude\claude_desktop_config.json` 에 추가 → 재시작
-- **Claude Code:** `claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp`
-- Bearer 토큰은 관리자에게 문의
+> **Config location:** Windows `%APPDATA%\Claude\claude_desktop_config.json` · macOS `~/Library/Application Support/Claude/claude_desktop_config.json`
+>
+> Bearer 토큰은 관리자에게 문의하세요.
 
-### Self-hosted (직접 설치)
+### Option 2: Self-Hosted
 
 ```bash
 git clone https://github.com/pollmap/nexus-finance-mcp.git
 cd nexus-finance-mcp
 pip install -r requirements.txt
-cp .env.template .env   # API 키 설정
+cp .env.template .env   # Fill in your API keys
 python server.py --transport streamable-http --port 8100
 ```
+
+### Option 3: Docker
+
+```bash
+docker build -t nexus-finance-mcp .
+docker run -p 8100:8100 --env-file .env nexus-finance-mcp
+```
+
+### Option 4: Smithery
+
+Search "nexus-finance" on [smithery.ai](https://smithery.ai) and install directly.
+
+## Installation
+
+### Requirements
+
+- **Python 3.12+**
+- API keys (see [API Keys](#api-keys) — most tools work without any keys)
+
+### Environment Variables
+
+Copy `.env.template` to `.env` and configure:
+
+```bash
+# === Required (core Korean data) ===
+BOK_ECOS_API_KEY=        # 한국은행 ECOS (https://ecos.bok.or.kr)
+DART_API_KEY=            # OpenDART (https://opendart.fss.or.kr)
+
+# === Recommended ===
+KOSIS_API_KEY=           # 통계청 KOSIS (https://kosis.kr)
+FRED_API_KEY=            # Federal Reserve FRED (https://fred.stlouisfed.org)
+
+# === Optional (expand coverage) ===
+FINNHUB_API_KEY=         # 미국 주식 (https://finnhub.io)
+ETHERSCAN_API_KEY=       # 이더리움 온체인 (https://etherscan.io)
+EIA_API_KEY=             # 미국 에너지 (https://www.eia.gov)
+NAVER_CLIENT_ID=         # 네이버 뉴스 (https://developers.naver.com)
+NAVER_CLIENT_SECRET=
+KIS_API_KEY=             # 한국투자증권 실시간
+NASA_API_KEY=            # NASA (DEMO_KEY works without registration)
+ENTSOE_API_KEY=          # ENTSO-E European Grid
+ACLED_API_KEY=           # ACLED Conflict Data
+
+# === Server Config ===
+MCP_TRANSPORT=streamable-http
+MCP_HOST=127.0.0.1
+MCP_PORT=8100
+MCP_AUTH_TOKEN=          # Bearer token (optional)
+```
+
+### Transport Options
+
+| Transport | Command | Use Case |
+|-----------|---------|----------|
+| `streamable-http` | `python server.py --transport streamable-http --port 8100` | Production (Claude Desktop, remote) |
+| `stdio` | `python server.py --transport stdio` | Local (Smithery, direct pipe) |
 
 ## Tools (396)
 
@@ -98,7 +201,7 @@ python server.py --transport streamable-http --port 8100
 | **Global News** | 3 | `global_news_search`, `global_news_timeline`, `global_news_korea` | GDELT |
 | **RSS** | 4 | `rss_financial_news`, `rss_search_news`, `rss_available_feeds`, `rss_crypto_news` | Bloomberg, WSJ, CNBC, Reuters, FT 등 14개 피드 |
 | **Academic** | 9 | `academic_arxiv`, `academic_semantic_scholar`, `academic_openalex`, `academic_multi_search`, `academic_trending`, `academic_paper_detail`, `academic_citations`, `academic_author`, `academic_concepts` | arXiv, Semantic Scholar, OpenAlex |
-| **Research** | 6 | `research_riss`, `research_nkis`, `research_prism`, `research_nl`, `research_nanet`, `research_scholar` | 한국 연구기관 (RISS, NKIS, PRISM, NL, NANET) |
+| **Research** | 6 | `research_riss`, `research_nkis`, `research_prism`, `research_nl`, `research_nanet`, `research_scholar` | RISS, NKIS, PRISM, 국립중앙도서관, NANET |
 | **Sentiment** | 5 | `sentiment_google_trends`, `sentiment_wiki_pageviews`, `sentiment_news_score`, `sentiment_fear_greed_multi`, `sentiment_keyword_correlation` | pytrends, Wikipedia, VADER |
 
 ### Real Economy — 31 tools
@@ -107,32 +210,32 @@ python server.py --transport streamable-http --port 8100
 |--------|-------|-------|------------|
 | **Energy** | 9 | `energy_crude_oil`, `energy_natural_gas`, `energy_price_snapshot`, `energy_eia_series`, `energy_electricity`, `energy_bunker_fuel`, `energy_opec_production`, `energy_weather_forecast`, `energy_weather_cities` | EIA + Open-Meteo |
 | **Agriculture** | 7 | `agri_kamis_prices`, `agri_fao_info`, `agri_product_codes`, `agri_snapshot`, `agri_fao_production`, `agri_fao_trade`, `agri_usda_psd` | KAMIS + FAO + USDA |
-| **Maritime** | 4 | `maritime_bdi`, `maritime_container_index`, `maritime_ports`, `maritime_freight_snapshot` | FRED + 참조 |
+| **Maritime** | 4 | `maritime_bdi`, `maritime_container_index`, `maritime_ports`, `maritime_freight_snapshot` | FRED |
 | **Aviation** | 3 | `aviation_departures`, `aviation_live_aircraft`, `aviation_korea_airports` | OpenSky |
 | **Trade** | 3 | `trade_korea_exports`, `trade_korea_imports`, `trade_country_codes` | UN Comtrade |
 | **Consumer** | 4 | `consumer_us_retail`, `consumer_us_sentiment`, `consumer_us_housing`, `consumer_eu_hicp` | FRED + Eurostat |
 | **Prediction** | 3 | `prediction_markets`, `prediction_market_detail`, `prediction_events` | Polymarket |
 
-### Regulatory & Environment — 22 tools
+### Regulatory & Environment — 26 tools
 
 | Server | Count | Tools | Data Source |
 |--------|-------|-------|------------|
+| **Valuation** | 10 | `val_calculate_wacc`, `val_dcf_valuation`, `val_dcf_sample`, `val_sensitivity_analysis`, `val_peer_comparison`, `val_peer_comparison_sample`, `val_cross_market_comparison`, `val_normalize_gaap`, `val_get_market_assumptions`, `val_refresh_market_data` | DART + ECOS |
 | **Regulation** | 4 | `regulation_eu_search`, `regulation_eu_text`, `regulation_key_financial`, `regulation_finra_info` | EUR-Lex + FINRA |
 | **Politics** | 3 | `politics_bills`, `politics_recent_bills`, `politics_finance_bills` | 국회 API |
 | **Health** | 5 | `health_fda_drugs`, `health_fda_recalls`, `health_clinical_trials`, `health_pubmed_search`, `health_who_indicators` | openFDA + NCBI + WHO |
 | **Environ** | 2 | `environ_epa_air_quality`, `environ_carbon_price` | EPA + KRBN ETF |
 | **Patent** | 2 | `patent_search`, `patent_trending` | KIPRIS |
-| **Valuation** | 10 | `val_calculate_wacc`, `val_dcf_valuation`, `val_dcf_sample`, `val_sensitivity_analysis`, `val_peer_comparison`, `val_peer_comparison_sample`, `val_cross_market_comparison`, `val_normalize_gaap`, `val_get_market_assumptions`, `val_refresh_market_data` | DART + ECOS |
 
 ### Quant Alternative Data — 32 tools
 
 | Server | Count | Tools | Data Source | API Key |
 |--------|-------|-------|------------|---------|
-| **Space Weather** | 5 | `space_sunspot_data`, `space_solar_flares`, `space_geomagnetic`, `space_solar_wind`, `space_cme_events` | SILSO + NASA + NOAA | 불필요 |
-| **Disaster** | 6 | `disaster_earthquakes`, `disaster_volcanoes`, `disaster_wildfires`, `disaster_floods`, `disaster_active_events`, `disaster_history` | USGS + NASA EONET + GDACS | 불필요 |
-| **Climate** | 6 | `climate_historical_weather`, `climate_temperature_anomaly`, `climate_extreme_events`, `climate_enso_index`, `climate_city_comparison`, `climate_crop_weather` | Open-Meteo + NASA GISS | 불필요 |
-| **Conflict** | 5 | `conflict_active_wars`, `conflict_battle_deaths`, `conflict_country_risk`, `conflict_peace_index`, `conflict_geopolitical_events` | UCDP + GPI | 토큰 필요 |
-| **Power Grid** | 5 | `power_grid_eu_generation`, `power_grid_eu_price`, `power_grid_carbon_intensity`, `power_grid_nuclear_status`, `power_grid_renewable_forecast` | ENTSO-E + EIA | 선택 |
+| **Space Weather** | 5 | `space_sunspot_data`, `space_solar_flares`, `space_geomagnetic`, `space_solar_wind`, `space_cme_events` | SILSO + NASA + NOAA | Not required |
+| **Disaster** | 6 | `disaster_earthquakes`, `disaster_volcanoes`, `disaster_wildfires`, `disaster_floods`, `disaster_active_events`, `disaster_history` | USGS + NASA EONET + GDACS | Not required |
+| **Climate** | 6 | `climate_historical_weather`, `climate_temperature_anomaly`, `climate_extreme_events`, `climate_enso_index`, `climate_city_comparison`, `climate_crop_weather` | Open-Meteo + NASA GISS | Not required |
+| **Conflict** | 5 | `conflict_active_wars`, `conflict_battle_deaths`, `conflict_country_risk`, `conflict_peace_index`, `conflict_geopolitical_events` | UCDP + GPI | Token required |
+| **Power Grid** | 5 | `power_grid_eu_generation`, `power_grid_eu_price`, `power_grid_carbon_intensity`, `power_grid_nuclear_status`, `power_grid_renewable_forecast` | ENTSO-E + EIA | Optional |
 
 ### Analysis & Visualization — 38 tools
 
@@ -145,25 +248,25 @@ python server.py --transport streamable-http --port 8100
 
 | Server | Count | Tools | Description |
 |--------|-------|-------|-------------|
-| **Quant Analysis** | 8 | `quant_correlation`, `quant_lagged_correlation`, `quant_regression`, `quant_granger_causality`, `quant_cointegration`, `quant_var_decomposition`, `quant_event_study`, `quant_regime_detection` | 두 시리즈 간 관계 분석 |
-| **Time Series** | 6 | `ts_decompose`, `ts_stationarity`, `ts_forecast`, `ts_seasonality`, `ts_changepoint`, `ts_cross_correlation` | 시계열 패턴 분석 및 예측 |
-| **Backtest** | 8 | `backtest_run`, `backtest_compare`, `backtest_optimize`, `backtest_portfolio`, `backtest_benchmark`, `backtest_risk`, `backtest_signal_history`, `backtest_drawdown` | 수수료/세금 포함 실전 시뮬레이션 |
+| **Quant Analysis** | 8 | `quant_correlation`, `quant_lagged_correlation`, `quant_regression`, `quant_granger_causality`, `quant_cointegration`, `quant_var_decomposition`, `quant_event_study`, `quant_regime_detection` | Relationship analysis between any two series |
+| **Time Series** | 6 | `ts_decompose`, `ts_stationarity`, `ts_forecast`, `ts_seasonality`, `ts_changepoint`, `ts_cross_correlation` | Pattern analysis & ARIMA forecasting |
+| **Backtest** | 8 | `backtest_run`, `backtest_compare`, `backtest_optimize`, `backtest_portfolio`, `backtest_benchmark`, `backtest_risk`, `backtest_signal_history`, `backtest_drawdown` | Full simulation with fees & taxes |
 
 ### Professional Quant (Phase 9) — 18 tools
 
 | Server | Count | Tools | Description |
 |--------|-------|-------|-------------|
-| **Factor Engine** | 6 | `factor_score`, `factor_backtest`, `factor_correlation`, `factor_exposure`, `factor_timing`, `factor_custom` | Fama-French 팩터 분석 |
-| **Signal Lab** | 6 | `signal_scan`, `signal_combine`, `signal_decay`, `signal_capacity`, `signal_regime_select`, `signal_walkforward` | 알파 시그널 발굴 + 앙상블 |
-| **Portfolio Optimizer** | 6 | `portfolio_optimize`, `portfolio_risk_parity`, `portfolio_kelly`, `portfolio_correlation_matrix`, `portfolio_stress_test`, `portfolio_rebalance` | Markowitz, 리스크패리티, 켈리 |
+| **Factor Engine** | 6 | `factor_score`, `factor_backtest`, `factor_correlation`, `factor_exposure`, `factor_timing`, `factor_custom` | Fama-French style factor analysis |
+| **Signal Lab** | 6 | `signal_scan`, `signal_combine`, `signal_decay`, `signal_capacity`, `signal_regime_select`, `signal_walkforward` | Alpha signal discovery + ensemble |
+| **Portfolio Optimizer** | 6 | `portfolio_optimize`, `portfolio_risk_parity`, `portfolio_kelly`, `portfolio_correlation_matrix`, `portfolio_stress_test`, `portfolio_rebalance` | Markowitz, risk parity, Kelly criterion |
 
 ### PhD-Level Quant Math (Phase 10) — 18 tools
 
 | Server | Count | Tools | Description |
 |--------|-------|-------|-------------|
-| **Historical Data** | 6 | `historical_shiller`, `historical_french_factors`, `historical_nber_cycles`, `historical_fred_century`, `historical_gold_oil`, `historical_crisis_comparison` | 150년 역사 데이터 (Shiller 1871~, NBER 1854~) |
-| **Volatility Model** | 6 | `vol_garch`, `vol_egarch`, `vol_surface`, `vol_regime`, `vol_forecast_ensemble`, `vol_vix_term` | GARCH, EGARCH, HMM 레짐, VIX 기간구조 |
-| **Advanced Math** | 6 | `math_kalman`, `math_hurst`, `math_entropy`, `math_wavelets`, `math_fractal`, `math_monte_carlo` | 칼만필터, 허스트지수, 엔트로피, 웨이블릿, 프랙탈, MC |
+| **Historical Data** | 6 | `historical_shiller`, `historical_french_factors`, `historical_nber_cycles`, `historical_fred_century`, `historical_gold_oil`, `historical_crisis_comparison` | 150-year data (Shiller 1871~, NBER 1854~) |
+| **Volatility Model** | 6 | `vol_garch`, `vol_egarch`, `vol_surface`, `vol_regime`, `vol_forecast_ensemble`, `vol_vix_term` | GARCH, EGARCH, HMM regime, VIX term structure |
+| **Advanced Math** | 6 | `math_kalman`, `math_hurst`, `math_entropy`, `math_wavelets`, `math_fractal`, `math_monte_carlo` | Kalman filter, Hurst, entropy, wavelets, fractal, MC |
 
 ### Academic Alpha Core (Phase 11) — 24 tools
 
@@ -189,85 +292,205 @@ python server.py --transport streamable-http --port 8100
 |--------|-------|-------|------------|
 | **Vault** | 6 | `vault_search`, `vault_read`, `vault_list`, `vault_recent`, `vault_tags`, `vault_write` | Obsidian Vault (PARA) |
 | **Vault Index** | 3 | `vault_index`, `vault_semantic_search`, `vault_related` | Ollama bge-m3 |
-| **Memory** | 5 | `memory_store`, `memory_search`, `memory_list`, `memory_forget`, `memory_stats` | SQLite + Ollama 벡터 |
-| **Ontology** | 5 | `ontology_map`, `ontology_chain`, `ontology_impact`, `ontology_suggest`, `ontology_save` | 17개 도메인 그래프 |
-| **Gateway** | 6 | `gateway_status`, `list_available_tools`, `api_call_stats`, `list_tools_by_domain`, `list_tools_by_pattern`, `tool_info` | 내부 메타 |
+| **Memory** | 5 | `memory_store`, `memory_search`, `memory_list`, `memory_forget`, `memory_stats` | SQLite + Ollama vector |
+| **Ontology** | 5 | `ontology_map`, `ontology_chain`, `ontology_impact`, `ontology_suggest`, `ontology_save` | 17-domain knowledge graph |
+| **Gateway** | 6 | `gateway_status`, `list_available_tools`, `api_call_stats`, `list_tools_by_domain`, `list_tools_by_pattern`, `tool_info` | Internal meta |
+
+## Response Format
+
+All tools return structured JSON. Example:
+
+### `stocks_quote("005930")` — Samsung Electronics
+
+```json
+{
+  "name": "삼성전자",
+  "code": "005930",
+  "price": 67800,
+  "change": -200,
+  "change_pct": -0.29,
+  "volume": 12345678,
+  "market_cap": 404700000000000,
+  "per": 12.5,
+  "pbr": 1.2,
+  "high_52w": 88800,
+  "low_52w": 53000
+}
+```
+
+### `ecos_get_base_rate()`
+
+```json
+{
+  "indicator": "한국은행 기준금리",
+  "value": 2.75,
+  "unit": "%",
+  "date": "2025-11",
+  "source": "BOK ECOS"
+}
+```
+
+### Error Response
+
+```json
+{
+  "error": true,
+  "message": "DART API key not configured. Set DART_API_KEY in .env"
+}
+```
+
+> All error responses include a descriptive `message` field. No fake/fallback data is ever returned.
 
 ## Example Workflows
 
-### 퀀트 분석 파이프라인
+### 1. Korean Equity Research
 
 ```
-1. 데이터 수집:  space_sunspot_data() + ecos_get_base_rate() + stocks_history("005930")
-2. 상관 분석:    quant_lagged_correlation(흑점, 코스피, max_lag=24)
-3. 인과 검정:    quant_granger_causality(금리, 아파트, max_lag=12)
-4. 시계열 예측:  ts_forecast(아파트지수, horizon=12)
-5. 전략 백테스트: backtest_run(삼성전자, "RSI_oversold", 5년)
-6. 리스크 분석:  backtest_risk(삼성전자, "Momentum") → VaR/CVaR/Sharpe
-7. 시각화:       viz_line_chart(equity_curve) + viz_heatmap(correlation_matrix)
+stocks_quote("005930")                          → 삼성전자 현재가
+dart_financial_statements("삼성전자", "2024")    → 재무제표
+dart_financial_ratios("삼성전자")                → ROE, PER, PBR
+val_dcf_valuation("005930")                     → DCF 적정가
+val_peer_comparison("005930")                   → 피어 비교
+viz_bar_chart(peer_data)                        → 시각화
 ```
 
-### 크립토 퀀트 파이프라인
+### 2. Macro Analysis Pipeline
 
 ```
-1. 시장 구조:    crypto_market_structure("BTC") + cquant_open_interest("BTC")
-2. 펀딩 분석:    cquant_funding_rate("BTC") + cquant_basis_term("BTC")
-3. 온체인:       onchain_adv_mvrv("BTC") + onchain_adv_hodl_waves("BTC")
-4. ML 시그널:    mlpipe_triple_barrier(data) + mlpipe_meta_label(data)
-5. 알파 검증:    alpha_decay(signal) + alpha_capacity(signal)
-6. 실행 최적화:  stochvol_exec_optimal(trade_params)
+ecos_get_base_rate()                            → 한국 기준금리
+macro_fred("FEDFUNDS")                          → 미국 기준금리
+quant_granger_causality(fed_rate, bok_rate)      → 인과관계 검정
+ts_forecast(bok_rate, horizon=12)               → 금리 예측
+viz_dual_axis(bok_rate, fed_rate)               → 한미 금리 비교 차트
 ```
 
-### 내장 백테스트 전략 (수수료 0.18% + 세금 0.18%)
+### 3. Crypto Quant Pipeline
+
+```
+crypto_market_structure("BTC")                  → BTC 시장 구조
+cquant_funding_rate("BTC")                      → 펀딩비
+cquant_basis_term("BTC")                        → 선현물 괴리
+onchain_adv_mvrv("BTC")                         → MVRV 비율
+mlpipe_triple_barrier(btc_data)                 → 트리플 배리어 레이블링
+alpha_decay(signal)                             → 알파 디케이 분석
+stochvol_exec_optimal(trade_params)             → 최적 실행
+```
+
+### 4. Alternative Data & Quant
+
+```
+space_sunspot_data()                            → 흑점 데이터 (1818~)
+quant_lagged_correlation(sunspot, kospi, 24)    → 흑점-코스피 시차상관
+climate_enso_index()                            → ENSO 지수
+disaster_earthquakes()                          → 최근 지진
+conflict_country_risk("KOR")                    → 한국 지정학 리스크
+```
+
+### Built-in Backtest Strategies
 
 | Strategy | Logic | Best For |
 |----------|-------|----------|
-| `RSI_oversold` | RSI < 30 매수, > 70 매도 | 과매도 반등 |
-| `MACD_crossover` | MACD-시그널 돌파 | 추세 전환 |
-| `Bollinger_bounce` | 하단밴드 터치 | 변동성 회귀 |
-| `MA_cross` | 20/50 골든크로스 | 중기 추세 |
-| `Mean_reversion` | 평균 -2σ 매수 | 평균회귀 |
-| `Momentum` | N일 수익률 양수 | 모멘텀 |
+| `RSI_oversold` | RSI < 30 buy, > 70 sell | Mean reversion |
+| `MACD_crossover` | MACD-signal crossover | Trend reversal |
+| `Bollinger_bounce` | Lower band touch | Volatility reversion |
+| `MA_cross` | 20/50 golden cross | Medium-term trend |
+| `Mean_reversion` | Mean -2σ buy | Statistical reversion |
+| `Momentum` | N-day positive return | Momentum |
+
+> All backtests include commission (0.18%) and tax (0.18%) by default.
 
 ## API Keys
 
-| Key | Required | Coverage |
-|-----|----------|----------|
-| `BOK_ECOS_API_KEY` | **Yes** | 한국은행 30+ 경제지표 |
-| `DART_API_KEY` | **Yes** | 금감원 기업공시 20도구 |
-| `KOSIS_API_KEY` | Recommended | 통계청 + 부동산원 |
-| `FRED_API_KEY` | Recommended | 미국 연준 + FRED 초장기 |
-| `FINNHUB_API_KEY` | Optional | 미국 주식 |
-| `ETHERSCAN_API_KEY` | Optional | 이더리움 온체인 |
-| `EIA_API_KEY` | Optional | 미국 에너지 |
-| `NAVER_CLIENT_ID/SECRET` | Optional | 네이버 뉴스 |
-| `KIS_API_KEY` | Optional | 한국투자증권 실시간 |
-| `NASA_API_KEY` | Optional | NASA (DEMO_KEY 가능) |
+| Key | Required | Coverage | Get it at |
+|-----|----------|----------|-----------|
+| `BOK_ECOS_API_KEY` | **Required** | 한국은행 30+ macro indicators | [ecos.bok.or.kr](https://ecos.bok.or.kr) |
+| `DART_API_KEY` | **Required** | 금감원 20 disclosure tools | [opendart.fss.or.kr](https://opendart.fss.or.kr) |
+| `KOSIS_API_KEY` | Recommended | 통계청 + 부동산원 | [kosis.kr](https://kosis.kr) |
+| `FRED_API_KEY` | Recommended | US Fed + century-scale data | [fred.stlouisfed.org](https://fred.stlouisfed.org) |
+| `FINNHUB_API_KEY` | Optional | US equities | [finnhub.io](https://finnhub.io) |
+| `ETHERSCAN_API_KEY` | Optional | Ethereum on-chain | [etherscan.io](https://etherscan.io) |
+| `EIA_API_KEY` | Optional | US energy data | [eia.gov](https://www.eia.gov) |
+| `NAVER_CLIENT_ID/SECRET` | Optional | Korean news | [developers.naver.com](https://developers.naver.com) |
+| `KIS_API_KEY` | Optional | Korean securities realtime | [apiportal.koreainvestment.com](https://apiportal.koreainvestment.com) |
+| `NASA_API_KEY` | Optional | NASA (DEMO_KEY works) | [api.nasa.gov](https://api.nasa.gov) |
 
-- Phase 7 대체데이터 (우주/재해/기후/센티멘트) — 대부분 **API 키 불필요**
-- Phase 8-12 퀀트 도구 — **추가 API 키 불필요** (기존 패키지로 구현)
+> **200+ tools require NO API keys** — quant analysis, backtesting, factor models, volatility, math, ML pipeline, visualizations, and most alternative data sources work out of the box.
 
 ## Architecture
 
 ```
-Client (Claude Desktop / Claude Code / HTTP)
-  │
-  ▼
-nginx (443/HTTPS) ─── IP 제한 + Basic Auth
-  │
-  ▼
-Gateway (127.0.0.1:8100, streamable-http)
-  │
-  ├── 64 MCP Servers (FastMCP mount)
-  ├── Tool Metadata (domain/pattern/complexity)
-  ├── API Counter (호출 통계)
-  └── Bearer Token Auth (opt-in)
+┌─────────────────────────────────────────────────────┐
+│                    Client Layer                       │
+│  Claude Desktop · Claude Code · HTTP · Smithery       │
+└────────────────────────┬────────────────────────────┘
+                         │
+                    HTTPS (443)
+                         │
+┌────────────────────────▼────────────────────────────┐
+│              nginx Reverse Proxy                      │
+│         IP Restriction + Basic Auth                   │
+└────────────────────────┬────────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────┐
+│           MCP Gateway (127.0.0.1:8100)               │
+│              streamable-http transport                 │
+│                                                       │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │
+│  │ 64 Servers   │  │ Tool Metadata │  │ API Counter │ │
+│  │ (FastMCP     │  │ (domain,      │  │ (daily      │ │
+│  │  mount)      │  │  pattern,     │  │  stats)     │ │
+│  │              │  │  complexity)  │  │             │ │
+│  └─────────────┘  └──────────────┘  └─────────────┘ │
+│                                                       │
+│  ┌─────────────────────────────────────────────────┐ │
+│  │              Bearer Token Auth (opt-in)          │ │
+│  └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
 ```
+
+### Gateway Meta Tools
+
+The gateway itself provides 6 tools for discovery and monitoring:
+
+```
+gateway_status()                    → Server health + version
+list_available_tools()              → All 396 tool names
+list_tools_by_domain("crypto")      → Filter by domain
+list_tools_by_pattern("snapshot")   → Filter by input pattern
+tool_info("stocks_quote")           → Tool schema + metadata
+api_call_stats()                    → Daily call counts
+```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Usage Guide](docs/USAGE_GUIDE.md) | 5 input patterns, workflow examples |
+| [Tool Catalog](docs/TOOL_CATALOG.md) | All 396 tools by domain/complexity |
+| [Parsing Guide](docs/PARSING_GUIDE.md) | Response format spec, parsing strategies |
+| [Error Reference](docs/ERROR_REFERENCE.md) | Error codes, retry strategies |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture, caching, rate limiting |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Operational debugging guide |
 
 ## Data Policy
 
 **Real data only.** No sample data, mock data, or fake data — ever.
-API 호출 실패 시 가짜 데이터로 대체하지 않고 명확한 에러 메시지를 반환합니다.
+
+- API call failure → clear error message with cause
+- Missing API key → graceful fallback + log warning
+- Rate limit hit → retry guidance in error response
+- Never substitutes fake data for failed requests
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/new-server`)
+3. Add server in `mcp_servers/servers/` + adapter in `mcp_servers/adapters/`
+4. Register in `gateway_server.py` SERVERS list
+5. Test: `python -c "from mcp_servers.servers.your_server import YourServer; s = YourServer(); print(len(s.mcp.tools))"`
+6. Submit PR
+
+See [Architecture docs](docs/ARCHITECTURE.md) for the server development guide.
 
 ## License
 
@@ -275,4 +498,6 @@ MIT
 
 ---
 
-*v8.0.0-phase14 | 396 tools / 64 servers | [Luxon AI Agent Network](https://github.com/pollmap)*
+<p align="center">
+  <strong>v8.0.0-phase14</strong> · 396 tools · 64 servers · Built by <a href="https://github.com/pollmap">Luxon AI</a>
+</p>
