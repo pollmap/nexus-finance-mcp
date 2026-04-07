@@ -28,8 +28,10 @@ Built for AI agents by [Luxon AI](https://github.com/pollmap).
 ## Table of Contents
 
 - [Features](#features)
+- [Supported Clients](#supported-clients)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
+- [Tool Overview](#tool-overview)
 - [Tools (396)](#tools-396)
 - [Response Format](#response-format)
 - [Example Workflows](#example-workflows)
@@ -38,6 +40,7 @@ Built for AI agents by [Luxon AI](https://github.com/pollmap).
 - [Documentation](#documentation)
 - [Data Policy](#data-policy)
 - [Contributing](#contributing)
+- [Star History](#star-history)
 - [License](#license)
 
 ## Features
@@ -53,6 +56,24 @@ Built for AI agents by [Luxon AI](https://github.com/pollmap).
 | **Semantic Memory** | Hybrid vector + BM25 search, Obsidian Vault integration, ontology graph |
 | **Smithery Ready** | Listed on [Smithery](https://smithery.ai) marketplace — plug and play |
 | **Bearer Auth** | Optional token-based authentication for production deployments |
+
+## Supported Clients
+
+Works with any MCP-compatible client:
+
+| Client | Transport | Setup |
+|--------|-----------|-------|
+| **Claude Desktop** | streamable-http | Add to `claude_desktop_config.json` ([details](#option-1-remote-hosted)) |
+| **Claude Code** | streamable-http | `claude mcp add nexus-finance ...` ([details](#option-1-remote-hosted)) |
+| **Cursor** | streamable-http | Settings → MCP → Add server URL |
+| **Windsurf** | streamable-http | Settings → MCP Servers → Add |
+| **Cline (VS Code)** | streamable-http | Extension settings → MCP Servers |
+| **Continue** | streamable-http | `config.json` → mcpServers |
+| **ChatGPT (Actions)** | HTTP | Via OpenAPI schema wrapper |
+| **Custom HTTP Client** | streamable-http | `POST http://host:8100/mcp` |
+| **Smithery** | stdio | One-click install on [smithery.ai](https://smithery.ai) |
+
+> Any client supporting [MCP streamable-http transport](https://modelcontextprotocol.io) can connect.
 
 ## Quick Start
 
@@ -151,6 +172,31 @@ MCP_AUTH_TOKEN=          # Bearer token (optional)
 |-----------|---------|----------|
 | `streamable-http` | `python server.py --transport streamable-http --port 8100` | Production (Claude Desktop, remote) |
 | `stdio` | `python server.py --transport stdio` | Local (Smithery, direct pipe) |
+
+## Tool Overview
+
+At a glance — 396 tools across 15 domains:
+
+| Domain | Servers | Tools | Highlights |
+|--------|---------|-------|------------|
+| **Korean Economy** | 5 | 41 | ECOS, DART 20종, KOSIS, FSC, KRX/pykrx |
+| **Korean Real Estate** | 2 | 8 | 아파트 실거래가, 매매/전세 지수, PIR |
+| **Global Markets** | 6 | 37 | US/Asia/India equities, SEC EDGAR, EDINET, FRED |
+| **Crypto & DeFi** | 6 | 36 | CCXT 100+ exchanges, on-chain, DeFi TVL, funding rate |
+| **News & Research** | 6 | 31 | Naver, GDELT, RSS 14개, arXiv, RISS, Semantic Scholar |
+| **Real Economy** | 7 | 31 | Energy, agriculture, maritime, aviation, trade, consumer |
+| **Regulatory & Environment** | 6 | 26 | Valuation DCF, EU regulation, FDA, EPA, patents |
+| **Quant Alternative Data** | 5 | 32 | Space weather, disasters, climate, conflict, power grid |
+| **Analysis & Visualization** | 2 | 38 | Technical indicators + 33 chart types (Plotly/Matplotlib) |
+| **Quant Engine** | 3 | 22 | Correlation, Granger, ARIMA, backtest with 6 strategies |
+| **Professional Quant** | 3 | 18 | Factor engine, signal lab, portfolio optimization |
+| **PhD-Level Math** | 3 | 18 | GARCH, Kalman, Hurst, wavelets, 150-year history |
+| **Academic Alpha** | 4 | 24 | Stat arb, Black-Litterman, Heston, microstructure VPIN |
+| **Crypto Quant + ML** | 4 | 24 | López de Prado ML, alpha research, funding arb |
+| **Infrastructure** | 5 | 25 | Obsidian Vault, semantic memory, ontology, gateway meta |
+| | **64** | **396** | |
+
+> Full tool details with function names below. See also [Tool Catalog](docs/TOOL_CATALOG.md) for domain/complexity classification.
 
 ## Tools (396)
 
@@ -491,6 +537,16 @@ api_call_stats()                    → Daily call counts
 6. Submit PR
 
 See [Architecture docs](docs/ARCHITECTURE.md) for the server development guide.
+
+## Star History
+
+<a href="https://star-history.com/#pollmap/nexus-finance-mcp&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=pollmap/nexus-finance-mcp&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=pollmap/nexus-finance-mcp&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=pollmap/nexus-finance-mcp&type=Date" />
+ </picture>
+</a>
 
 ## License
 
