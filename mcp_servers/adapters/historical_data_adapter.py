@@ -31,6 +31,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -303,14 +304,12 @@ class HistoricalDataAdapter:
                     continue
                 data.append({"date": item["date"], "sp500_price": round(item["value"], 2)})
 
-        result = {
-            "success": True,
-            "source": source,
-            "description": "Shiller S&P 500 long-term data",
-            "period": f"{start_year}-{end_year}",
-            "count": len(data),
-            "data": data,
-        }
+        result = success_response(
+            data,
+            source=source,
+            description="Shiller S&P 500 long-term data",
+            period=f"{start_year}-{end_year}",
+        )
 
         self._cache.set("historical", cache_key, result, "daily_data")
         return result
@@ -336,19 +335,19 @@ class HistoricalDataAdapter:
 
         zip_name = self.FRENCH_DATASETS.get(dataset)
         if not zip_name:
-            return {"success": False, "message": f"Unknown dataset: {dataset}. Use: {list(self.FRENCH_DATASETS.keys())}"}
+            return error_response(f"Unknown dataset: {dataset}. Use: {list(self.FRENCH_DATASETS.keys())}")
 
         url = f"{self.FRENCH_BASE_URL}/{zip_name}"
         raw = self._download_file(url, f"french_{dataset}.zip", max_age_hours=168)
         if not raw:
-            return {"success": False, "message": f"Failed to download French {dataset} data"}
+            return error_response(f"Failed to download French {dataset} data")
 
         data = []
         try:
             with zipfile.ZipFile(io.BytesIO(raw)) as zf:
                 csv_names = [n for n in zf.namelist() if n.endswith(".CSV") or n.endswith(".csv")]
                 if not csv_names:
-                    return {"success": False, "message": "No CSV found in zip"}
+                    return error_response("No CSV found in zip")
 
                 content = zf.read(csv_names[0]).decode("utf-8", errors="replace")
                 lines = content.split("\n")
@@ -361,7 +360,7 @@ class HistoricalDataAdapter:
                         break
 
                 if header_idx is None:
-                    return {"success": False, "message": "Could not find header in French data"}
+                    return error_response("Could not find header in French data")
 
                 headers = [h.strip().lower().replace("-", "_") for h in lines[header_idx].split(",")]
 
@@ -423,18 +422,16 @@ class HistoricalDataAdapter:
 
         except (zipfile.BadZipFile, Exception) as e:
             logger.error(f"Error parsing French data: {e}")
-            return {"success": False, "message": f"Parse error: {e}"}
+            return error_response(f"Parse error: {e}")
 
-        result = {
-            "success": True,
-            "source": "kenneth_french_data_library",
-            "dataset": dataset,
-            "frequency": frequency,
-            "description": f"Fama-French {dataset.replace('_', ' ')} ({frequency})",
-            "count": len(data),
-            "fields": list(data[0].keys()) if data else [],
-            "data": data,
-        }
+        result = success_response(
+            data,
+            source="kenneth_french_data_library",
+            dataset=dataset,
+            frequency=frequency,
+            description=f"Fama-French {dataset.replace('_', ' ')} ({frequency})",
+            fields=list(data[0].keys()) if data else [],
+        )
 
         self._cache.set("historical", cache_key, result, "daily_data")
         return result
@@ -520,21 +517,20 @@ class HistoricalDataAdapter:
             except ValueError:
                 pass
 
-        result = {
-            "success": True,
-            "source": "nber",
-            "description": "NBER US Business Cycle Dates (1854-present)",
-            "total_cycles": len(cycles),
-            "current_phase": current_phase,
-            "months_since_last_trough": months_since_trough,
-            "avg_contraction_months": round(
+        result = success_response(
+            cycles,
+            source="nber",
+            description="NBER US Business Cycle Dates (1854-present)",
+            total_cycles=len(cycles),
+            current_phase=current_phase,
+            months_since_last_trough=months_since_trough,
+            avg_contraction_months=round(
                 sum(c.get("contraction_months", 0) for c in cycles) / max(len(cycles), 1), 1
             ),
-            "avg_expansion_months": round(
+            avg_expansion_months=round(
                 sum(c.get("expansion_months", 0) for c in cycles) / max(len(cycles), 1), 1
             ),
-            "cycles": cycles,
-        }
+        )
 
         self._cache.set("historical", cache_key, result, "daily_data")
         return result
@@ -559,17 +555,15 @@ class HistoricalDataAdapter:
 
         data = self._fred_request(series_id, start)
         if not data:
-            return {"success": False, "message": f"No data for FRED series {series_id}"}
+            return error_response(f"No data for FRED series {series_id}")
 
-        result = {
-            "success": True,
-            "source": "fred",
-            "series_id": series_id,
-            "description": f"FRED {series_id} long-term series",
-            "period": {"start": data[0]["date"], "end": data[-1]["date"]} if data else {},
-            "count": len(data),
-            "data": data,
-        }
+        result = success_response(
+            data,
+            source="fred",
+            series_id=series_id,
+            description=f"FRED {series_id} long-term series",
+            period={"start": data[0]["date"], "end": data[-1]["date"]} if data else {},
+        )
 
         self._cache.set("historical", cache_key, result, "daily_data")
         return result
@@ -614,10 +608,10 @@ class HistoricalDataAdapter:
                 data = self._yfinance_fetch("BZ=F", period)
                 source = "yfinance"
         else:
-            return {"success": False, "message": f"Unknown asset: {asset}. Use: gold, oil, brent"}
+            return error_response(f"Unknown asset: {asset}. Use: gold, oil, brent")
 
         if not data:
-            return {"success": False, "message": f"No data available for {asset}"}
+            return error_response(f"No data available for {asset}")
 
         # Convert to price format
         formatted = []
@@ -627,14 +621,12 @@ class HistoricalDataAdapter:
                 "price": round(item.get("value", item.get("price", 0)), 2),
             })
 
-        result = {
-            "success": True,
-            "source": source,
-            "asset": asset_name,
-            "period": {"start": formatted[0]["date"], "end": formatted[-1]["date"]} if formatted else {},
-            "count": len(formatted),
-            "data": formatted,
-        }
+        result = success_response(
+            formatted,
+            source=source,
+            asset=asset_name,
+            period={"start": formatted[0]["date"], "end": formatted[-1]["date"]} if formatted else {},
+        )
 
         self._cache.set("historical", cache_key, result, "daily_data")
         return result
@@ -682,7 +674,7 @@ class HistoricalDataAdapter:
             sp_data = self._yfinance_fetch("^GSPC", "max")
 
         if not sp_data:
-            return {"success": False, "message": "Cannot retrieve S&P 500 data for comparison"}
+            return error_response("Cannot retrieve S&P 500 data for comparison")
 
         # Build date->price lookup (monthly averages)
         monthly_prices = {}
@@ -736,13 +728,13 @@ class HistoricalDataAdapter:
 
             comparisons[event_date] = series
 
-        result = {
-            "success": True,
-            "description": "Cross-century crisis comparison (normalized to 100 at event date)",
-            "window_months": window_months,
-            "events_count": len(events),
-            "comparisons": comparisons,
-        }
+        result = success_response(
+            comparisons,
+            source="Historical Data",
+            description="Cross-century crisis comparison (normalized to 100 at event date)",
+            window_months=window_months,
+            events_count=len(events),
+        )
 
         self._cache.set("historical", cache_key, result, "daily_data")
         return result

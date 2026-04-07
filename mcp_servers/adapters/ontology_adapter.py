@@ -12,9 +12,15 @@ Stores ontology in Obsidian Vault as wikilink-connected notes.
 import json
 import logging
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -222,17 +228,18 @@ class OntologyAdapter:
         if domain:
             if domain not in ONTOLOGY_GRAPH:
                 close = [k for k in ONTOLOGY_GRAPH if domain.lower() in k]
-                return {"error": True, "message": f"Domain '{domain}' not found. Did you mean: {close or list(ONTOLOGY_GRAPH.keys())}"}
+                return error_response(f"Domain '{domain}' not found. Did you mean: {close or list(ONTOLOGY_GRAPH.keys())}")
             node = ONTOLOGY_GRAPH[domain]
-            return {
-                "success": True,
-                "domain": domain,
-                "label": node["label"],
-                "category": node["category"],
-                "tools": node["tools"],
-                "relations": node["relations"],
-                "connected_domains": [r["target"] for r in node["relations"]],
-            }
+            return success_response(
+                data=None,
+                source="Ontology",
+                domain=domain,
+                label=node["label"],
+                category=node["category"],
+                tools=node["tools"],
+                relations=node["relations"],
+                connected_domains=[r["target"] for r in node["relations"]],
+            )
         # All domains summary
         domains = []
         for key, node in ONTOLOGY_GRAPH.items():
@@ -243,14 +250,14 @@ class OntologyAdapter:
                 "tool_count": len(node["tools"]),
                 "relation_count": len(node["relations"]),
             })
-        return {"success": True, "count": len(domains), "domains": domains}
+        return success_response(data=domains, source="Ontology", domains=domains)
 
     def get_causal_chain(self, source: str, target: str, max_depth: int = 4) -> Dict[str, Any]:
         """Find causal chain between two domains (BFS path finding)."""
         if source not in ONTOLOGY_GRAPH:
-            return {"error": True, "message": f"Source domain '{source}' not found"}
+            return error_response(f"Source domain '{source}' not found")
         if target not in ONTOLOGY_GRAPH:
-            return {"error": True, "message": f"Target domain '{target}' not found"}
+            return error_response(f"Target domain '{target}' not found")
 
         # BFS
         from collections import deque
@@ -284,28 +291,28 @@ class OntologyAdapter:
                                     "description": r["description"],
                                 })
                                 break
-                    return {
-                        "success": True,
-                        "source": source,
-                        "target": target,
-                        "path_length": len(full_path) - 1,
-                        "path": full_path,
-                        "chain": chain,
-                        "narrative": " → ".join(
+                    return success_response(
+                        data=chain,
+                        source="Ontology",
+                        source_domain=source,
+                        target=target,
+                        path_length=len(full_path) - 1,
+                        path=full_path,
+                        narrative=" → ".join(
                             f"{c['from']}({c['description']})" for c in chain
                         ) + f" → {target}",
-                    }
+                    )
 
                 if next_domain not in visited and next_domain in ONTOLOGY_GRAPH:
                     visited.add(next_domain)
                     queue.append((next_domain, path + [next_domain]))
 
-        return {"success": True, "source": source, "target": target, "path": None, "message": "No causal chain found within depth limit"}
+        return success_response(data=None, source="Ontology", source_domain=source, target=target, path=None, message="No causal chain found within depth limit")
 
     def get_impact_analysis(self, domain: str, direction: str = "downstream") -> Dict[str, Any]:
         """Analyze what a domain affects (downstream) or what affects it (upstream)."""
         if domain not in ONTOLOGY_GRAPH:
-            return {"error": True, "message": f"Domain '{domain}' not found"}
+            return error_response(f"Domain '{domain}' not found")
 
         if direction == "downstream":
             # What does this domain affect?
@@ -318,14 +325,14 @@ class OntologyAdapter:
                     "lag": rel["lag"],
                     "description": rel["description"],
                 })
-            return {
-                "success": True,
-                "domain": domain,
-                "label": ONTOLOGY_GRAPH[domain]["label"],
-                "direction": "downstream",
-                "impact_count": len(impacts),
-                "impacts": impacts,
-            }
+            return success_response(
+                data=impacts,
+                source="Ontology",
+                domain=domain,
+                label=ONTOLOGY_GRAPH[domain]["label"],
+                direction="downstream",
+                impact_count=len(impacts),
+            )
         else:
             # What affects this domain? (reverse lookup)
             upstream = []
@@ -339,14 +346,14 @@ class OntologyAdapter:
                             "lag": rel["lag"],
                             "description": rel["description"],
                         })
-            return {
-                "success": True,
-                "domain": domain,
-                "label": ONTOLOGY_GRAPH[domain]["label"],
-                "direction": "upstream",
-                "driver_count": len(upstream),
-                "drivers": upstream,
-            }
+            return success_response(
+                data=upstream,
+                source="Ontology",
+                domain=domain,
+                label=ONTOLOGY_GRAPH[domain]["label"],
+                direction="upstream",
+                driver_count=len(upstream),
+            )
 
     def get_tools_for_analysis(self, scenario: str) -> Dict[str, Any]:
         """Suggest MCP tools for a given analysis scenario."""
@@ -379,12 +386,13 @@ class OntologyAdapter:
                 matched_domains.append(domain)
 
         if not matched_domains:
-            return {
-                "success": True,
-                "scenario": scenario,
-                "matched_domains": [],
-                "message": "No matching domains found. Try keywords like: 금리, 환율, 주식, 에너지, 기후, 분쟁",
-            }
+            return success_response(
+                data=None,
+                source="Ontology",
+                scenario=scenario,
+                matched_domains=[],
+                message="No matching domains found. Try keywords like: 금리, 환율, 주식, 에너지, 기후, 분쟁",
+            )
 
         # Collect all tools + related domains
         all_tools = []
@@ -397,16 +405,17 @@ class OntologyAdapter:
                 if rel["target"] in ONTOLOGY_GRAPH:
                     all_tools.extend(ONTOLOGY_GRAPH[rel["target"]]["tools"][:2])
 
-        return {
-            "success": True,
-            "scenario": scenario,
-            "matched_domains": matched_domains,
-            "related_domains": list(related_domains - set(matched_domains)),
-            "recommended_tools": list(dict.fromkeys(all_tools)),  # dedupe preserving order
-            "analysis_narrative": " → ".join(
+        return success_response(
+            data=list(dict.fromkeys(all_tools)),
+            source="Ontology",
+            scenario=scenario,
+            matched_domains=matched_domains,
+            related_domains=list(related_domains - set(matched_domains)),
+            recommended_tools=list(dict.fromkeys(all_tools)),
+            analysis_narrative=" → ".join(
                 ONTOLOGY_GRAPH[d]["label"] for d in matched_domains
             ),
-        }
+        )
 
     def save_to_vault(self) -> Dict[str, Any]:
         """Save ontology graph as Obsidian notes with wikilinks."""
@@ -485,12 +494,12 @@ date: {datetime.now().strftime('%Y-%m-%d')}
             (ONTOLOGY_DIR / "MOC-Ontology.md").write_text(moc_content, encoding="utf-8")
             created.append("MOC-Ontology.md")
 
-            return {
-                "success": True,
-                "path": str(ONTOLOGY_DIR),
-                "files_created": len(created),
-                "files": created,
-            }
+            return success_response(
+                data=created,
+                source="Ontology",
+                path=str(ONTOLOGY_DIR),
+                files_created=len(created),
+            )
         except Exception as e:
             logger.error(f"Vault save error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

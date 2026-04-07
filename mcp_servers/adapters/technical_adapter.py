@@ -1,9 +1,17 @@
 """Technical Analysis Adapter — RSI, MACD, BB, SMA, EMA, Stochastic, ATR, etc."""
 import logging
+import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +214,7 @@ class TechnicalAdapter:
             {"success": True, "count": N, "data": [...with indicator columns...]}
         """
         if not data:
-            return {"success": False, "error": "No data provided."}
+            return error_response("No data provided.")
 
         if indicators is None:
             indicators = ["sma_20", "sma_50", "ema_12", "ema_26", "rsi_14", "macd", "bb_20"]
@@ -215,7 +223,7 @@ class TechnicalAdapter:
             df = pd.DataFrame(data)
             required = {"close"}
             if not required.issubset(set(df.columns)):
-                return {"success": False, "error": "Data must contain at least 'close' column."}
+                return error_response("Data must contain at least 'close' column.")
 
             closes = df["close"].astype(float).tolist()
             highs = df["high"].astype(float).tolist() if "high" in df.columns else None
@@ -272,17 +280,15 @@ class TechnicalAdapter:
             # Replace NaN with None for JSON serialization
             df = df.where(pd.notna(df), None)
 
-            return {
-                "success": True,
-                "source": "technical_analysis",
-                "count": len(df),
-                "indicators_calculated": indicators,
-                "data": df.to_dict(orient="records"),
-            }
+            return success_response(
+                df.to_dict(orient="records"),
+                source="pykrx TA",
+                indicators_calculated=indicators,
+            )
 
         except Exception as e:
             logger.error("calculate_indicators error: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
 
 if __name__ == "__main__":

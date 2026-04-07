@@ -11,11 +11,19 @@ Advanced On-chain Analytics Adapter — BTC On-chain Metrics.
 Data sources: Blockchain.com API (free, no auth required)
 """
 import logging
+import sys
+import os
 import warnings
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -61,7 +69,7 @@ class OnchainAdvancedAdapter:
             addr_data = self._fetch_chart("n-unique-addresses", timespan, "7days")
 
             if not tx_data or not vol_data:
-                return {"error": True, "message": "Cannot fetch Blockchain.com data"}
+                return error_response("Cannot fetch Blockchain.com data")
 
             tx_values = tx_data.get("values", [])
             vol_values = vol_data.get("values", [])
@@ -100,9 +108,8 @@ class OnchainAdvancedAdapter:
                 if addr_vals:
                     addr_count = int(addr_vals[-1]["y"])
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "tx_count_30d_avg": round(float(np.mean(recent_tx)), 0),
                     "tx_trend_pct": round(float(tx_trend), 1),
                     "volume_usd_30d_avg": round(float(np.mean(recent_vol)), 0),
@@ -111,11 +118,12 @@ class OnchainAdvancedAdapter:
                     "flow_signal": flow_signal,
                     "recent_activity": activity_ts[-10:],
                     "interpretation": interpretation_flow,
-                }
-            }
+                },
+                source="On-Chain",
+            )
         except Exception as e:
             logger.exception("exchange_flow failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. MVRV Ratio
@@ -129,11 +137,11 @@ class OnchainAdvancedAdapter:
             # Market cap
             mktcap_data = self._fetch_chart("market-cap", timespan)
             if not mktcap_data:
-                return {"error": True, "message": "Cannot fetch market cap data"}
+                return error_response("Cannot fetch market cap data")
 
             mktcap_values = mktcap_data.get("values", [])
             if not mktcap_values:
-                return {"error": True, "message": "Empty market cap data"}
+                return error_response("Empty market cap data")
 
             current_mktcap = mktcap_values[-1]["y"]
 
@@ -179,9 +187,8 @@ class OnchainAdvancedAdapter:
                 zone = "extreme_undervalued"
                 signal = "BUY ZONE — historically bottom area"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "mvrv": round(float(mvrv), 3),
                     "market_cap_usd": round(float(current_mktcap), 0),
                     "realized_cap_proxy_usd": round(float(realized_cap_proxy), 0),
@@ -194,11 +201,12 @@ class OnchainAdvancedAdapter:
                         f"{signal}. "
                         f"Market cap: ${current_mktcap/1e9:.1f}B."
                     ),
-                }
-            }
+                },
+                source="On-Chain",
+            )
         except Exception as e:
             logger.exception("mvrv failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Realized Cap
@@ -208,7 +216,7 @@ class OnchainAdvancedAdapter:
         try:
             mktcap_data = self._fetch_chart("market-cap", timespan)
             if not mktcap_data:
-                return {"error": True, "message": "Cannot fetch market cap data"}
+                return error_response("Cannot fetch market cap data")
 
             mktcap_values = mktcap_data.get("values", [])
             mktcaps = [v["y"] for v in mktcap_values]
@@ -231,9 +239,8 @@ class OnchainAdvancedAdapter:
             current_mc = mktcaps[-1] if mktcaps else 0
             unrealized_profit = (current_mc - realized) / realized * 100 if realized > 0 else 0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "realized_cap_proxy_usd": round(float(realized), 0),
                     "market_cap_usd": round(float(current_mc), 0),
                     "unrealized_profit_pct": round(float(unrealized_profit), 1),
@@ -244,11 +251,12 @@ class OnchainAdvancedAdapter:
                         f"Market cap: ${current_mc/1e9:.1f}B. "
                         f"Unrealized profit: {unrealized_profit:.1f}%."
                     ),
-                }
-            }
+                },
+                source="On-Chain",
+            )
         except Exception as e:
             logger.exception("realized_cap failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. HODL Waves
@@ -265,7 +273,7 @@ class OnchainAdvancedAdapter:
             dormancy_data = self._fetch_chart("coin-days-destroyed", "365days", "7days") or dd_data
 
             if not dd_data:
-                return {"error": True, "message": "Cannot fetch days-destroyed data"}
+                return error_response("Cannot fetch days-destroyed data")
 
             dd_values = dd_data.get("values", [])
 
@@ -301,9 +309,8 @@ class OnchainAdvancedAdapter:
                 for v in dd_values[-30:]
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "bdd_ratio_30_90": round(float(bdd_ratio), 3),
                     "avg_bdd_30d": round(float(avg_recent), 0),
                     "avg_bdd_90d": round(float(avg_older), 0),
@@ -315,11 +322,12 @@ class OnchainAdvancedAdapter:
                         f"BDD ratio (30d/90d): {bdd_ratio:.2f}. "
                         f"Phase: {phase}. {signal}."
                     ),
-                }
-            }
+                },
+                source="On-Chain",
+            )
         except Exception as e:
             logger.exception("hodl_waves failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Whale Alert
@@ -332,7 +340,7 @@ class OnchainAdvancedAdapter:
             url = f"{BLOCKCHAIN_API}/unconfirmed-transactions?format=json"
             resp = requests.get(url, timeout=30)
             if resp.status_code != 200:
-                return {"error": True, "message": f"API returned {resp.status_code}"}
+                return error_response(f"API returned {resp.status_code}")
 
             data = resp.json()
             txs = data.get("txs", [])
@@ -355,9 +363,8 @@ class OnchainAdvancedAdapter:
 
             whales.sort(key=lambda x: x["btc"], reverse=True)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "whale_transactions": whales[:20],
                     "n_whales_found": len(whales),
                     "threshold_btc": threshold_btc,
@@ -368,11 +375,12 @@ class OnchainAdvancedAdapter:
                         f"Largest: {whales[0]['btc']:.1f} BTC." if whales else
                         f"No whale transactions >= {threshold_btc} BTC in current mempool."
                     ),
-                }
-            }
+                },
+                source="On-Chain",
+            )
         except Exception as e:
             logger.exception("whale_alert failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. NVT Ratio
@@ -388,7 +396,7 @@ class OnchainAdvancedAdapter:
             txvol_data = self._fetch_chart("estimated-transaction-volume-usd", timespan, "7days")
 
             if not mktcap_data or not txvol_data:
-                return {"error": True, "message": "Cannot fetch market cap or tx volume"}
+                return error_response("Cannot fetch market cap or tx volume")
 
             mc_vals = mktcap_data.get("values", [])
             tv_vals = txvol_data.get("values", [])
@@ -399,7 +407,7 @@ class OnchainAdvancedAdapter:
             common = sorted(set(mc_dict.keys()) & set(tv_dict.keys()))
 
             if len(common) < 30:
-                return {"error": True, "message": "Not enough aligned data"}
+                return error_response("Not enough aligned data")
 
             nvt_series = []
             for ts in common:
@@ -428,9 +436,8 @@ class OnchainAdvancedAdapter:
                 zone = "undervalued"
                 signal = "Strong usage relative to price"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "current_nvt": round(float(current_nvt), 1),
                     "avg_nvt": round(float(avg_nvt), 1),
                     "median_nvt": round(float(median_nvt), 1),
@@ -442,8 +449,9 @@ class OnchainAdvancedAdapter:
                         f"Average: {avg_nvt:.0f}, Median: {median_nvt:.0f}. "
                         f"{signal}."
                     ),
-                }
-            }
+                },
+                source="On-Chain",
+            )
         except Exception as e:
             logger.exception("nvt failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

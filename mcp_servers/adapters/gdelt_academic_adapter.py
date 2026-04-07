@@ -5,11 +5,18 @@ Academic Adapter — arXiv, Semantic Scholar, OpenAlex paper search.
 Both completely free, no API keys needed.
 """
 import logging
+import sys
 import os
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict, List
 from urllib.parse import quote
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("gdelt_academic_adapter")
@@ -51,9 +58,9 @@ class GDELTAdapter:
                     "tone": a.get("tone"),
                 })
 
-            return {"success": True, "query": query, "count": len(articles), "articles": articles}
+            return success_response(articles, count=len(articles), source="GDELT/Academic", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_timeline(self, query: str, timespan: str = "30d") -> Dict[str, Any]:
         """Get article volume timeline for a query."""
@@ -67,9 +74,9 @@ class GDELTAdapter:
             data = resp.json()
             timeline = data.get("timeline", [{}])
             series = timeline[0].get("data", []) if timeline else []
-            return {"success": True, "query": query, "count": len(series), "timeline": series[:60]}
+            return success_response(series[:60], count=len(series), source="GDELT/Academic", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 class AcademicAdapter:
@@ -100,9 +107,9 @@ class AcademicAdapter:
                     "url": link.text if link is not None else "",
                 })
 
-            return {"success": True, "source": "arXiv", "query": query, "count": len(papers), "papers": papers}
+            return success_response(papers, count=len(papers), source="GDELT/Academic", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_semantic_scholar(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Search Semantic Scholar."""
@@ -124,9 +131,9 @@ class AcademicAdapter:
                     "abstract": abstract[:300] + "..." if len(abstract) > 300 else abstract,
                 })
 
-            return {"success": True, "source": "Semantic Scholar", "query": query, "count": len(papers), "papers": papers}
+            return success_response(papers, count=len(papers), source="GDELT/Academic", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_openalex(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Search OpenAlex (250M+ works, CC0 license)."""
@@ -148,9 +155,9 @@ class AcademicAdapter:
                     "open_access": w.get("open_access", {}).get("is_oa"),
                 })
 
-            return {"success": True, "source": "OpenAlex", "query": query, "count": len(papers), "papers": papers}
+            return success_response(papers, count=len(papers), source="GDELT/Academic", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ── 추가 도구 (v2.4) ──────────────────────────────────────
 
@@ -168,7 +175,7 @@ class AcademicAdapter:
 
             entry = root.find("atom:entry", ns)
             if entry is None:
-                return {"error": True, "message": f"Paper {arxiv_id} not found"}
+                return error_response(f"Paper {arxiv_id} not found")
 
             authors = [a.find("atom:name", ns).text for a in entry.findall("atom:author", ns) if a.find("atom:name", ns) is not None]
             categories = [c.get("term") for c in entry.findall("atom:category", ns)]
@@ -181,18 +188,21 @@ class AcademicAdapter:
                 if link.get("title") == "pdf":
                     pdf_link = link.get("href")
 
-            return {
-                "success": True, "arxiv_id": arxiv_id,
-                "title": title.text.strip() if title is not None else "",
-                "authors": authors,
-                "abstract": summary.text.strip() if summary is not None else "",
-                "categories": categories,
-                "published": published.text if published is not None else "",
-                "updated": updated.text if updated is not None else "",
-                "pdf_url": pdf_link or f"https://arxiv.org/pdf/{arxiv_id}",
-            }
+            return success_response(
+                {
+                    "arxiv_id": arxiv_id,
+                    "title": title.text.strip() if title is not None else "",
+                    "authors": authors,
+                    "abstract": summary.text.strip() if summary is not None else "",
+                    "categories": categories,
+                    "published": published.text if published is not None else "",
+                    "updated": updated.text if updated is not None else "",
+                    "pdf_url": pdf_link or f"https://arxiv.org/pdf/{arxiv_id}",
+                },
+                source="GDELT/Academic",
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_citations(self, arxiv_id: str = "", doi: str = "", title: str = "") -> Dict[str, Any]:
         """Get citation network from OpenAlex. Provide arxiv_id, doi, or title."""
@@ -214,7 +224,7 @@ class AcademicAdapter:
                     work = resp.json()
                     work_id = work.get("id", "").split("/")[-1]
                     return self._build_citation_result(work, work_id, headers)
-                return {"error": True, "message": f"DOI {doi} not found"}
+                return error_response(f"DOI {doi} not found")
             else:
                 search_url = f"https://api.openalex.org/works?search={quote(title)}&per_page=1"
                 resp = _session.get(search_url, headers=headers, timeout=15)
@@ -223,13 +233,13 @@ class AcademicAdapter:
             data = resp.json()
             results = data.get("results", [data] if "id" in data else [])
             if not results:
-                return {"error": True, "message": "Paper not found in OpenAlex"}
+                return error_response("Paper not found in OpenAlex")
 
             work = results[0]
             work_id = work.get("id", "").split("/")[-1]
             return self._build_citation_result(work, work_id, headers)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def _build_citation_result(self, work: dict, work_id: str, headers: dict) -> Dict[str, Any]:
         """Build citation result from an OpenAlex work."""
@@ -256,13 +266,15 @@ class AcademicAdapter:
             except Exception:
                 continue
 
-        return {
-            "success": True,
-            "title": work.get("display_name"),
-            "cited_by_count": work.get("cited_by_count", 0),
-            "top_cited_by": cited_by,
-            "top_references": refs,
-        }
+        return success_response(
+            {
+                "title": work.get("display_name"),
+                "cited_by_count": work.get("cited_by_count", 0),
+                "top_cited_by": cited_by,
+                "top_references": refs,
+            },
+            source="GDELT/Academic",
+        )
 
     def get_author_info(self, author_name: str) -> Dict[str, Any]:
         """Get author profile from OpenAlex."""
@@ -273,7 +285,7 @@ class AcademicAdapter:
             resp.raise_for_status()
             results = resp.json().get("results", [])
             if not results:
-                return {"error": True, "message": f"Author '{author_name}' not found"}
+                return error_response(f"Author '{author_name}' not found")
 
             a = results[0]
             institution = a.get("last_known_institutions", [{}])
@@ -291,17 +303,19 @@ class AcademicAdapter:
             except Exception:
                 pass
 
-            return {
-                "success": True,
-                "display_name": a.get("display_name"),
-                "institution": inst_name,
-                "h_index": a.get("summary_stats", {}).get("h_index"),
-                "cited_by_count": a.get("cited_by_count"),
-                "works_count": a.get("works_count"),
-                "recent_papers": recent,
-            }
+            return success_response(
+                {
+                    "display_name": a.get("display_name"),
+                    "institution": inst_name,
+                    "h_index": a.get("summary_stats", {}).get("h_index"),
+                    "cited_by_count": a.get("cited_by_count"),
+                    "works_count": a.get("works_count"),
+                    "recent_papers": recent,
+                },
+                source="GDELT/Academic",
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_concepts(self, query: str, limit: int = 10) -> Dict[str, Any]:
         """Search academic concepts/topics from OpenAlex."""
@@ -322,6 +336,6 @@ class AcademicAdapter:
                     "description": c.get("description"),
                 })
 
-            return {"success": True, "query": query, "count": len(concepts), "concepts": concepts}
+            return success_response(concepts, count=len(concepts), source="GDELT/Academic", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

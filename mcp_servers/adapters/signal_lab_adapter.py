@@ -17,14 +17,21 @@ OHLCV: list[dict] with {"date", "open", "high", "low", "close", "volume"}
 Run standalone test: python -m mcp_servers.adapters.signal_lab_adapter
 """
 import logging
+import sys
 import warnings
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 from sklearn.linear_model import Ridge
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +111,7 @@ class SignalLabAdapter:
         try:
             target = _ts_to_series(target_series, "target")
             if len(target) < self.MIN_OBS_PER_FOLD * 2:
-                return {"success": False, "error": f"Insufficient target data: {len(target)} < {self.MIN_OBS_PER_FOLD * 2}"}
+                return error_response(f"Insufficient target data: {len(target)} < {self.MIN_OBS_PER_FOLD * 2}")
 
             fwd_ret = _forward_returns(target, forward_period)
 
@@ -136,9 +143,8 @@ class SignalLabAdapter:
             # Sort by absolute IC descending
             significant.sort(key=lambda x: abs(x["ic"]), reverse=True)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "ranked_signals": significant,
                     "total_scanned": len(candidate_features),
                     "significant_count": len(significant),
@@ -146,11 +152,12 @@ class SignalLabAdapter:
                     "forward_period": forward_period,
                     "filter_criteria": "|IC| > 0.02 and |t-stat| > 1.5",
                 },
-            }
+                source="Signal Lab",
+            )
 
         except Exception as e:
             logger.error("signal_scan failed: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _evaluate_feature(
         self,
@@ -289,7 +296,7 @@ class SignalLabAdapter:
         """
         try:
             if not signals or len(signals) < 2:
-                return {"success": False, "error": "Need at least 2 signals to combine"}
+                return error_response("Need at least 2 signals to combine")
 
             target = _ts_to_series(target_series, "target")
 
@@ -304,7 +311,7 @@ class SignalLabAdapter:
             combined = pd.concat([sig_df, target], axis=1, join="inner").dropna()
 
             if len(combined) < self.MIN_OBS_PER_FOLD:
-                return {"success": False, "error": f"Insufficient aligned data: {len(combined)} < {self.MIN_OBS_PER_FOLD}"}
+                return error_response(f"Insufficient aligned data: {len(combined)} < {self.MIN_OBS_PER_FOLD}")
 
             sig_names = [s["name"] for s in signals]
             X = combined[sig_names]
@@ -329,7 +336,7 @@ class SignalLabAdapter:
             elif method == "ridge":
                 combined_signal = self._ridge_combine(X_z, y)
             else:
-                return {"success": False, "error": f"Unknown method: {method}. Use equal_weight, ic_weight, or ridge"}
+                return error_response(f"Unknown method: {method}. Use equal_weight, ic_weight, or ridge", code="INVALID_INPUT")
 
             # Combined IC
             combined_ic_val, _ = stats.spearmanr(combined_signal.values, y.values)
@@ -343,9 +350,8 @@ class SignalLabAdapter:
                 for d, v in combined_signal.items()
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "combined_signal": combined_output,
                     "individual_ics": individual_ics,
                     "combined_ic": round(combined_ic_val, 6),
@@ -356,11 +362,12 @@ class SignalLabAdapter:
                     "n_signals": len(sig_names),
                     "n_observations": len(combined),
                 },
-            }
+                source="Signal Lab",
+            )
 
         except Exception as e:
             logger.error("signal_combine failed: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _ic_weighted_combine(
         self, X_z: pd.DataFrame, y: pd.Series, sig_names: List[str]
@@ -431,7 +438,7 @@ class SignalLabAdapter:
 
             horizons = [h for h in [1, 5, 10, 20, 40, 60] if h <= max_horizon]
             if not horizons:
-                return {"success": False, "error": f"max_horizon too small: {max_horizon}"}
+                return error_response(f"max_horizon too small: {max_horizon}", code="INVALID_INPUT")
 
             decay_curve = []
             for h in horizons:
@@ -481,19 +488,19 @@ class SignalLabAdapter:
             else:
                 interpretation = "Half-life 계산 불가 (데이터 부족 또는 비단조 감쇠)"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "decay_curve": decay_curve,
                     "half_life": half_life,
                     "interpretation": interpretation,
                     "max_horizon": max_horizon,
                 },
-            }
+                source="Signal Lab",
+            )
 
         except Exception as e:
             logger.error("signal_decay failed: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _compute_half_life(self, valid_points: List[Dict]) -> Optional[int]:
         """Compute half-life: horizon where |IC| drops to 50% of peak."""
@@ -541,14 +548,14 @@ class SignalLabAdapter:
             ohlcv = _ohlcv_to_df(ohlcv_data)
 
             if "volume" not in ohlcv.columns or "close" not in ohlcv.columns:
-                return {"success": False, "error": "OHLCV data must include 'volume' and 'close'"}
+                return error_response("OHLCV data must include 'volume' and 'close'", code="INVALID_INPUT")
 
             # Daily trading value
             ohlcv["dollar_volume"] = ohlcv["close"] * ohlcv["volume"]
             avg_daily_volume = float(ohlcv["dollar_volume"].mean())
 
             if avg_daily_volume < 1:
-                return {"success": False, "error": "Average daily volume is ~0, cannot estimate capacity"}
+                return error_response("Average daily volume is ~0, cannot estimate capacity", code="INVALID_INPUT")
 
             # Estimate raw alpha (annualized signal IC * vol)
             # Align signal with returns
@@ -556,7 +563,7 @@ class SignalLabAdapter:
             aligned = pd.concat([signal, daily_ret], axis=1, join="inner").dropna()
 
             if len(aligned) < 30:
-                return {"success": False, "error": f"Insufficient aligned data: {len(aligned)}"}
+                return error_response(f"Insufficient aligned data: {len(aligned)}")
 
             ic, _ = stats.spearmanr(aligned.iloc[:, 0].values, aligned.iloc[:, 1].values)
             ic = float(ic) if not np.isnan(ic) else 0.0
@@ -566,16 +573,16 @@ class SignalLabAdapter:
             annual_alpha_bps = abs(ic) * daily_vol * np.sqrt(252) * 10000
 
             if annual_alpha_bps < 1:
-                return {
-                    "success": True,
-                    "data": {
+                return success_response(
+                    {
                         "max_capacity_krw": 0,
                         "expected_slippage_bps": 0,
                         "signal_ic": round(ic, 6),
                         "estimated_alpha_bps": round(annual_alpha_bps, 2),
                         "note": "Signal has negligible alpha, capacity is effectively 0",
                     },
-                }
+                    source="Signal Lab",
+                )
 
             # Build capacity curve: for each capital level, compute slippage
             # Model: slippage_bps = 10 * sqrt(capital_traded / avg_daily_volume)
@@ -610,9 +617,8 @@ class SignalLabAdapter:
             init_participation = initial_capital / avg_daily_volume
             init_slippage_bps = 10.0 * np.sqrt(init_participation)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "max_capacity_krw": max_capacity,
                     "max_capacity_label": self._format_krw(max_capacity),
                     "expected_slippage_bps": round(float(init_slippage_bps), 2),
@@ -622,11 +628,12 @@ class SignalLabAdapter:
                     "capacity_utilization_curve": utilization_curve,
                     "initial_capital": initial_capital,
                 },
-            }
+                source="Signal Lab",
+            )
 
         except Exception as e:
             logger.error("signal_capacity failed: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     @staticmethod
     def _format_krw(amount: float) -> str:
@@ -666,7 +673,7 @@ class SignalLabAdapter:
             ohlcv = _ohlcv_to_df(ohlcv_data)
 
             if len(ohlcv) < 60:
-                return {"success": False, "error": f"Need at least 60 data points, got {len(ohlcv)}"}
+                return error_response(f"Need at least 60 data points, got {len(ohlcv)}")
 
             # Compute regime indicators
             daily_ret = ohlcv["close"].pct_change()
@@ -679,7 +686,7 @@ class SignalLabAdapter:
             }).dropna()
 
             if len(regime_df) < 30:
-                return {"success": False, "error": "Insufficient data after computing rolling indicators"}
+                return error_response("Insufficient data after computing rolling indicators")
 
             # Simple regime detection: high vol + negative return = bear, else = bull
             # For n_regimes=2: median split on a composite score
@@ -702,7 +709,7 @@ class SignalLabAdapter:
                 ]
                 regime_df["regime"] = np.select(conditions, ["bull", "neutral", "bear"], default="neutral")
             else:
-                return {"success": False, "error": f"n_regimes must be 2 or 3, got {n_regimes}"}
+                return error_response(f"n_regimes must be 2 or 3, got {n_regimes}", code="INVALID_INPUT")
 
             # Parse strategy returns
             strat_series = {}
@@ -750,9 +757,8 @@ class SignalLabAdapter:
             # Regime periods summary
             regime_periods = self._extract_regime_periods(regime_df)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "regimes": regime_stats,
                     "best_strategy_per_regime": best_per_regime,
                     "current_regime": current_regime,
@@ -761,11 +767,12 @@ class SignalLabAdapter:
                     "n_regimes": n_regimes,
                     "total_days": len(regime_df),
                 },
-            }
+                source="Signal Lab",
+            )
 
         except Exception as e:
             logger.error("signal_regime_select failed: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _extract_regime_periods(self, regime_df: pd.DataFrame) -> List[Dict]:
         """Extract contiguous regime periods."""
@@ -838,17 +845,14 @@ class SignalLabAdapter:
             n_total = len(ohlcv_df)
 
             if n_total < train_window + test_window:
-                return {
-                    "success": False,
-                    "error": f"Insufficient data: {n_total} rows, need at least {train_window + test_window}",
-                }
+                return error_response(f"Insufficient data: {n_total} rows, need at least {train_window + test_window}")
 
             # Calculate number of splits
             if n_splits is None:
                 n_splits = max(1, (n_total - train_window) // test_window)
 
             if n_splits < 1:
-                return {"success": False, "error": "Cannot create even 1 split with given windows"}
+                return error_response("Cannot create even 1 split with given windows", code="INVALID_INPUT")
 
             # Generate walk-forward folds
             folds = []
@@ -927,7 +931,7 @@ class SignalLabAdapter:
                     oos_returns.append(oos_ret)
 
             if not folds:
-                return {"success": False, "error": "No valid folds could be created"}
+                return error_response("No valid folds could be created")
 
             # Aggregate metrics
             avg_is_sharpe = float(np.mean(is_sharpes)) if is_sharpes else 0.0
@@ -964,9 +968,8 @@ class SignalLabAdapter:
                 if oos_sharpes else 0
             )
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": strategy_name,
                     "in_sample": {
                         "avg_sharpe": round(avg_is_sharpe, 4),
@@ -987,11 +990,12 @@ class SignalLabAdapter:
                     "warnings": warnings_list if warnings_list else ["PASS: no overfitting detected"],
                     "verdict": self._walkforward_verdict(overfit_ratio, avg_oos_sharpe, oos_positive_pct),
                 },
-            }
+                source="Signal Lab",
+            )
 
         except Exception as e:
             logger.error("signal_walkforward failed: %s", e, exc_info=True)
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     @staticmethod
     def _df_to_ohlcv_list(df: pd.DataFrame) -> List[Dict]:

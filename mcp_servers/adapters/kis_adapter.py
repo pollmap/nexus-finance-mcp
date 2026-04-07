@@ -33,6 +33,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -177,24 +178,24 @@ class KISAdapter:
             if not output:
                 return None
 
-            return {
-                "success": True,
-                "source": "kis_api",
-                "stock_code": stock_code,
-                "stock_name": output.get("stck_shrn_iscd", stock_code),
-                "current_price": int(output.get("stck_prpr", 0)),
-                "change": int(output.get("prdy_vrss", 0)),
-                "change_pct": float(output.get("prdy_ctrt", 0)),
-                "volume": int(output.get("acml_vol", 0)),
-                "trade_value": int(output.get("acml_tr_pbmn", 0)),
-                "high": int(output.get("stck_hgpr", 0)),
-                "low": int(output.get("stck_lwpr", 0)),
-                "open": int(output.get("stck_oprc", 0)),
-                "market_cap": int(output.get("hts_avls", 0)) * 100000000,  # 억원 → 원
-                "per": float(output.get("per", 0)),
-                "pbr": float(output.get("pbr", 0)),
-                "timestamp": datetime.now().isoformat(),
-            }
+            return success_response(
+                None,
+                source="KIS",
+                stock_code=stock_code,
+                stock_name=output.get("stck_shrn_iscd", stock_code),
+                current_price=int(output.get("stck_prpr", 0)),
+                change=int(output.get("prdy_vrss", 0)),
+                change_pct=float(output.get("prdy_ctrt", 0)),
+                volume=int(output.get("acml_vol", 0)),
+                trade_value=int(output.get("acml_tr_pbmn", 0)),
+                high=int(output.get("stck_hgpr", 0)),
+                low=int(output.get("stck_lwpr", 0)),
+                open=int(output.get("stck_oprc", 0)),
+                market_cap=int(output.get("hts_avls", 0)) * 100000000,  # 억원 → 원
+                per=float(output.get("per", 0)),
+                pbr=float(output.get("pbr", 0)),
+                timestamp=datetime.now().isoformat(),
+            )
 
         except Exception as e:
             logger.error(f"KIS quote error: {e}")
@@ -210,28 +211,28 @@ class KISAdapter:
 
             df = stock.get_market_ohlcv_by_date(start, today, stock_code)
             if df is None or df.empty:
-                return {"error": True, "message": "No data from pykrx"}
+                return error_response("No data from pykrx")
 
             latest = df.iloc[-1]
             name = stock.get_market_ticker_name(stock_code)
 
-            return {
-                "success": True,
-                "source": "pykrx_fallback",
-                "stock_code": stock_code,
-                "stock_name": name or stock_code,
-                "current_price": int(latest.get("종가", 0)),
-                "change_pct": float(latest.get("등락률", 0)),
-                "volume": int(latest.get("거래량", 0)),
-                "high": int(latest.get("고가", 0)),
-                "low": int(latest.get("저가", 0)),
-                "open": int(latest.get("시가", 0)),
-                "timestamp": datetime.now().isoformat(),
-                "note": "Delayed data (pykrx fallback)",
-            }
+            return success_response(
+                None,
+                source="pykrx_fallback",
+                stock_code=stock_code,
+                stock_name=name or stock_code,
+                current_price=int(latest.get("종가", 0)),
+                change_pct=float(latest.get("등락률", 0)),
+                volume=int(latest.get("거래량", 0)),
+                high=int(latest.get("고가", 0)),
+                low=int(latest.get("저가", 0)),
+                open=int(latest.get("시가", 0)),
+                timestamp=datetime.now().isoformat(),
+                note="Delayed data (pykrx fallback)",
+            )
         except Exception as e:
             logger.error(f"pykrx fallback error: {e}")
-            return {"error": True, "message": f"Both KIS and pykrx failed: {e}"}
+            return error_response(f"Both KIS and pykrx failed: {e}")
 
     def get_stock_info(self, stock_code: str) -> Dict[str, Any]:
         """
@@ -248,17 +249,17 @@ class KISAdapter:
         if quote.get("error"):
             return quote
 
-        return {
-            "success": True,
-            "stock_code": stock_code,
-            "stock_name": quote.get("stock_name", stock_code),
-            "current_price": quote.get("current_price"),
-            "market_cap": quote.get("market_cap"),
-            "per": quote.get("per"),
-            "pbr": quote.get("pbr"),
-            "volume": quote.get("volume"),
-            "source": quote.get("source"),
-        }
+        return success_response(
+            None,
+            source=quote.get("source", "KIS"),
+            stock_code=stock_code,
+            stock_name=quote.get("stock_name", stock_code),
+            current_price=quote.get("current_price"),
+            market_cap=quote.get("market_cap"),
+            per=quote.get("per"),
+            pbr=quote.get("pbr"),
+            volume=quote.get("volume"),
+        )
 
     def search_stock(self, keyword: str) -> Dict[str, Any]:
         """
@@ -277,7 +278,7 @@ class KISAdapter:
                 results.append({"code": code, "name": name})
 
         if results:
-            return {"success": True, "count": len(results), "data": results}
+            return success_response(results, source="KIS")
 
         # Fallback to pykrx search
         try:
@@ -295,9 +296,9 @@ class KISAdapter:
                 if len(results) >= 10:
                     break
 
-            return {"success": True, "count": len(results), "data": results}
+            return success_response(results, source="KIS")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 def test_kis_adapter():

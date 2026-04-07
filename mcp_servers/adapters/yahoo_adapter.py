@@ -29,6 +29,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class YahooAdapter:
             Company info dict
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("yahoo")
@@ -90,9 +91,7 @@ class YahooAdapter:
             stock = self._yf.Ticker(ticker)
             info = stock.info
 
-            result = {
-                "success": True,
-                "ticker": ticker,
+            data = {
                 "name": info.get("longName", info.get("shortName", ticker)),
                 "sector": info.get("sector"),
                 "industry": info.get("industry"),
@@ -111,13 +110,14 @@ class YahooAdapter:
                 "52_week_low": info.get("fiftyTwoWeekLow"),
                 "current_price": info.get("currentPrice", info.get("regularMarketPrice")),
             }
+            result = success_response(data, source="Yahoo Finance", ticker=ticker)
 
             self._cache.set("yahoo", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"Yahoo info error for {ticker}: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_stock_price(
         self,
@@ -137,7 +137,7 @@ class YahooAdapter:
             Historical price data
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("yahoo")
@@ -151,7 +151,7 @@ class YahooAdapter:
             df = stock.history(period=period, interval=interval)
 
             if df is None or df.empty:
-                return {"success": True, "data": [], "message": "No price data"}
+                return success_response([], source="Yahoo Finance", message="No price data")
 
             # Convert to records
             df = df.reset_index()
@@ -166,15 +166,11 @@ class YahooAdapter:
 
             records = df.to_dict("records")
 
-            result = {
-                "success": True,
-                "ticker": ticker,
-                "period": period,
-                "interval": interval,
-                "count": len(records),
-                "latest": records[-1] if records else None,
-                "data": records,
-            }
+            result = success_response(
+                records, count=len(records), source="Yahoo Finance",
+                ticker=ticker, period=period, interval=interval,
+                latest=records[-1] if records else None,
+            )
 
             # Cache based on interval
             data_type = "realtime_price" if interval in ["1m", "2m", "5m"] else "daily_data"
@@ -183,7 +179,7 @@ class YahooAdapter:
 
         except Exception as e:
             logger.error(f"Yahoo price error for {ticker}: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_financials(self, ticker: str) -> Dict[str, Any]:
         """
@@ -196,7 +192,7 @@ class YahooAdapter:
             Financial statements dict
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("yahoo")
@@ -224,30 +220,34 @@ class YahooAdapter:
                     result[col_str] = df[col].to_dict()
                 return result
 
-            result = {
-                "success": True,
-                "ticker": ticker,
+            financials_data = {
                 "income_statement": df_to_dict(income),
                 "balance_sheet": df_to_dict(balance),
                 "cash_flow": df_to_dict(cash_flow),
             }
 
             # Extract key metrics from latest period
+            summary = None
             if income is not None and not income.empty:
                 latest = income.iloc[:, 0]
-                result["summary"] = {
+                summary = {
                     "revenue": latest.get("Total Revenue", 0),
                     "operating_income": latest.get("Operating Income", 0),
                     "net_income": latest.get("Net Income", 0),
                     "ebitda": latest.get("EBITDA", 0),
                 }
 
+            result = success_response(
+                financials_data, source="Yahoo Finance", ticker=ticker,
+                **({"summary": summary} if summary else {}),
+            )
+
             self._cache.set("yahoo", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"Yahoo financials error for {ticker}: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_multiple_quotes(self, tickers: List[str]) -> Dict[str, Any]:
         """
@@ -260,7 +260,7 @@ class YahooAdapter:
             Quotes for all tickers
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("yahoo")
@@ -278,15 +278,11 @@ class YahooAdapter:
                         "beta": info.get("beta"),
                     })
 
-            return {
-                "success": True,
-                "count": len(quotes),
-                "data": quotes,
-            }
+            return success_response(quotes, count=len(quotes), source="Yahoo Finance")
 
         except Exception as e:
             logger.error(f"Yahoo multiple quotes error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def compare_stocks(
         self,
@@ -302,7 +298,7 @@ class YahooAdapter:
             Comparison data
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized", code="NOT_INITIALIZED")
 
         try:
             comparison = []
@@ -327,22 +323,16 @@ class YahooAdapter:
                 avg_pe = sum(c.get("pe") or 0 for c in comparison) / len(comparison)
                 avg_pb = sum(c.get("pb") or 0 for c in comparison) / len(comparison)
 
-                return {
-                    "success": True,
-                    "tickers": tickers,
-                    "count": len(comparison),
-                    "data": comparison,
-                    "averages": {
-                        "pe": round(avg_pe, 2),
-                        "pb": round(avg_pb, 2),
-                    },
-                }
+                return success_response(
+                    comparison, count=len(comparison), source="Yahoo Finance",
+                    tickers=tickers, averages={"pe": round(avg_pe, 2), "pb": round(avg_pb, 2)},
+                )
 
-            return {"success": True, "data": [], "message": "No data available"}
+            return success_response([], source="Yahoo Finance", message="No data available")
 
         except Exception as e:
             logger.error(f"Yahoo comparison error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 def test_yahoo_adapter():

@@ -5,11 +5,17 @@ API v2: https://api.edinet-fsa.go.jp/api/v2/
 """
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict
 
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from mcp_servers.core.rate_limiter import get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("edinet_adapter")
@@ -65,14 +71,10 @@ class EDINETAdapter:
                     "security_code": r.get("secCode", ""),
                 })
 
-            return {
-                "success": True, "source": "EDINET",
-                "date": date, "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="EDINET", date=date)
         except Exception as e:
             logger.error(f"EDINET search error: {e}")
-            return {"error": True, "message": f"EDINET filing search failed: {e}"}
+            return error_response(f"EDINET filing search failed: {e}")
 
     def get_company_filings(self, edinet_code: str, filing_type: str = "2") -> Dict[str, Any]:
         """
@@ -105,14 +107,10 @@ class EDINETAdapter:
                 if len(records) >= 5:
                     break
 
-            return {
-                "success": True, "source": "EDINET",
-                "edinet_code": edinet_code, "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="EDINET", edinet_code=edinet_code)
         except Exception as e:
             logger.error(f"EDINET company filings error: {e}")
-            return {"error": True, "message": f"EDINET company filing search failed: {e}"}
+            return error_response(f"EDINET company filing search failed: {e}")
 
     def get_document_info(self, doc_id: str) -> Dict[str, Any]:
         """
@@ -132,15 +130,15 @@ class EDINETAdapter:
                 content_type = resp.headers.get("Content-Type", "")
                 if "json" in content_type:
                     data = resp.json()
-                    return {"success": True, "source": "EDINET", "doc_id": doc_id, "data": data}
+                    return success_response(data, source="EDINET", doc_id=doc_id)
                 else:
-                    return {"success": True, "source": "EDINET", "doc_id": doc_id,
-                            "message": "Document available for download (XBRL/PDF)",
-                            "size_bytes": len(resp.content)}
-            return {"error": True, "message": f"HTTP {resp.status_code}"}
+                    return success_response(None, source="EDINET", doc_id=doc_id,
+                                            message="Document available for download (XBRL/PDF)",
+                                            size_bytes=len(resp.content))
+            return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
             logger.error(f"EDINET document error: {e}")
-            return {"error": True, "message": f"EDINET document retrieval failed: {e}"}
+            return error_response(f"EDINET document retrieval failed: {e}")
 
     def search_by_security_code(self, security_code: str) -> Dict[str, Any]:
         """
@@ -169,11 +167,7 @@ class EDINETAdapter:
                     "industry": r.get("industryCode", ""),
                 })
 
-            return {
-                "success": True, "source": "EDINET",
-                "security_code": security_code, "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="EDINET", security_code=security_code)
         except Exception as e:
             logger.error(f"EDINET search error: {e}")
-            return {"error": True, "message": f"EDINET code search failed: {e}"}
+            return error_response(f"EDINET code search failed: {e}")

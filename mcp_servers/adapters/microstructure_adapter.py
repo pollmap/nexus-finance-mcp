@@ -16,12 +16,19 @@ References:
 - Easley, López de Prado & O'Hara (2012), "Flow Toxicity and Liquidity," J. Finance 67(4)
 """
 import logging
+import sys
 import warnings
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -47,7 +54,7 @@ class MicrostructureAdapter:
             prices = df["value"].astype(float).values
             n = len(prices)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 observations, got {n}"}
+                return error_response(f"Need >= 30 observations, got {n}", code="INVALID_INPUT")
 
             returns = np.diff(np.log(prices))
 
@@ -79,9 +86,7 @@ class MicrostructureAdapter:
                     cw = np.linalg.lstsq(Xw, w_ret, rcond=None)[0]
                     rolling_lambdas.append(round(float(cw[1]), 8))
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "kyle_lambda": round(float(lam), 8),
                     "intercept": round(float(intercept), 8),
                     "r_squared": round(float(r_sq), 4),
@@ -94,11 +99,10 @@ class MicrostructureAdapter:
                         f"R² = {r_sq:.3f}. "
                         f"{'Low' if abs(lam) < 1e-7 else 'Moderate' if abs(lam) < 1e-5 else 'High'} price impact."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("kyle_lambda failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Lee-Ready Trade Classification
@@ -114,7 +118,7 @@ class MicrostructureAdapter:
             df = df.sort_values("date").drop_duplicates("date")
             n = len(df)
             if n < 10:
-                return {"error": True, "message": f"Need >= 10 trades, got {n}"}
+                return error_response(f"Need >= 10 trades, got {n}")
 
             has_quotes = "bid" in df.columns and "ask" in df.columns
 
@@ -158,9 +162,7 @@ class MicrostructureAdapter:
             # Order flow imbalance
             ofi = (n_buy - n_sell) / max(n_buy + n_sell, 1)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "n_buys": n_buy,
                     "n_sells": n_sell,
                     "n_neutral": n_neutral,
@@ -173,11 +175,10 @@ class MicrostructureAdapter:
                         f"{n_buy} buys ({n_buy/n:.0%}), {n_sell} sells ({n_sell/n:.0%}). "
                         f"OFI = {ofi:.3f} ({'buy pressure' if ofi > 0.1 else 'sell pressure' if ofi < -0.1 else 'balanced'})."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("lee_ready failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Roll Effective Spread
@@ -194,7 +195,7 @@ class MicrostructureAdapter:
             prices = df["value"].astype(float).values
             n = len(prices)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 prices, got {n}"}
+                return error_response(f"Need >= 30 prices, got {n}")
 
             dp = np.diff(prices)
             autocovar = np.cov(dp[:-1], dp[1:])[0, 1]
@@ -221,9 +222,7 @@ class MicrostructureAdapter:
                 else:
                     rolling_spreads.append(0.0)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "roll_spread": round(float(roll_spread), 6),
                     "roll_spread_pct": round(float(spread_pct), 4),
                     "serial_covariance": round(float(autocovar), 8),
@@ -236,11 +235,10 @@ class MicrostructureAdapter:
                         f"{'Valid' if valid else 'Invalid (positive autocovariance → no bid-ask bounce)'}. "
                         f"{'Very liquid' if spread_pct < 0.05 else 'Liquid' if spread_pct < 0.2 else 'Illiquid' if spread_pct < 1 else 'Very illiquid'}."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("roll_spread failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Amihud Illiquidity
@@ -257,7 +255,7 @@ class MicrostructureAdapter:
             prices = df["value"].astype(float).values
             n = len(prices)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 observations, got {n}"}
+                return error_response(f"Need >= 30 observations, got {n}")
 
             returns = np.abs(np.diff(np.log(prices)))
 
@@ -272,7 +270,7 @@ class MicrostructureAdapter:
             # Amihud ratio
             valid = dollar_vol > 0
             if np.sum(valid) < 10:
-                return {"error": True, "message": "Not enough valid volume data"}
+                return error_response("Not enough valid volume data")
 
             daily_illiq = returns[valid] / dollar_vol[valid]
             amihud_ratio = float(np.mean(daily_illiq)) * 1e6  # scale for readability
@@ -294,9 +292,7 @@ class MicrostructureAdapter:
             else:
                 current_pctile = 50
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "amihud_ratio": round(amihud_ratio, 6),
                     "amihud_percentile": round(current_pctile, 1),
                     "has_volume_data": has_volume,
@@ -308,11 +304,10 @@ class MicrostructureAdapter:
                         f"{'Very liquid' if amihud_ratio < 0.01 else 'Liquid' if amihud_ratio < 0.1 else 'Moderate' if amihud_ratio < 1 else 'Illiquid'}."
                         f"{'' if has_volume else ' (No volume data, using placeholder).'}"
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("amihud failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Order Book Imbalance
@@ -328,7 +323,7 @@ class MicrostructureAdapter:
             asks = orderbook.get("asks", [])
 
             if not bids or not asks:
-                return {"error": True, "message": "Need non-empty bids and asks"}
+                return error_response("Need non-empty bids and asks")
 
             # Parse: [[price, volume], ...] or [{"price": p, "volume": v}, ...]
             def _parse_levels(levels):
@@ -374,9 +369,7 @@ class MicrostructureAdapter:
 
             obi_1 = imbalances.get("depth_1", {}).get("obi", 0)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "imbalances": imbalances,
                     "best_bid": round(best_bid, 4),
                     "best_ask": round(best_ask, 4),
@@ -392,11 +385,10 @@ class MicrostructureAdapter:
                         f"Depth-10 bid vol: {imbalances.get('depth_10', {}).get('bid_volume', 0):,.0f}, "
                         f"ask vol: {imbalances.get('depth_10', {}).get('ask_volume', 0):,.0f}."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("orderbook_imbalance failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. VPIN (Volume-Synchronized Probability of Informed Trading)
@@ -417,7 +409,7 @@ class MicrostructureAdapter:
             prices = df["value"].astype(float).values
             n = len(prices)
             if n < 50:
-                return {"error": True, "message": f"Need >= 50 observations, got {n}"}
+                return error_response(f"Need >= 50 observations, got {n}")
 
             returns = np.diff(np.log(prices))
 
@@ -467,7 +459,7 @@ class MicrostructureAdapter:
                     current_buy = current_sell = current_vol = 0
 
             if len(buckets) < 5:
-                return {"error": True, "message": f"Only {len(buckets)} buckets created; need >= 5. Try smaller bucket_volume."}
+                return error_response(f"Only {len(buckets)} buckets created; need >= 5. Try smaller bucket_volume.")
 
             # VPIN = average imbalance over last n_buckets
             imbalances = [b["imbalance"] for b in buckets]
@@ -484,9 +476,7 @@ class MicrostructureAdapter:
             # Recent VPIN trajectory
             recent = [round(v, 4) for v in imbalances[-20:]]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "vpin": round(vpin, 4),
                     "vpin_std": round(vpin_std, 4),
                     "current_vpin": round(current_vpin, 4),
@@ -500,8 +490,7 @@ class MicrostructureAdapter:
                         f"{'LOW toxicity' if vpin < 0.3 else 'MODERATE toxicity' if vpin < 0.5 else 'HIGH toxicity — informed trading likely!'}. "
                         f"{'⚠ Flash crash risk elevated!' if vpin > 0.6 else ''}"
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("toxicity failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

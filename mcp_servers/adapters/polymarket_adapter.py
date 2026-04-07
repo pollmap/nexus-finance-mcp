@@ -9,8 +9,15 @@ Three APIs, all free for read-only:
 No authentication needed for read endpoints. ~60 req/min.
 """
 import logging
+import sys
+from pathlib import Path
 from typing import Any, Dict, Optional
 from utils.http_client import get_session
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("polymarket")
@@ -43,9 +50,9 @@ class PolymarketAdapter:
                     "category": m.get("category"),
                 })
 
-            return {"success": True, "count": len(markets), "markets": markets}
+            return success_response(markets, source="Polymarket", markets=markets)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_market_detail(self, condition_id: str) -> Dict[str, Any]:
         """Get single market detail by condition ID."""
@@ -54,20 +61,21 @@ class PolymarketAdapter:
             resp.raise_for_status()
             m = resp.json()
 
-            return {
-                "success": True,
-                "question": m.get("question"),
-                "description": m.get("description", "")[:500],
-                "volume": m.get("volume"),
-                "liquidity": m.get("liquidity"),
-                "outcome_prices": m.get("outcomePrices"),
-                "outcomes": m.get("outcomes"),
-                "end_date": m.get("endDate"),
-                "category": m.get("category"),
-                "tags": m.get("tags"),
-            }
+            return success_response(
+                None,
+                source="Polymarket",
+                question=m.get("question"),
+                description=m.get("description", "")[:500],
+                volume=m.get("volume"),
+                liquidity=m.get("liquidity"),
+                outcome_prices=m.get("outcomePrices"),
+                outcomes=m.get("outcomes"),
+                end_date=m.get("endDate"),
+                category=m.get("category"),
+                tags=m.get("tags"),
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_events(self, limit: int = 10) -> Dict[str, Any]:
         """Get events (groups of related markets)."""
@@ -87,15 +95,15 @@ class PolymarketAdapter:
                     "category": e.get("category"),
                 })
 
-            return {"success": True, "count": len(events), "events": events}
+            return success_response(events, source="Polymarket", events=events)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_prices(self, token_id: str) -> Dict[str, Any]:
         """Get current price for a market token."""
         try:
             resp = _session.get(f"{CLOB_URL}/price", params={"token_id": token_id}, timeout=10)
             resp.raise_for_status()
-            return {"success": True, "token_id": token_id, "price": resp.json()}
+            return success_response(resp.json(), source="Polymarket", token_id=token_id)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

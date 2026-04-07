@@ -13,11 +13,19 @@ References:
 - CoinGlass real-time funding rates across exchanges
 """
 import logging
+import sys
+import os
 import warnings
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -54,13 +62,13 @@ class CryptoQuantAdapter:
         try:
             exchange = self._get_exchange(exchange_id)
             if not exchange:
-                return {"error": True, "message": f"Cannot initialize {exchange_id}"}
+                return error_response(f"Cannot initialize {exchange_id}")
 
             # Current funding rate
             try:
                 funding = exchange.fetch_funding_rate(symbol)
             except Exception as e:
-                return {"error": True, "message": f"fetch_funding_rate failed: {e}"}
+                return error_response(f"fetch_funding_rate failed: {e}")
 
             rate = funding.get("fundingRate", 0) or 0
             next_time = funding.get("fundingDatetime", "")
@@ -92,9 +100,8 @@ class CryptoQuantAdapter:
                 avg_rate = rate
                 avg_annualized = annualized
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "symbol": symbol,
                     "exchange": exchange_id,
                     "current_rate": round(float(rate), 6),
@@ -110,11 +117,12 @@ class CryptoQuantAdapter:
                         f"{'Longs pay shorts' if rate > 0 else 'Shorts pay longs'}. "
                         f"{'HIGH carry opportunity!' if abs(annualized) > 0.20 else 'Moderate carry.' if abs(annualized) > 0.05 else 'Low carry.'}"
                     ),
-                }
-            }
+                },
+                source="Crypto Quant",
+            )
         except Exception as e:
             logger.exception("funding_rate failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Basis Term Structure
@@ -126,7 +134,7 @@ class CryptoQuantAdapter:
         try:
             exchange = self._get_exchange(exchange_id)
             if not exchange:
-                return {"error": True, "message": f"Cannot initialize {exchange_id}"}
+                return error_response(f"Cannot initialize {exchange_id}")
 
             # Get spot price
             spot_exchange = self._get_exchange(exchange_id)
@@ -142,7 +150,7 @@ class CryptoQuantAdapter:
                 spot_price = 0
 
             if not spot_price:
-                return {"error": True, "message": f"Cannot fetch spot price for {base}/USDT"}
+                return error_response(f"Cannot fetch spot price for {base}/USDT")
 
             # Get perpetual price
             perp_symbol = f"{base}/USDT:USDT"
@@ -185,9 +193,8 @@ class CryptoQuantAdapter:
             except Exception:
                 pass
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "base": base,
                     "exchange": exchange_id,
                     "spot_price": round(float(spot_price), 2),
@@ -202,11 +209,12 @@ class CryptoQuantAdapter:
                         f"Annualized: ~{basis_annualized:.1f}%. "
                         f"{'Cash-and-carry opportunity!' if abs(basis_annualized) > 10 else 'Normal.'}"
                     ),
-                }
-            }
+                },
+                source="Crypto Quant",
+            )
         except Exception as e:
             logger.exception("basis_term failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Funding Rate Arbitrage Scanner
@@ -221,7 +229,7 @@ class CryptoQuantAdapter:
         try:
             exchange = self._get_exchange(exchange_id)
             if not exchange:
-                return {"error": True, "message": f"Cannot initialize {exchange_id}"}
+                return error_response(f"Cannot initialize {exchange_id}")
 
             if not symbols:
                 symbols = [
@@ -253,9 +261,8 @@ class CryptoQuantAdapter:
             # Sort by absolute annualized
             opportunities.sort(key=lambda x: abs(x["annualized"]), reverse=True)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "opportunities": opportunities,
                     "n_scanned": len(symbols),
                     "n_opportunities": len(opportunities),
@@ -267,11 +274,12 @@ class CryptoQuantAdapter:
                         f"Top: {opportunities[0]['symbol']} at {opportunities[0]['annualized']:.1%} ann."
                         if opportunities else f"No opportunities above {min_annualized:.0%} threshold."
                     ),
-                }
-            }
+                },
+                source="Crypto Quant",
+            )
         except Exception as e:
             logger.exception("funding_arb failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Open Interest
@@ -283,12 +291,12 @@ class CryptoQuantAdapter:
         try:
             exchange = self._get_exchange(exchange_id)
             if not exchange:
-                return {"error": True, "message": f"Cannot initialize {exchange_id}"}
+                return error_response(f"Cannot initialize {exchange_id}")
 
             try:
                 oi = exchange.fetch_open_interest(symbol)
             except Exception as e:
-                return {"error": True, "message": f"fetch_open_interest failed: {e}"}
+                return error_response(f"fetch_open_interest failed: {e}")
 
             oi_value = oi.get("openInterestAmount", 0) or oi.get("openInterest", 0)
             oi_notional = oi.get("openInterestValue", 0) or 0
@@ -305,9 +313,8 @@ class CryptoQuantAdapter:
             # OI/Volume ratio (leverage proxy)
             oi_vol_ratio = oi_notional / volume_24h if volume_24h > 0 else 0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "symbol": symbol,
                     "exchange": exchange_id,
                     "open_interest": round(float(oi_value), 4),
@@ -321,11 +328,12 @@ class CryptoQuantAdapter:
                         f"OI/Vol ratio: {oi_vol_ratio:.2f} "
                         f"({'high leverage' if oi_vol_ratio > 2 else 'moderate' if oi_vol_ratio > 0.5 else 'low leverage'})."
                     ),
-                }
-            }
+                },
+                source="Crypto Quant",
+            )
         except Exception as e:
             logger.exception("open_interest failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Liquidation Levels
@@ -338,7 +346,7 @@ class CryptoQuantAdapter:
         try:
             exchange = self._get_exchange(exchange_id)
             if not exchange:
-                return {"error": True, "message": f"Cannot initialize {exchange_id}"}
+                return error_response(f"Cannot initialize {exchange_id}")
 
             if not leverage_levels:
                 leverage_levels = [2, 3, 5, 10, 20, 25, 50, 100]
@@ -347,10 +355,10 @@ class CryptoQuantAdapter:
                 ticker = exchange.fetch_ticker(symbol)
                 price = ticker.get("last", 0)
             except Exception as e:
-                return {"error": True, "message": f"fetch_ticker failed: {e}"}
+                return error_response(f"fetch_ticker failed: {e}")
 
             if not price:
-                return {"error": True, "message": "Cannot get price"}
+                return error_response("Cannot get price")
 
             # Liquidation prices for longs and shorts at each leverage
             levels = []
@@ -372,9 +380,8 @@ class CryptoQuantAdapter:
                     "short_rise_pct": round(float(short_rise_pct), 2),
                 })
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "symbol": symbol,
                     "current_price": round(float(price), 2),
                     "levels": levels,
@@ -389,11 +396,12 @@ class CryptoQuantAdapter:
                         f"20x at ${price * 0.95:,.2f} (-5%). "
                         f"Cascade risk highest near round numbers."
                     ),
-                }
-            }
+                },
+                source="Crypto Quant",
+            )
         except Exception as e:
             logger.exception("liquidation_levels failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. Carry Backtest
@@ -424,7 +432,7 @@ class CryptoQuantAdapter:
             # Align
             df = pd.DataFrame({"price": prices, "rate": rates}).dropna()
             if len(df) < 10:
-                return {"error": True, "message": f"Only {len(df)} aligned observations"}
+                return error_response(f"Only {len(df)} aligned observations")
 
             # Simulate carry strategy
             # Position: long 1 unit spot + short 1 unit perp
@@ -469,9 +477,8 @@ class CryptoQuantAdapter:
             win_days = int(np.sum(pnl_arr > 0))
             total_days = len(pnl_arr)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "total_return_pct": round(float(total_return * 100), 2),
                     "annualized_return_pct": round(float(ann_return * 100), 2),
                     "sharpe_ratio": round(sharpe, 3),
@@ -486,8 +493,9 @@ class CryptoQuantAdapter:
                         f"Sharpe: {sharpe:.2f}. Max DD: {max_dd:.1%}. "
                         f"Win rate: {win_days}/{total_days} days."
                     ),
-                }
-            }
+                },
+                source="Crypto Quant",
+            )
         except Exception as e:
             logger.exception("carry_backtest failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

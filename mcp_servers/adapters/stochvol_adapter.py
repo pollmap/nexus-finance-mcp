@@ -15,12 +15,19 @@ References:
 - Kyle (1985), "Continuous Auctions and Insider Trading," Econometrica 53(6)
 """
 import logging
+import sys
 import warnings
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from scipy import optimize, stats
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -54,7 +61,7 @@ class StochVolAdapter:
         try:
             dates, prices = _ts_to_array(series)
             if len(prices) < 100:
-                return {"error": True, "message": f"Need >= 100 prices, got {len(prices)}"}
+                return error_response(f"Need >= 100 prices, got {len(prices)}")
 
             # Log returns
             returns = np.log(prices[1:] / prices[:-1])
@@ -95,9 +102,7 @@ class StochVolAdapter:
             # Implied vol from current variance
             implied_vol = np.sqrt(v0)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "mu": round(mu, 4),
                     "kappa": round(float(kappa), 3),
                     "theta": round(float(theta), 4),
@@ -114,11 +119,10 @@ class StochVolAdapter:
                         f"({'negative=leverage effect' if rho < 0 else 'unusual positive'}). "
                         f"Feller: {'satisfied' if feller else 'VIOLATED (var can hit 0)'}."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("heston failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Merton Jump-Diffusion
@@ -131,7 +135,7 @@ class StochVolAdapter:
         try:
             dates, prices = _ts_to_array(series)
             if len(prices) < 100:
-                return {"error": True, "message": f"Need >= 100 prices, got {len(prices)}"}
+                return error_response(f"Need >= 100 prices, got {len(prices)}")
 
             returns = np.log(prices[1:] / prices[:-1])
             n = len(returns)
@@ -173,9 +177,7 @@ class StochVolAdapter:
             # Recent jump dates
             jump_dates = [dates[i + 1] for i in range(n) if jump_mask[i]]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "diffusion_mu": round(mu_diff, 4),
                     "diffusion_sigma": round(sigma_diff, 4),
                     "jump_intensity_annual": round(float(lambda_j), 2),
@@ -195,11 +197,10 @@ class StochVolAdapter:
                         f"{n_jumps} jumps detected (>{jump_threshold:.2%} threshold). "
                         f"Kurtosis={emp_kurt:.1f} ({'fat tails' if emp_kurt > 3 else 'normal'})."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("jump_diffusion failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Variance Risk Premium
@@ -214,7 +215,7 @@ class StochVolAdapter:
         try:
             dates, prices = _ts_to_array(series)
             if len(prices) < 60:
-                return {"error": True, "message": f"Need >= 60 prices, got {len(prices)}"}
+                return error_response(f"Need >= 60 prices, got {len(prices)}")
 
             returns = np.log(prices[1:] / prices[:-1])
 
@@ -252,9 +253,7 @@ class StochVolAdapter:
                 round(float(v), 4) for v in vrp[-min(60, len(vrp)):]
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "current_vrp_vol": round(current_vrp, 4),
                     "current_implied_vol": round(float(iv_vals[-1]), 4) if len(iv_vals) > 0 else None,
                     "current_realized_vol": round(float(rv_vals[-1]), 4) if len(rv_vals) > 0 else None,
@@ -271,11 +270,10 @@ class StochVolAdapter:
                         f"{'vol selling profitable (options expensive)' if current_vrp > 0 else 'vol buying profitable (options cheap)'}. "
                         f"Historically positive {pct_positive:.0%} of the time."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("var_premium failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Almgren-Chriss Optimal Execution
@@ -304,7 +302,7 @@ class StochVolAdapter:
             lam = risk_aversion
 
             if T < 1:
-                return {"error": True, "message": "Horizon must be >= 1 day"}
+                return error_response("Horizon must be >= 1 day")
 
             # Almgren-Chriss parameters
             # kappa = sqrt(lambda * sigma^2 / eta)
@@ -351,9 +349,7 @@ class StochVolAdapter:
             # Participation rate
             max_participation = max(t["pct_of_daily_volume"] for t in trajectory[1:]) if len(trajectory) > 1 else 0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "trajectory": trajectory,
                     "kappa": round(float(kappa), 6),
                     "expected_cost": round(float(expected_total), 2),
@@ -377,11 +373,10 @@ class StochVolAdapter:
                         f"(saves {twap_total - expected_total:,.0f} vs TWAP). "
                         f"Max participation: {max_participation:.1f}% of daily volume."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("exec_optimal failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. VWAP Execution Plan
@@ -409,16 +404,13 @@ class StochVolAdapter:
                         "pct_of_total": round(100 / n_buckets, 1),
                         "shares": round(float(shares_per_bucket), 0),
                     })
-                return {
-                    "success": True,
-                    "data": {
+                return success_response({
                         "plan": plan,
                         "method": "equal_weight (no volume data)",
                         "total_shares": total_shares,
                         "n_buckets": n_buckets,
                         "interpretation": "TWAP fallback: no volume data available, equal distribution.",
-                    }
-                }
+                    })
 
             volumes = df["volume"].astype(float).values
             n = len(volumes)
@@ -450,9 +442,7 @@ class StochVolAdapter:
                     "shares": round(float(total_shares * pct), 0),
                 })
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "plan": plan,
                     "method": "volume_weighted",
                     "total_shares": total_shares,
@@ -464,11 +454,10 @@ class StochVolAdapter:
                         f"Heaviest bucket: {max(pct * 100 for pct in proportions):.1f}%. "
                         f"Lightest: {min(pct * 100 for pct in proportions):.1f}%."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("exec_vwap failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. Market Impact Estimation
@@ -489,7 +478,7 @@ class StochVolAdapter:
             n = len(prices)
 
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 observations, got {n}"}
+                return error_response(f"Need >= 30 observations, got {n}")
 
             returns = np.diff(np.log(prices))
 
@@ -526,9 +515,7 @@ class StochVolAdapter:
             autocovar = np.cov(returns[:-1], returns[1:])[0, 1]
             roll_spread = 2 * np.sqrt(max(0, -autocovar))
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "kyle_lambda": round(float(kyle_lambda), 8),
                     "intercept": round(float(intercept), 6),
                     "r_squared": round(float(r_squared), 4),
@@ -542,8 +529,7 @@ class StochVolAdapter:
                         f"Roll spread={roll_spread:.4%}. "
                         f"{'Volume data used.' if has_volume else 'Returns proxy (no volume).'}"
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("market_impact failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

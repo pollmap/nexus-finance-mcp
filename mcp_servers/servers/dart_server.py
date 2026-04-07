@@ -175,6 +175,148 @@ class DARTServer(BaseMCPServer):
             return adapter.get_dividend(stock_code, year)
 
 
+        # === Phase 13: DART Report 확장 (9개 신규 도구) ===
+
+        @self.mcp.tool()
+        def dart_executives(stock_code: str, year: Optional[int] = None) -> dict:
+            """임원현황 조회 (OpenDART). 이사/감사/집행임원 목록, 직위, 성명, 재직기간."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_executives(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_executive_compensation(stock_code: str, year: Optional[int] = None) -> dict:
+            """임원보수 조회 (OpenDART). 이사/감사 보수총액, 1인당 평균, 최고보수자."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_executive_compensation(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_shareholder_changes(stock_code: str, year: Optional[int] = None) -> dict:
+            """최대주주 변동 조회 (OpenDART). 지배구조 변화, 경영권 이전 추적."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_shareholder_changes(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_capital_changes(stock_code: str, year: Optional[int] = None) -> dict:
+            """증자/감자 조회 (OpenDART). 유상증자, 무상증자, 감자 내역. 희석 리스크 분석용."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_capital_changes(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_mergers(stock_code: str, year: Optional[int] = None) -> dict:
+            """합병/분할 조회 (OpenDART). M&A, 인적분할, 물적분할 내역."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_mergers(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_convertible_bonds(stock_code: str, year: Optional[int] = None) -> dict:
+            """전환사채/신주인수권 조회 (OpenDART). CB/BW 발행, 전환가, 희석 영향."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_convertible_bonds(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_treasury_stock(stock_code: str, year: Optional[int] = None) -> dict:
+            """자기주식 취득/처분 조회 (OpenDART). 자사주 매입, 소각, 처분 내역."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_treasury_stock(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_related_party(stock_code: str, year: Optional[int] = None) -> dict:
+            """공정공시 — 특수관계자 거래 조회 (OpenDART). 거버넌스 리스크 분석."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_related_party(stock_code, year)
+
+        @self.mcp.tool()
+        def dart_5pct_disclosure(stock_code: str, year: Optional[int] = None) -> dict:
+            """지분공시 (5% 룰) 조회 (OpenDART). 5% 이상 지분 변동 신고 내역."""
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_5pct_disclosure(stock_code, year)
+
+        # === Phase 14: 공시 검색 ===
+
+        @self.mcp.tool()
+        def dart_disclosure_search(stock_code: str = "", keyword: str = "",
+                                   start_date: str = "", end_date: str = "",
+                                   kind: str = "") -> dict:
+            """기업 공시 검색 (OpenDART). 사업보고서, 주요사항, 지분공시 등.
+
+            Args:
+                stock_code: 종목코드 (예: 005930). keyword와 택 1.
+                keyword: 회사명 (예: 삼성전자). stock_code와 택 1.
+                start_date: 시작일 YYYYMMDD (기본: 6개월 전)
+                end_date: 종료일 YYYYMMDD (기본: 오늘)
+                kind: 공시유형 — A=정기공시, B=주요사항, C=발행, D=지분, E=기타 (빈값=전체)
+            """
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.search_disclosures(
+                stock_code=stock_code or None, keyword=keyword or None,
+                start_date=start_date or None, end_date=end_date or None,
+                kind=kind or None,
+            )
+
+
+        # === Phase 14: 이벤트·전체재무제표·원문 조회 ===
+
+        @self.mcp.tool()
+        def dart_events(stock_code: str, keyword: str = "", start_date: str = "", end_date: str = "") -> dict:
+            """이벤트 공시 조회 (유상증자, 전환사채, 합병 등 주요 기업 이벤트).
+
+            Args:
+                stock_code: 종목코드 (예: 005930)
+                keyword: 이벤트 키워드 (예: 유상증자, 합병). 빈값=전체.
+                start_date: 시작일 YYYYMMDD (기본: 1년 전)
+                end_date: 종료일 YYYYMMDD (기본: 오늘)
+            """
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_events(
+                stock_code=stock_code,
+                keyword=keyword or "",
+                start_date=start_date or None,
+                end_date=end_date or None,
+            )
+
+        @self.mcp.tool()
+        def dart_full_financial(
+            stock_code: str,
+            year: Optional[int] = None,
+            report_type: str = "11011",
+            fs_div: str = "CFS",
+        ) -> dict:
+            """전체 재무제표 조회 (연결/개별 선택). BS+IS+CF 모두 포함.
+
+            Args:
+                stock_code: 종목코드 (예: 005930)
+                year: 사업연도 (기본: 전년도)
+                report_type: 보고서 유형 (11011=사업보고서, 11012=반기, 11013=1분기, 11014=3분기)
+                fs_div: CFS=연결재무제표, OFS=개별재무제표
+            """
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_full_financial_statements(stock_code, year, report_type, fs_div)
+
+        @self.mcp.tool()
+        def dart_document(rcp_no: str, max_chars: int = 5000) -> dict:
+            """공시 원문 텍스트 조회. rcp_no는 dart_disclosure_search 결과에서 얻을 수 있음.
+
+            Args:
+                rcp_no: 접수번호 (예: 20240315000123)
+                max_chars: 최대 반환 문자 수 (기본: 5000)
+            """
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+            return adapter.get_document(rcp_no, max_chars)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     server = DARTServer()

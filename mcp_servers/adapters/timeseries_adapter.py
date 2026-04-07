@@ -14,6 +14,8 @@ No external API required. Uses statsmodels + scipy + numpy.
 Run standalone test: python -m mcp_servers.adapters.timeseries_adapter
 """
 import logging
+import sys
+import os
 import warnings
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,6 +26,12 @@ from scipy import signal
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller, kpss
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -109,10 +117,7 @@ class TimeseriesAdapter:
             freq = min(freq, len(ts) // 2)
 
             if len(ts) < 2 * freq:
-                return {
-                    "error": True,
-                    "message": f"Need at least {2 * freq} observations for freq={freq}, got {len(ts)}",
-                }
+                return error_response(f"Need at least {2 * freq} observations for freq={freq}, got {len(ts)}")
 
             if model not in ("additive", "multiplicative"):
                 model = "additive"
@@ -138,9 +143,8 @@ class TimeseriesAdapter:
             else:
                 seasonal_strength = 0.0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "model": model,
                     "freq": freq,
                     "trend": self._series_to_list(result.trend.dropna()),
@@ -149,10 +153,11 @@ class TimeseriesAdapter:
                     "seasonal_strength": round(seasonal_strength, 4),
                     "n_observations": len(ts),
                 },
-            }
+                source="Time Series",
+            )
         except Exception as e:
             logger.exception("decompose failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. stationarity_test
@@ -164,7 +169,7 @@ class TimeseriesAdapter:
             ts = self._to_series(series)
 
             if len(ts) < 8:
-                return {"error": True, "message": f"Need at least 8 observations, got {len(ts)}"}
+                return error_response(f"Need at least 8 observations, got {len(ts)}")
 
             # ADF test
             adf_result = adfuller(ts, autolag="AIC")
@@ -191,9 +196,8 @@ class TimeseriesAdapter:
             else:
                 recommended_action = "Inconclusive. Consider visual inspection and further tests."
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "adf_stat": round(adf_stat, 4),
                     "adf_pvalue": round(adf_pvalue, 4),
                     "adf_critical_values": {
@@ -205,10 +209,11 @@ class TimeseriesAdapter:
                     "recommended_action": recommended_action,
                     "n_observations": len(ts),
                 },
-            }
+                source="Time Series",
+            )
         except Exception as e:
             logger.exception("stationarity_test failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. forecast
@@ -228,7 +233,7 @@ class TimeseriesAdapter:
             ts = self._to_series(series)
 
             if len(ts) < 10:
-                return {"error": True, "message": f"Need at least 10 observations, got {len(ts)}"}
+                return error_response(f"Need at least 10 observations, got {len(ts)}")
 
             horizon = max(1, min(horizon, 60))
 
@@ -265,7 +270,7 @@ class TimeseriesAdapter:
                     continue
 
             if best_model is None:
-                return {"error": True, "message": "All ARIMA models failed to fit. Data may be insufficient or degenerate."}
+                return error_response("All ARIMA models failed to fit. Data may be insufficient or degenerate.")
 
             # Forecast
             fc = best_model.get_forecast(steps=horizon)
@@ -299,19 +304,19 @@ class TimeseriesAdapter:
                     "upper_95": round(float(ci_95.iloc[i, 1]), 4),
                 })
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "model": f"ARIMA{best_order}",
                     "aic": round(best_aic, 2),
                     "horizon": horizon,
                     "predictions": predictions,
                     "n_observations": len(ts),
                 },
-            }
+                source="Time Series",
+            )
         except Exception as e:
             logger.exception("forecast failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. seasonality
@@ -331,10 +336,7 @@ class TimeseriesAdapter:
             freq = min(freq, len(ts) // 2)
 
             if len(ts) < 2 * freq:
-                return {
-                    "error": True,
-                    "message": f"Need at least {2 * freq} observations for freq={freq}, got {len(ts)}",
-                }
+                return error_response(f"Need at least {2 * freq} observations for freq={freq}, got {len(ts)}")
 
             model = "additive"
             if (ts <= 0).any():
@@ -384,9 +386,8 @@ class TimeseriesAdapter:
                 peak_period = None
                 trough_period = None
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "freq": freq,
                     "seasonal_pattern": seasonal_pattern,
                     "seasonal_strength": round(seasonal_strength, 4),
@@ -394,10 +395,11 @@ class TimeseriesAdapter:
                     "trough_period": trough_period,
                     "n_observations": len(ts),
                 },
-            }
+                source="Time Series",
+            )
         except Exception as e:
             logger.exception("seasonality failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. changepoint_detection
@@ -416,7 +418,7 @@ class TimeseriesAdapter:
             ts = self._to_series(series)
 
             if len(ts) < 10:
-                return {"error": True, "message": f"Need at least 10 observations, got {len(ts)}"}
+                return error_response(f"Need at least 10 observations, got {len(ts)}")
 
             n_changepoints = max(1, min(n_changepoints, len(ts) // 4))
             values = ts.values.astype(float)
@@ -441,14 +443,14 @@ class TimeseriesAdapter:
             peaks, _ = signal.find_peaks(roll_diff, distance=min_distance)
 
             if len(peaks) == 0:
-                return {
-                    "success": True,
-                    "data": {
+                return success_response(
+                    {
                         "changepoints": [],
                         "n_observations": n,
                         "message": "No significant changepoints detected",
                     },
-                }
+                    source="Time Series",
+                )
 
             # Sort by magnitude and take top n
             peak_magnitudes = roll_diff[peaks]
@@ -467,18 +469,18 @@ class TimeseriesAdapter:
                     "change_magnitude": round(after_mean - before_mean, 4),
                 })
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "changepoints": changepoints,
                     "n_changepoints_requested": n_changepoints,
                     "n_changepoints_found": len(changepoints),
                     "n_observations": n,
                 },
-            }
+                source="Time Series",
+            )
         except Exception as e:
             logger.exception("changepoint_detection failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. cross_correlation
@@ -498,7 +500,7 @@ class TimeseriesAdapter:
             # Align on common dates
             common = ts_a.index.intersection(ts_b.index)
             if len(common) < 5:
-                return {"error": True, "message": f"Only {len(common)} overlapping dates. Need at least 5."}
+                return error_response(f"Only {len(common)} overlapping dates. Need at least 5.")
 
             a = ts_a.loc[common].values.astype(float)
             b = ts_b.loc[common].values.astype(float)
@@ -537,9 +539,8 @@ class TimeseriesAdapter:
             else:
                 interpretation = f"Strongest correlation at lag 0 (contemporaneous, r={max_ccf:.3f})."
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "ccf_values": ccf_values,
                     "max_ccf_lag": max_lag_val,
                     "max_ccf": max_ccf,
@@ -547,10 +548,11 @@ class TimeseriesAdapter:
                     "n_common_observations": n,
                     "max_lag_tested": max_lag,
                 },
-            }
+                source="Time Series",
+            )
         except Exception as e:
             logger.exception("cross_correlation failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ------------------------------------------------------------------

@@ -30,6 +30,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +104,9 @@ class KRXAdapter:
             OHLCV data dict
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)"}
+            return error_response(f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)", code="INVALID_INPUT")
         if not self._stock:
-            return {"error": True, "message": "pykrx not initialized"}
+            return error_response("pykrx not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("krx")
@@ -124,7 +125,7 @@ class KRXAdapter:
             df = self._stock.get_market_ohlcv_by_date(start_date, end_date, stock_code)
 
             if df is None or df.empty:
-                return {"success": True, "data": [], "message": "No price data"}
+                return success_response(data=[], source="KRX", stock_code=stock_code, message="No price data")
 
             # Reset index to include date
             df = df.reset_index()
@@ -161,21 +162,20 @@ class KRXAdapter:
             df["date"] = df["date"].astype(str)
             records = df.to_dict("records")
 
-            result = {
-                "success": True,
-                "stock_code": stock_code,
-                "period": {"start": start_date, "end": end_date},
-                "count": len(records),
-                "latest": records[-1] if records else None,
-                "data": records,
-            }
+            result = success_response(
+                data=records,
+                source="KRX",
+                stock_code=stock_code,
+                period={"start": start_date, "end": end_date},
+                latest=records[-1] if records else None,
+            )
 
             self._cache.set("krx", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"KRX price error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_market_cap(self, stock_code: str, date: str = None) -> Dict[str, Any]:
         """
@@ -189,9 +189,9 @@ class KRXAdapter:
             Market cap info dict
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)"}
+            return error_response(f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)", code="INVALID_INPUT")
         if not self._stock:
-            return {"error": True, "message": "pykrx not initialized"}
+            return error_response("pykrx not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("krx")
@@ -208,26 +208,27 @@ class KRXAdapter:
             df = self._stock.get_market_cap_by_date(date, date, stock_code)
 
             if df is None or df.empty:
-                return {"success": True, "data": None, "message": "No market cap data"}
+                return success_response(data=None, source="KRX", stock_code=stock_code, message="No market cap data")
 
             # Get latest row
             row = df.iloc[-1]
 
-            result = {
-                "success": True,
-                "stock_code": stock_code,
-                "date": date,
-                "market_cap": int(row.get("시가총액", 0)),
-                "shares_outstanding": int(row.get("상장주식수", 0)),
-                "volume": int(row.get("거래량", 0)),
-            }
+            result = success_response(
+                data=None,
+                source="KRX",
+                stock_code=stock_code,
+                date=date,
+                market_cap=int(row.get("시가총액", 0)),
+                shares_outstanding=int(row.get("상장주식수", 0)),
+                volume=int(row.get("거래량", 0)),
+            )
 
             self._cache.set("krx", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"KRX market cap error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_index_data(
         self,
@@ -247,7 +248,7 @@ class KRXAdapter:
             Index data dict
         """
         if not self._stock:
-            return {"error": True, "message": "pykrx not initialized"}
+            return error_response("pykrx not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("krx")
@@ -286,7 +287,7 @@ class KRXAdapter:
                     pass
 
             if df is None or df.empty:
-                return {"success": True, "data": [], "message": "No index data (pykrx 지수명 bug, Yahoo fallback also failed)"}
+                return success_response(data=[], source="KRX", index_code=index_code, message="No index data (pykrx 지수명 bug, Yahoo fallback also failed)")
 
             df = df.reset_index()
 
@@ -313,22 +314,21 @@ class KRXAdapter:
             # Find index name
             index_name = next((k for k, v in self.INDICES.items() if v == index_code), index_code)
 
-            result = {
-                "success": True,
-                "index_code": index_code,
-                "index_name": index_name,
-                "period": {"start": start_date, "end": end_date},
-                "count": len(records),
-                "latest": records[-1] if records else None,
-                "data": records,
-            }
+            result = success_response(
+                data=records,
+                source="KRX",
+                index_code=index_code,
+                index_name=index_name,
+                period={"start": start_date, "end": end_date},
+                latest=records[-1] if records else None,
+            )
 
             self._cache.set("krx", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"KRX index error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def calculate_beta(
         self,
@@ -350,9 +350,9 @@ class KRXAdapter:
             Beta and related statistics
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)"}
+            return error_response(f"Invalid stock code format: {stock_code}. Must be 6 digits (e.g., 005930)", code="INVALID_INPUT")
         if not self._stock:
-            return {"error": True, "message": "pykrx not initialized"}
+            return error_response("pykrx not initialized", code="NOT_INITIALIZED")
 
         try:
             end_date = self._format_date(datetime.now())
@@ -378,7 +378,7 @@ class KRXAdapter:
             index_df = pd.DataFrame(index_result["data"])
 
             if stock_df.empty or index_df.empty:
-                return {"error": True, "code": "BETA_NO_DATA", "message": "Insufficient data for beta calculation"}
+                return error_response("Insufficient data for beta calculation", code="NOT_FOUND")
 
             # Ensure "close" column exists (pykrx may return Korean names)
             close_map = {"종가": "close"}
@@ -389,9 +389,12 @@ class KRXAdapter:
                     index_df = index_df.rename(columns={col_name: "close"})
 
             if "close" not in stock_df.columns or "close" not in index_df.columns:
-                return {"error": True, "code": "BETA_COLUMN_MISSING",
-                        "message": f"'close' column not found. Stock cols: {list(stock_df.columns)}, Index cols: {list(index_df.columns)}",
-                        "suggestion": "Try period_days=252 or check stock_code validity"}
+                resp = error_response(
+                    f"'close' column not found. Stock cols: {list(stock_df.columns)}, Index cols: {list(index_df.columns)}",
+                    code="NOT_FOUND",
+                )
+                resp["suggestion"] = "Try period_days=252 or check stock_code validity"
+                return resp
 
             # Calculate returns
             stock_df["date"] = pd.to_datetime(stock_df["date"])
@@ -411,14 +414,14 @@ class KRXAdapter:
             index_returns = index_returns.tail(min_len)
 
             if len(stock_returns) < 20:
-                return {"error": True, "message": "Insufficient data points for beta calculation"}
+                return error_response("Insufficient data points for beta calculation", code="NOT_FOUND")
 
             # Calculate beta
             covariance = np.cov(stock_returns, index_returns)[0, 1]
             variance = np.var(index_returns)
 
             if variance == 0:
-                return {"error": True, "message": "Zero variance in index returns"}
+                return error_response("Zero variance in index returns", code="INVALID_INPUT")
 
             beta = covariance / variance
 
@@ -427,25 +430,26 @@ class KRXAdapter:
             stock_volatility = np.std(stock_returns) * np.sqrt(252) * 100  # Annualized
             index_volatility = np.std(index_returns) * np.sqrt(252) * 100
 
-            result = {
-                "success": True,
-                "stock_code": stock_code,
-                "index_code": index_code,
-                "index_name": next((k for k, v in self.INDICES.items() if v == index_code), index_code),
-                "beta": round(beta, 4),
-                "correlation": round(correlation, 4),
-                "stock_volatility_annual": round(stock_volatility, 2),
-                "index_volatility_annual": round(index_volatility, 2),
-                "data_points": len(stock_returns),
-                "period_days": period_days,
-            }
+            result = success_response(
+                data=None,
+                source="KRX",
+                stock_code=stock_code,
+                index_code=index_code,
+                index_name=next((k for k, v in self.INDICES.items() if v == index_code), index_code),
+                beta=round(beta, 4),
+                correlation=round(correlation, 4),
+                stock_volatility_annual=round(stock_volatility, 2),
+                index_volatility_annual=round(index_volatility, 2),
+                data_points=len(stock_returns),
+                period_days=period_days,
+            )
 
             self._cache.set("krx", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"KRX beta calculation error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_stock_name(self, stock_code: str) -> str:
         """Get stock name from code."""
@@ -469,7 +473,7 @@ class KRXAdapter:
             List of stock codes and names
         """
         if not self._stock:
-            return {"error": True, "message": "pykrx not initialized"}
+            return error_response("pykrx not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("krx")
@@ -482,16 +486,15 @@ class KRXAdapter:
                 name = self._stock.get_market_ticker_name(ticker)
                 stocks.append({"code": ticker, "name": name})
 
-            return {
-                "success": True,
-                "market": market,
-                "count": len(stocks),
-                "data": stocks,
-            }
+            return success_response(
+                data=stocks,
+                source="KRX",
+                market=market,
+            )
 
         except Exception as e:
             logger.error(f"KRX stock list error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 def test_krx_adapter():

@@ -18,12 +18,20 @@ References:
 - Engle & Granger (1987), "Co-integration and Error Correction," Econometrica 55(2)
 """
 import logging
+import sys
+import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import optimize, stats
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -64,7 +72,7 @@ class StatArbAdapter:
             x = s.values
             n = len(x)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 data points, got {n}"}
+                return error_response(f"Need >= 30 data points, got {n}")
 
             dt = 1.0  # daily
 
@@ -87,16 +95,16 @@ class StatArbAdapter:
             # b = exp(-theta*dt), so theta = -ln(b)/dt
             if b <= 0 or b >= 1:
                 # Not mean-reverting
-                return {
-                    "success": True,
-                    "data": {
+                return success_response(
+                    {
                         "mean_reverting": False,
                         "ar1_coeff": round(float(b), 6),
                         "interpretation": "Series is NOT mean-reverting (AR(1) coeff outside (0,1)). "
                                           "Pairs/stat-arb not recommended.",
                         "n_observations": n,
-                    }
-                }
+                    },
+                    source="Stat Arb",
+                )
 
             theta = -np.log(b) / dt
             mu = a / (1 - b)
@@ -114,9 +122,8 @@ class StatArbAdapter:
             ss_tot = np.sum((y - np.mean(y))**2)
             r_squared = 1 - ss_res / ss_tot if ss_tot > 0 else 0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "mean_reverting": True,
                     "theta": round(float(theta), 6),
                     "mu": round(float(mu), 4),
@@ -133,11 +140,12 @@ class StatArbAdapter:
                         f"Current z-score: {current_z:.2f} "
                         f"({'ENTRY LONG' if current_z < -2 else 'ENTRY SHORT' if current_z > 2 else 'no signal'})."
                     ),
-                }
-            }
+                },
+                source="Stat Arb",
+            )
         except Exception as e:
             logger.exception("ou_fit failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Distance-Method Pair Selection
@@ -159,9 +167,9 @@ class StatArbAdapter:
         """
         try:
             if len(universe) != len(names):
-                return {"error": True, "message": "universe and names must have same length"}
+                return error_response("universe and names must have same length")
             if len(universe) < 2:
-                return {"error": True, "message": "Need at least 2 series"}
+                return error_response("Need at least 2 series")
 
             # Convert to DataFrame
             all_series = {}
@@ -173,7 +181,7 @@ class StatArbAdapter:
                     continue
 
             if len(all_series) < 2:
-                return {"error": True, "message": "Less than 2 valid series after parsing"}
+                return error_response("Less than 2 valid series after parsing")
 
             df = pd.DataFrame(all_series)
             df = df.dropna()
@@ -181,7 +189,7 @@ class StatArbAdapter:
                 df = df.iloc[-formation_days:]
 
             if len(df) < 30:
-                return {"error": True, "message": f"Only {len(df)} overlapping dates; need 30+"}
+                return error_response(f"Only {len(df)} overlapping dates; need 30+")
 
             # Normalize to start at 1.0
             norm = df / df.iloc[0]
@@ -207,9 +215,8 @@ class StatArbAdapter:
             pairs.sort(key=lambda x: x["ssd"])
             top_pairs = pairs[:top_n]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "top_pairs": top_pairs,
                     "total_pairs_evaluated": len(pairs),
                     "n_assets": n_tickers,
@@ -220,11 +227,12 @@ class StatArbAdapter:
                         f"corr={top_pairs[0]['correlation']:.3f}). "
                         f"Lower SSD = more similar normalized price paths."
                     ),
-                }
-            }
+                },
+                source="Stat Arb",
+            )
         except Exception as e:
             logger.exception("pairs_distance failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Spread Z-Score + Entry/Exit Signals
@@ -296,9 +304,8 @@ class StatArbAdapter:
                 for d, v in zscore.iloc[-20:].items()
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "hedge_ratio": round(float(beta), 4),
                     "intercept": round(float(alpha), 4),
                     "spread_mean": round(float(np.mean(spread)), 4),
@@ -320,11 +327,12 @@ class StatArbAdapter:
                         f"(ADF p={adf_pvalue:.4f}). "
                         f"Current z={current_z:.2f} → {signal}."
                     ),
-                }
-            }
+                },
+                source="Stat Arb",
+            )
         except Exception as e:
             logger.exception("spread_zscore failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Copula Dependence
@@ -353,7 +361,7 @@ class StatArbAdapter:
             ret_a, ret_b = ret_a[:n], ret_b[:n]
 
             if n < 50:
-                return {"error": True, "message": f"Need >= 50 returns, got {n}"}
+                return error_response(f"Need >= 50 returns, got {n}")
 
             # Transform to pseudo-uniform using empirical CDF (ranks)
             u = stats.rankdata(ret_a) / (n + 1)
@@ -388,7 +396,7 @@ class StatArbAdapter:
                 # Clayton copula: theta via Kendall's tau
                 tau = stats.kendalltau(ret_a, ret_b).statistic
                 if tau <= 0:
-                    return {"error": True, "message": "Clayton copula requires positive dependence (tau > 0)"}
+                    return error_response("Clayton copula requires positive dependence (tau > 0)")
                 theta = 2 * tau / (1 - tau)
                 param = round(float(theta), 4)
                 lower_tail_dep = round(2 ** (-1 / theta), 4) if theta > 0 else 0
@@ -399,7 +407,7 @@ class StatArbAdapter:
                 # Gumbel copula: theta via Kendall's tau
                 tau = stats.kendalltau(ret_a, ret_b).statistic
                 if tau <= 0:
-                    return {"error": True, "message": "Gumbel copula requires positive dependence (tau > 0)"}
+                    return error_response("Gumbel copula requires positive dependence (tau > 0)")
                 theta = 1 / (1 - tau)
                 param = round(float(theta), 4)
                 lower_tail_dep = 0.0
@@ -407,7 +415,7 @@ class StatArbAdapter:
                 name = "Gumbel"
 
             else:
-                return {"error": True, "message": f"Unknown copula type: {copula_type}. Use gaussian/student_t/clayton/gumbel"}
+                return error_response(f"Unknown copula type: {copula_type}. Use gaussian/student_t/clayton/gumbel")
 
             # Kendall's tau and Spearman's rho for comparison
             kendall_tau = float(stats.kendalltau(ret_a, ret_b).statistic)
@@ -420,9 +428,8 @@ class StatArbAdapter:
             upper_joint = float(np.mean((u > q90) & (v > q90)))
             expected_independent = q10 ** 2
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "copula_type": name,
                     "parameter": param,
                     "lower_tail_dependence": float(lower_tail_dep),
@@ -439,11 +446,12 @@ class StatArbAdapter:
                         f"{'Strong lower tail dependence — assets crash together!' if lower_tail_dep > 0.3 else ''}"
                         f"{'Symmetric tail risk.' if abs(float(lower_tail_dep) - float(upper_tail_dep)) < 0.05 else ''}"
                     ),
-                }
-            }
+                },
+                source="Stat Arb",
+            )
         except Exception as e:
             logger.exception("copula_fit failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Half-Life of Mean Reversion
@@ -458,7 +466,7 @@ class StatArbAdapter:
             x = s.values
             n = len(x)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 points, got {n}"}
+                return error_response(f"Need >= 30 points, got {n}")
 
             # AR(1) regression: x_t = a + b * x_{t-1}
             y = x[1:]
@@ -477,28 +485,28 @@ class StatArbAdapter:
             dw = float(np.sum(np.diff(residuals)**2) / np.sum(residuals**2))
 
             if b <= 0:
-                return {
-                    "success": True,
-                    "data": {
+                return success_response(
+                    {
                         "mean_reverting": True,
                         "half_life_days": 0.5,
                         "ar1_coeff": round(float(b), 6),
                         "interpretation": "Very strong mean reversion (b <= 0). Half-life < 1 day.",
                         "n_observations": n,
-                    }
-                }
+                    },
+                    source="Stat Arb",
+                )
 
             if b >= 1:
-                return {
-                    "success": True,
-                    "data": {
+                return success_response(
+                    {
                         "mean_reverting": False,
                         "half_life_days": float("inf"),
                         "ar1_coeff": round(float(b), 6),
                         "interpretation": "No mean reversion (unit root). Series is non-stationary.",
                         "n_observations": n,
-                    }
-                }
+                    },
+                    source="Stat Arb",
+                )
 
             hl = -np.log(2) / np.log(b)
 
@@ -519,9 +527,8 @@ class StatArbAdapter:
                 speed = "very slow"
                 recommendation = "Too slow for practical trading"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "mean_reverting": True,
                     "half_life_days": round(float(hl), 1),
                     "ar1_coeff": round(float(b), 6),
@@ -536,11 +543,12 @@ class StatArbAdapter:
                         f"AR(1) b={b:.4f}, R²={r_squared:.3f}. "
                         f"{recommendation}."
                     ),
-                }
-            }
+                },
+                source="Stat Arb",
+            )
         except Exception as e:
             logger.exception("halflife failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. Z-Score Mean-Reversion Backtest
@@ -588,7 +596,7 @@ class StatArbAdapter:
             zscore = ((spread_series - roll_mean) / roll_std).dropna()
 
             if len(zscore) < 20:
-                return {"error": True, "message": "Not enough data after z-score computation"}
+                return error_response("Not enough data after z-score computation")
 
             # Simulate trading
             position = 0  # 1=long spread, -1=short spread, 0=flat
@@ -685,9 +693,8 @@ class StatArbAdapter:
             drawdown = cumulative - peak
             max_dd = float(np.min(drawdown)) if len(drawdown) > 0 else 0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "total_pnl": round(total_return, 2),
                     "n_trades": n_trades,
                     "win_rate": round(float(win_rate), 3),
@@ -712,11 +719,12 @@ class StatArbAdapter:
                         f"Max DD: {max_dd:.2f}. "
                         f"{'PROFITABLE' if total_return > 0 else 'UNPROFITABLE'} strategy."
                     ),
-                }
-            }
+                },
+                source="Stat Arb",
+            )
         except Exception as e:
             logger.exception("backtest failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ------------------------------------------------------------------

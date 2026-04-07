@@ -24,6 +24,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class IndiaAdapter:
             symbol: Yahoo format — RELIANCE.NS (NSE), RELIANCE.BO (BSE)
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized")
         try:
             self._limiter.acquire("yahoo")
             cache_key = {"method": "india_quote", "symbol": symbol}
@@ -72,38 +73,38 @@ class IndiaAdapter:
             ticker = self._yf.Ticker(symbol)
             info = ticker.info
 
-            result = {
-                "success": True,
-                "source": "Yahoo Finance",
-                "market": "India NSE/BSE",
-                "symbol": symbol,
-                "name": info.get("longName", info.get("shortName", symbol)),
-                "price": info.get("currentPrice", info.get("regularMarketPrice")),
-                "previous_close": info.get("previousClose"),
-                "change": info.get("regularMarketChange"),
-                "change_pct": info.get("regularMarketChangePercent"),
-                "open": info.get("regularMarketOpen"),
-                "day_high": info.get("regularMarketDayHigh"),
-                "day_low": info.get("regularMarketDayLow"),
-                "volume": info.get("regularMarketVolume"),
-                "market_cap": info.get("marketCap"),
-                "currency": info.get("currency", "INR"),
-                "exchange": info.get("exchange", ""),
-                "sector": info.get("sector"),
-                "industry": info.get("industry"),
-            }
+            result = success_response(
+                data=None,
+                source="Yahoo Finance",
+                market="India NSE/BSE",
+                symbol=symbol,
+                name=info.get("longName", info.get("shortName", symbol)),
+                price=info.get("currentPrice", info.get("regularMarketPrice")),
+                previous_close=info.get("previousClose"),
+                change=info.get("regularMarketChange"),
+                change_pct=info.get("regularMarketChangePercent"),
+                open=info.get("regularMarketOpen"),
+                day_high=info.get("regularMarketDayHigh"),
+                day_low=info.get("regularMarketDayLow"),
+                volume=info.get("regularMarketVolume"),
+                market_cap=info.get("marketCap"),
+                currency=info.get("currency", "INR"),
+                exchange=info.get("exchange", ""),
+                sector=info.get("sector"),
+                industry=info.get("industry"),
+            )
 
             self._cache.set("india_market", cache_key, result, "realtime")
             return result
 
         except Exception as e:
             logger.error(f"India quote error for {symbol}: {e}")
-            return {"error": True, "message": f"Quote retrieval failed for {symbol}: {e}"}
+            return error_response(f"Quote retrieval failed for {symbol}: {e}")
 
     def get_india_index(self) -> Dict[str, Any]:
         """Get Nifty 50 and BSE Sensex indices."""
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized")
 
         indices = {}
         for key, meta in self.INDICES.items():
@@ -118,33 +119,33 @@ class IndiaAdapter:
                 ticker = self._yf.Ticker(meta["symbol"])
                 info = ticker.info
 
-                idx = {
-                    "success": True,
-                    "source": "Yahoo Finance",
-                    "symbol": meta["symbol"],
-                    "name": meta["name"],
-                    "value": info.get("regularMarketPrice"),
-                    "previous_close": info.get("previousClose"),
-                    "change": info.get("regularMarketChange"),
-                    "change_pct": info.get("regularMarketChangePercent"),
-                    "day_high": info.get("regularMarketDayHigh"),
-                    "day_low": info.get("regularMarketDayLow"),
-                    "volume": info.get("regularMarketVolume"),
-                }
+                idx = success_response(
+                    data=None,
+                    source="Yahoo Finance",
+                    symbol=meta["symbol"],
+                    name=meta["name"],
+                    value=info.get("regularMarketPrice"),
+                    previous_close=info.get("previousClose"),
+                    change=info.get("regularMarketChange"),
+                    change_pct=info.get("regularMarketChangePercent"),
+                    day_high=info.get("regularMarketDayHigh"),
+                    day_low=info.get("regularMarketDayLow"),
+                    volume=info.get("regularMarketVolume"),
+                )
 
                 self._cache.set("india_market", cache_key, idx, "realtime")
                 indices[key] = idx
 
             except Exception as e:
                 logger.error(f"India index error for {meta['symbol']}: {e}")
-                indices[key] = {"error": True, "message": str(e)}
+                indices[key] = error_response(str(e))
 
-        return {
-            "success": True,
-            "source": "Yahoo Finance",
-            "market": "India",
-            "indices": indices,
-        }
+        return success_response(
+            data=None,
+            source="Yahoo Finance",
+            market="India",
+            indices=indices,
+        )
 
     def get_india_stock_history(
         self, symbol: str, period: str = "1y"
@@ -157,7 +158,7 @@ class IndiaAdapter:
             period: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, ytd, max
         """
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized")
         try:
             self._limiter.acquire("yahoo")
             cache_key = {"method": "india_history", "symbol": symbol, "period": period}
@@ -169,7 +170,7 @@ class IndiaAdapter:
             hist = ticker.history(period=period)
 
             if hist.empty:
-                return {"error": True, "message": f"No history data for {symbol}"}
+                return error_response(f"No history data for {symbol}")
 
             records = []
             for date, row in hist.iterrows():
@@ -182,15 +183,14 @@ class IndiaAdapter:
                     "volume": int(row["Volume"]),
                 })
 
-            result = {
-                "success": True,
-                "source": "Yahoo Finance",
-                "market": "India NSE/BSE",
-                "symbol": symbol,
-                "period": period,
-                "data_points": len(records),
-                "data": records[-60:] if len(records) > 60 else records,
-                "summary": {
+            result = success_response(
+                data=records[-60:] if len(records) > 60 else records,
+                source="Yahoo Finance",
+                market="India NSE/BSE",
+                symbol=symbol,
+                period=period,
+                data_points=len(records),
+                summary={
                     "start_date": records[0]["date"],
                     "end_date": records[-1]["date"],
                     "start_close": records[0]["close"],
@@ -202,14 +202,14 @@ class IndiaAdapter:
                     "lowest": min(r["low"] for r in records),
                     "avg_volume": int(sum(r["volume"] for r in records) / len(records)),
                 },
-            }
+            )
 
             self._cache.set("india_market", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"India history error for {symbol}: {e}")
-            return {"error": True, "message": f"History retrieval failed for {symbol}: {e}"}
+            return error_response(f"History retrieval failed for {symbol}: {e}")
 
 
 # ── standalone test ───────────────────────────────────────────────────

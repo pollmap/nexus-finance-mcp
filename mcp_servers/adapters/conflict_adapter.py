@@ -1,8 +1,15 @@
 """Conflict & Geopolitical Risk Adapter — UCDP, ACLED, Global Peace Index."""
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -33,10 +40,10 @@ class ConflictAdapter:
             if self._ucdp_token:
                 headers["x-ucdp-access-token"] = self._ucdp_token
             else:
-                return {"error": True, "message": "UCDP API requires token. Set UCDP_API_TOKEN env var. Register free at https://ucdp.uu.se/apidocs/"}
+                return error_response("UCDP API requires token. Set UCDP_API_TOKEN env var. Register free at https://ucdp.uu.se/apidocs/")
             resp = _session.get(url, params=params, headers=headers, timeout=30)
             if resp.status_code != 200:
-                return {"error": True, "message": f"UCDP GED API returned {resp.status_code}"}
+                return error_response(f"UCDP GED API returned {resp.status_code}")
 
             data = resp.json()
             results = data.get("Result", [])
@@ -61,20 +68,14 @@ class ConflictAdapter:
                     "longitude": ev.get("longitude"),
                 })
 
-            return {
-                "success": True,
-                "source": "UCDP/GED v25.0",
-                "year": year,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="UCDP/GED v25.0", year=year)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_battle_deaths(self, country: Optional[str] = None, years: int = 5) -> Dict[str, Any]:
         """UCDP GED — aggregate battle deaths by year, optionally filtered by country."""
         if not self._ucdp_token:
-            return {"error": True, "message": "UCDP API requires token. Set UCDP_API_TOKEN env var."}
+            return error_response("UCDP API requires token. Set UCDP_API_TOKEN env var.")
         try:
             current_year = datetime.now().year
             yearly_data = []
@@ -99,21 +100,17 @@ class ConflictAdapter:
                     "total_pages": data.get("TotalPages", 1),
                 })
 
-            return {
-                "success": True,
-                "source": "UCDP/GED v25.0",
-                "country": country or "Global",
-                "years_range": f"{current_year - years}-{current_year}",
-                "note": "Page 1 only (up to 100 events/year). Actual totals may be higher.",
-                "data": yearly_data,
-            }
+            return success_response(yearly_data, source="UCDP/GED v25.0",
+                                    country=country or "Global",
+                                    years_range=f"{current_year - years}-{current_year}",
+                                    note="Page 1 only (up to 100 events/year). Actual totals may be higher.")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_country_risk(self, country_name: str) -> Dict[str, Any]:
         """UCDP-based country conflict risk — event counts and deaths over last 3 years."""
         if not self._ucdp_token:
-            return {"error": True, "message": "UCDP API requires token. Set UCDP_API_TOKEN env var."}
+            return error_response("UCDP API requires token. Set UCDP_API_TOKEN env var.")
         try:
             current_year = datetime.now().year
             total_events = 0
@@ -151,18 +148,14 @@ class ConflictAdapter:
             else:
                 risk_level = "critical"
 
-            return {
-                "success": True,
-                "source": "UCDP/GED v25.0",
-                "country": country_name,
-                "period": f"{current_year - 2}-{current_year}",
-                "event_count": total_events,
-                "total_deaths": total_deaths,
-                "risk_level": risk_level,
-                "yearly_breakdown": yearly_breakdown,
-            }
+            return success_response(yearly_breakdown, source="UCDP/GED v25.0",
+                                    country=country_name,
+                                    period=f"{current_year - 2}-{current_year}",
+                                    event_count=total_events,
+                                    total_deaths=total_deaths,
+                                    risk_level=risk_level)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_peace_index(self) -> Dict[str, Any]:
         """Global Peace Index 2024 — top 10 most peaceful and bottom 10 least peaceful."""
@@ -194,16 +187,12 @@ class ConflictAdapter:
                 {"rank": 163, "country": "Yemen", "score": 3.449, "change_from_previous": 0.016},
             ]
 
-            return {
-                "success": True,
-                "source": "Vision of Humanity / Global Peace Index 2024",
-                "total_countries": 163,
-                "scale": "1 (most peaceful) to 5 (least peaceful)",
-                "note": "Curated top 10 and bottom 10. Full index published annually in June.",
-                "data": gpi_data,
-            }
+            return success_response(gpi_data, source="Vision of Humanity / Global Peace Index 2024",
+                                    total_countries=163,
+                                    scale="1 (most peaceful) to 5 (least peaceful)",
+                                    note="Curated top 10 and bottom 10. Full index published annually in June.")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_geopolitical_events(self, query: str, days: int = 30) -> Dict[str, Any]:
         """Search recent conflict-related events via UCDP or ACLED."""
@@ -221,7 +210,7 @@ class ConflictAdapter:
             headers = {"Accept": "application/json"}
             resp = _session.get(url, params=params, headers=headers, timeout=30)
             if resp.status_code != 200:
-                return {"error": True, "message": f"UCDP API returned {resp.status_code}"}
+                return error_response(f"UCDP API returned {resp.status_code}")
 
             data = resp.json()
             results = data.get("Result", [])
@@ -236,15 +225,9 @@ class ConflictAdapter:
                     "source_article": ev.get("source_article", ""),
                 })
 
-            return {
-                "success": True,
-                "source": "UCDP/GED v25.0",
-                "query": query,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="UCDP/GED v25.0", query=query)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def _acled_search(self, query: str, days: int) -> Dict[str, Any]:
         """ACLED conflict events search (requires free API key)."""
@@ -261,11 +244,11 @@ class ConflictAdapter:
             }
             resp = _session.get(url, params=params, timeout=30)
             if resp.status_code != 200:
-                return {"error": True, "message": f"ACLED API returned {resp.status_code}"}
+                return error_response(f"ACLED API returned {resp.status_code}")
 
             data = resp.json()
             if not data.get("success"):
-                return {"error": True, "message": data.get("error", "ACLED query failed")}
+                return error_response(data.get("error", "ACLED query failed"))
 
             records = []
             for ev in data.get("data", []):
@@ -280,13 +263,6 @@ class ConflictAdapter:
                     "notes": (ev.get("notes") or "")[:200],
                 })
 
-            return {
-                "success": True,
-                "source": "ACLED",
-                "query": query,
-                "period_days": days,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="ACLED", query=query, period_days=days)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

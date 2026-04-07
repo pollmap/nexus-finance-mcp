@@ -27,7 +27,7 @@ class GatewayServer:
         self._loaded = []
         self._failed = []
 
-        logger.info("Initializing Nexus Finance MCP Gateway v8.0 (Phase 12)...")
+        logger.info("Initializing Nexus Finance MCP Gateway v8.0 (Phase 14)...")
 
         SERVERS = [
             # v2.0
@@ -117,6 +117,7 @@ class GatewayServer:
             self._load_server(key, mod_path, cls_name)
 
         self._register_gateway_tools()
+        self._register_prompts()
         self._register_health_route()
         self._register_auth_middleware()
         self._start_time = time.time()
@@ -141,20 +142,118 @@ class GatewayServer:
         @self.mcp.tool()
         def gateway_status() -> dict:
             """Gateway status."""
-            return {"status": "online", "version": "8.0.0-phase12", "loaded": len(self._loaded), "failed": len(self._failed), "servers": self._loaded}
+            return {"status": "online", "version": "8.0.0-phase14", "loaded": len(self._loaded), "failed": len(self._failed), "servers": self._loaded}
 
         @self.mcp.tool()
-        async def list_available_tools() -> dict:
-            """List all tools."""
+        async def list_available_tools(include_metadata: bool = False) -> dict:
+            """List all tools. Set include_metadata=True to get domain/pattern/complexity info."""
             tools = await self.mcp.list_tools()
-            tool_names = [t.name for t in tools]
-            return {"total": len(tool_names), "tools": tool_names}
+            if not include_metadata:
+                tool_names = [t.name for t in tools]
+                return {"total": len(tool_names), "tools": tool_names}
+            try:
+                from mcp_servers.core.tool_metadata import TOOL_METADATA
+                enriched = []
+                for t in tools:
+                    meta = TOOL_METADATA.get(t.name, {})
+                    enriched.append({"name": t.name, **meta})
+                return {"total": len(enriched), "tools": enriched}
+            except ImportError:
+                tool_names = [t.name for t in tools]
+                return {"total": len(tool_names), "tools": tool_names, "note": "tool_metadata not installed"}
 
         @self.mcp.tool()
         def api_call_stats() -> dict:
             """API 호출 통계 — 오늘 호출 수, 인기 도구, 세션 총 호출."""
             from mcp_servers.core.api_counter import get_counter
             return get_counter().get_stats()
+
+        @self.mcp.tool()
+        def list_tools_by_domain(domain: str) -> dict:
+            """도메인별 도구 조회. 도메인: korean_macro, korean_equity, crypto, quant, alternative, news, real_economy, regulatory, infrastructure, global_markets, real_estate, visualization"""
+            try:
+                from mcp_servers.core.tool_metadata import TOOL_METADATA
+                matches = {k: v for k, v in TOOL_METADATA.items() if v.get("domain") == domain}
+                domains = sorted(set(v.get("domain", "") for v in TOOL_METADATA.values()))
+                return {"domain": domain, "count": len(matches), "tools": list(matches.keys()), "available_domains": domains}
+            except ImportError:
+                return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}
+
+        @self.mcp.tool()
+        def list_tools_by_pattern(pattern: str) -> dict:
+            """입력 패턴별 도구 조회. 패턴: snapshot, stock_code, series, search, data_columns, composite"""
+            try:
+                from mcp_servers.core.tool_metadata import TOOL_METADATA
+                matches = {k: v for k, v in TOOL_METADATA.items() if v.get("input_pattern") == pattern}
+                patterns = sorted(set(v.get("input_pattern", "") for v in TOOL_METADATA.values()))
+                return {"pattern": pattern, "count": len(matches), "tools": list(matches.keys()), "available_patterns": patterns}
+            except ImportError:
+                return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}
+
+        @self.mcp.tool()
+        def tool_info(tool_name: str) -> dict:
+            """특정 도구의 메타데이터 조회 (도메인, 복잡도, 입력패턴, 필요 키)."""
+            try:
+                from mcp_servers.core.tool_metadata import TOOL_METADATA
+                meta = TOOL_METADATA.get(tool_name)
+                if not meta:
+                    return {"error": True, "message": f"Unknown tool: {tool_name}"}
+                return {"tool": tool_name, **meta}
+            except ImportError:
+                return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}
+
+    def _register_prompts(self):
+        """Register MCP prompt templates for common analysis workflows."""
+
+        @self.mcp.prompt()
+        def korean_company_analysis(stock_code: str = "005930") -> str:
+            """한국 기업 종합 분석 워크플로우. 기업개황 → 재무제표 → 재무비율 → 밸류에이션."""
+            return f"""한국 기업 종합 분석을 수행합니다. 종목코드: {stock_code}
+
+다음 도구를 순서대로 호출하세요:
+
+1. dart_company_info(stock_code="{stock_code}") — 기업개황 (업종, 대표자, 상장일)
+2. dart_financial_statements(stock_code="{stock_code}") — 재무제표
+3. dart_financial_ratios(stock_code="{stock_code}") — ROE, ROA, 영업이익률, 부채비율
+4. dart_cash_flow(stock_code="{stock_code}") — 현금흐름표 (OCF, ICF, FCF)
+5. dart_dividend(stock_code="{stock_code}") — 배당 현황
+6. dart_major_shareholders(stock_code="{stock_code}") — 대주주 현황
+7. dart_executives(stock_code="{stock_code}") — 임원 현황
+8. stocks_history(stock_code="{stock_code}") — 주가 히스토리
+
+분석 결과를 종합하여 투자 의견을 제시하세요."""
+
+        @self.mcp.prompt()
+        def macro_snapshot() -> str:
+            """거시경제 종합 스냅샷. 한국 + 글로벌 비교."""
+            return """거시경제 종합 분석을 수행합니다.
+
+다음 도구를 순서대로 호출하세요:
+
+1. ecos_get_macro_snapshot() — 한국 거시경제 현황 (금리, M2, GDP, 환율)
+2. ecos_get_base_rate() — 기준금리 시계열
+3. ecos_get_exchange_rate() — 주요 환율 (USD, EUR, JPY, CNY)
+4. ecos_get_bond_yield() — 국고채 수익률 (3Y, 5Y, 10Y)
+5. macro_korea_snapshot() — World Bank 국제비교 (20개 지표)
+6. ecos_get_cpi() — 소비자물가지수
+
+금리/물가/환율/성장 트렌드를 분석하고 경제 전망을 제시하세요."""
+
+        @self.mcp.prompt()
+        def crypto_arbitrage(coin: str = "BTC") -> str:
+            """크립토 차익거래 분석. 김프 + 거래소비교 + 펀딩레이트."""
+            return f"""크립토 차익거래 기회를 분석합니다. 코인: {coin}
+
+다음 도구를 순서대로 호출하세요:
+
+1. crypto_kimchi_premium(coin="{coin}") — 김치프리미엄 (한국 vs 글로벌 가격 차이)
+2. crypto_exchange_compare(coin="{coin}") — 거래소간 가격 비교
+3. crypto_ticker(exchange="binance", symbol="{coin}/USDT") — 바이낸스 시세
+4. crypto_ticker(exchange="upbit", symbol="{coin}/KRW") — 업비트 시세
+5. crypto_orderbook(exchange="binance", symbol="{coin}/USDT") — 오더북 분석
+6. defi_fear_greed() — Fear & Greed Index
+
+김프 수준, 거래소 간 스프레드, 시장 심리를 종합 분석하세요."""
 
     def _register_health_route(self):
         @self.mcp.custom_route("/health", methods=["GET"])
@@ -164,7 +263,7 @@ class GatewayServer:
             tool_count = len(tools)
             return JSONResponse({
                 "status": "ok",
-                "version": "8.0.0-phase12",
+                "version": "8.0.0-phase14",
                 "loaded_servers": len(self._loaded),
                 "failed_servers": len(self._failed),
                 "tool_count": tool_count,

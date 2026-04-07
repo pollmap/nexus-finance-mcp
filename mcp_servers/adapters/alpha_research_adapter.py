@@ -13,12 +13,19 @@ References:
 - López de Prado (2018), Advances in Financial Machine Learning, Ch.6
 """
 import logging
+import sys
 import warnings
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 from scipy import stats, optimize
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -43,7 +50,7 @@ class AlphaResearchAdapter:
         """
         try:
             if len(weights_history) < 2:
-                return {"error": True, "message": "Need >= 2 rebalancing periods"}
+                return error_response("Need >= 2 rebalancing periods")
 
             turnovers = []
             for i in range(1, len(weights_history)):
@@ -65,9 +72,7 @@ class AlphaResearchAdapter:
             # Break-even alpha
             break_even = annual_cost  # alpha must exceed this to be profitable
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "avg_turnover": round(avg_turnover, 4),
                     "max_turnover": round(max(t["turnover"] for t in turnovers), 4),
                     "total_cost": round(total_cost, 6),
@@ -82,11 +87,10 @@ class AlphaResearchAdapter:
                         f"Break-even alpha: {break_even:.2%}. "
                         f"{'Low turnover.' if avg_turnover < 0.1 else 'High turnover — costs matter!'}"
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("turnover failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Alpha Decay
@@ -119,7 +123,7 @@ class AlphaResearchAdapter:
             aligned = pd.DataFrame({"signal": sig_df, "return": ret_df}).dropna()
             n = len(aligned)
             if n < 60:
-                return {"error": True, "message": f"Need >= 60 aligned points, got {n}"}
+                return error_response(f"Need >= 60 aligned points, got {n}")
 
             sig = aligned["signal"].values
             ret = aligned["return"].values
@@ -153,9 +157,7 @@ class AlphaResearchAdapter:
             else:
                 half_life = None
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "ic_curve": ic_curve,
                     "ic_1d": ic_curve[0]["ic"] if ic_curve else 0,
                     "peak_ic": round(max(abs(x["ic"]) for x in ic_curve), 4) if ic_curve else 0,
@@ -166,11 +168,10 @@ class AlphaResearchAdapter:
                         f"Half-life: {half_life} days. "
                         f"{'Fast decay — short-term signal.' if half_life and half_life < 10 else 'Slow decay — durable signal.' if half_life and half_life > 20 else ''}"
                     ) if ic_curve else "No IC curve computed.",
-                }
-            }
+                })
         except Exception as e:
             logger.exception("decay failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Signal Crowding
@@ -199,7 +200,7 @@ class AlphaResearchAdapter:
 
             all_data = pd.concat([sig] + list(factors.values()), axis=1, join="inner").dropna()
             if len(all_data) < 30:
-                return {"error": True, "message": f"Only {len(all_data)} aligned dates"}
+                return error_response(f"Only {len(all_data)} aligned dates")
 
             # Individual correlations
             correlations = {}
@@ -235,9 +236,7 @@ class AlphaResearchAdapter:
 
             betas = {list(factors.keys())[i]: round(float(coeffs[i + 1]), 4) for i in range(len(factors))}
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "r_squared": round(float(r_squared), 4),
                     "crowding_level": crowding_level,
                     "factor_correlations": correlations,
@@ -251,11 +250,10 @@ class AlphaResearchAdapter:
                         f"{correlations[max(correlations, key=lambda k: abs(correlations[k]))]}. "
                         f"{advice}."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("crowding failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Strategy Capacity
@@ -279,9 +277,9 @@ class AlphaResearchAdapter:
         """
         try:
             if turnover <= 0:
-                return {"error": True, "message": "Turnover must be > 0"}
+                return error_response("Turnover must be > 0")
             if kyle_lambda <= 0:
-                return {"error": True, "message": "kyle_lambda must be > 0"}
+                return error_response("kyle_lambda must be > 0")
 
             # Grinold-Kahn capacity
             capacity_gk = alpha / (2 * kyle_lambda * turnover)
@@ -299,9 +297,7 @@ class AlphaResearchAdapter:
             # Conservative estimate = min of all
             conservative = min(capacity_gk, adv_capacities[1]["max_aum"]) if adv_capacities else capacity_gk
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "grinold_kahn_capacity": round(float(capacity_gk), 0),
                     "adv_based_capacities": adv_capacities,
                     "conservative_estimate": round(float(conservative), 0),
@@ -316,11 +312,10 @@ class AlphaResearchAdapter:
                         f"GK model: {capacity_gk:,.0f}. "
                         f"Alpha {alpha:.1%} with turnover {turnover:.0f}x/yr."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("capacity failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Regime-Conditional Alpha
@@ -347,7 +342,7 @@ class AlphaResearchAdapter:
             aligned = pd.DataFrame({"return": ret_s, "signal": sig_s}).dropna()
             n = len(aligned)
             if n < 60:
-                return {"error": True, "message": f"Need >= 60 observations, got {n}"}
+                return error_response(f"Need >= 60 observations, got {n}")
 
             ret = aligned["return"].values
             sig = aligned["signal"].values
@@ -397,9 +392,7 @@ class AlphaResearchAdapter:
             # Best regime
             best = max(regimes.items(), key=lambda x: x[1]["strategy_sharpe"])
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "regimes": regimes,
                     "n_regimes": n_regimes,
                     "best_regime": best[0],
@@ -410,11 +403,10 @@ class AlphaResearchAdapter:
                         f"Signal works {'differently' if abs(list(regimes.values())[0]['ic'] - list(regimes.values())[-1]['ic']) > 0.02 else 'similarly'} "
                         f"across regimes."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("regime_switch failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. Multi-Alpha Combination
@@ -446,7 +438,7 @@ class AlphaResearchAdapter:
             all_data = pd.concat([ret_s] + list(alphas.values()), axis=1, join="inner").dropna()
             n = len(all_data)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 aligned dates, got {n}"}
+                return error_response(f"Need >= 30 aligned dates, got {n}")
 
             alpha_names = list(alphas.keys())
             ret_vals = all_data["return"].values
@@ -486,7 +478,7 @@ class AlphaResearchAdapter:
                                        constraints={"type": "eq", "fun": lambda w: np.sum(w) - 1})
                 weights = {alpha_names[i]: round(float(res.x[i]), 4) for i in range(n_a)}
             else:
-                return {"error": True, "message": f"Unknown method: {method}"}
+                return error_response(f"Unknown method: {method}")
 
             # Combined signal
             combined = np.zeros(n)
@@ -500,9 +492,7 @@ class AlphaResearchAdapter:
             best_individual = max(abs(ic) for ic in individual_ics.values())
             improvement = abs(combined_ic) - best_individual
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "combined_ic": round(combined_ic, 4),
                     "individual_ics": individual_ics,
                     "weights": weights,
@@ -515,8 +505,7 @@ class AlphaResearchAdapter:
                         f"Best individual: {best_individual:.4f}. "
                         f"{'Improvement!' if improvement > 0 else 'No improvement — signals may be redundant.'}"
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("combine failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

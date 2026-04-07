@@ -27,6 +27,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class AsiaMarketAdapter:
     def _get_quote(self, symbol: str, market: str) -> Dict[str, Any]:
         """Generic quote fetcher via yfinance."""
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized")
         try:
             self._limiter.acquire("yahoo")
             cache_key = {"method": "asia_quote", "symbol": symbol}
@@ -75,36 +76,36 @@ class AsiaMarketAdapter:
             ticker = self._yf.Ticker(symbol)
             info = ticker.info
 
-            result = {
-                "success": True,
-                "source": "Yahoo Finance",
-                "market": market,
-                "symbol": symbol,
-                "name": info.get("longName", info.get("shortName", symbol)),
-                "price": info.get("currentPrice", info.get("regularMarketPrice")),
-                "previous_close": info.get("previousClose"),
-                "change": info.get("regularMarketChange"),
-                "change_pct": info.get("regularMarketChangePercent"),
-                "open": info.get("regularMarketOpen"),
-                "day_high": info.get("regularMarketDayHigh"),
-                "day_low": info.get("regularMarketDayLow"),
-                "volume": info.get("regularMarketVolume"),
-                "market_cap": info.get("marketCap"),
-                "currency": info.get("currency", ""),
-                "exchange": info.get("exchange", ""),
-            }
+            result = success_response(
+                data=None,
+                source="Yahoo Finance",
+                market=market,
+                symbol=symbol,
+                name=info.get("longName", info.get("shortName", symbol)),
+                price=info.get("currentPrice", info.get("regularMarketPrice")),
+                previous_close=info.get("previousClose"),
+                change=info.get("regularMarketChange"),
+                change_pct=info.get("regularMarketChangePercent"),
+                open=info.get("regularMarketOpen"),
+                day_high=info.get("regularMarketDayHigh"),
+                day_low=info.get("regularMarketDayLow"),
+                volume=info.get("regularMarketVolume"),
+                market_cap=info.get("marketCap"),
+                currency=info.get("currency", ""),
+                exchange=info.get("exchange", ""),
+            )
 
             self._cache.set("asia_market", cache_key, result, "realtime")
             return result
 
         except Exception as e:
             logger.error(f"Quote error for {symbol}: {e}")
-            return {"error": True, "message": f"Quote retrieval failed for {symbol}: {e}"}
+            return error_response(f"Quote retrieval failed for {symbol}: {e}")
 
     def _get_index(self, symbol: str, name: str) -> Dict[str, Any]:
         """Fetch a single index value."""
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized")
         try:
             self._limiter.acquire("yahoo")
             cache_key = {"method": "asia_index", "symbol": symbol}
@@ -115,31 +116,31 @@ class AsiaMarketAdapter:
             ticker = self._yf.Ticker(symbol)
             info = ticker.info
 
-            result = {
-                "success": True,
-                "source": "Yahoo Finance",
-                "symbol": symbol,
-                "name": name,
-                "value": info.get("regularMarketPrice"),
-                "previous_close": info.get("previousClose"),
-                "change": info.get("regularMarketChange"),
-                "change_pct": info.get("regularMarketChangePercent"),
-                "day_high": info.get("regularMarketDayHigh"),
-                "day_low": info.get("regularMarketDayLow"),
-                "volume": info.get("regularMarketVolume"),
-            }
+            result = success_response(
+                data=None,
+                source="Yahoo Finance",
+                symbol=symbol,
+                name=name,
+                value=info.get("regularMarketPrice"),
+                previous_close=info.get("previousClose"),
+                change=info.get("regularMarketChange"),
+                change_pct=info.get("regularMarketChangePercent"),
+                day_high=info.get("regularMarketDayHigh"),
+                day_low=info.get("regularMarketDayLow"),
+                volume=info.get("regularMarketVolume"),
+            )
 
             self._cache.set("asia_market", cache_key, result, "realtime")
             return result
 
         except Exception as e:
             logger.error(f"Index error for {symbol}: {e}")
-            return {"error": True, "message": f"Index retrieval failed for {symbol}: {e}"}
+            return error_response(f"Index retrieval failed for {symbol}: {e}")
 
     def _get_history(self, symbol: str, period: str, market: str) -> Dict[str, Any]:
         """Fetch OHLCV history."""
         if not self._yf:
-            return {"error": True, "message": "yfinance not initialized"}
+            return error_response("yfinance not initialized")
         try:
             self._limiter.acquire("yahoo")
             cache_key = {"method": "asia_history", "symbol": symbol, "period": period}
@@ -151,7 +152,7 @@ class AsiaMarketAdapter:
             hist = ticker.history(period=period)
 
             if hist.empty:
-                return {"error": True, "message": f"No history data for {symbol}"}
+                return error_response(f"No history data for {symbol}")
 
             records = []
             for date, row in hist.iterrows():
@@ -164,15 +165,14 @@ class AsiaMarketAdapter:
                     "volume": int(row["Volume"]),
                 })
 
-            result = {
-                "success": True,
-                "source": "Yahoo Finance",
-                "market": market,
-                "symbol": symbol,
-                "period": period,
-                "data_points": len(records),
-                "data": records[-60:] if len(records) > 60 else records,
-                "summary": {
+            result = success_response(
+                data=records[-60:] if len(records) > 60 else records,
+                source="Yahoo Finance",
+                market=market,
+                symbol=symbol,
+                period=period,
+                data_points=len(records),
+                summary={
                     "start_date": records[0]["date"],
                     "end_date": records[-1]["date"],
                     "start_close": records[0]["close"],
@@ -184,14 +184,14 @@ class AsiaMarketAdapter:
                     "lowest": min(r["low"] for r in records),
                     "avg_volume": int(sum(r["volume"] for r in records) / len(records)),
                 },
-            }
+            )
 
             self._cache.set("asia_market", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"History error for {symbol}: {e}")
-            return {"error": True, "message": f"History retrieval failed for {symbol}: {e}"}
+            return error_response(f"History retrieval failed for {symbol}: {e}")
 
     # ── China (SSE / SZSE) ────────────────────────────────────────────
 
@@ -214,12 +214,12 @@ class AsiaMarketAdapter:
             self.INDICES["szse_component"]["symbol"],
             self.INDICES["szse_component"]["name"],
         )
-        return {
-            "success": True,
-            "source": "Yahoo Finance",
-            "market": "China",
-            "indices": {"sse_composite": sse, "szse_component": szse},
-        }
+        return success_response(
+            data=None,
+            source="Yahoo Finance",
+            market="China",
+            indices={"sse_composite": sse, "szse_component": szse},
+        )
 
     def get_china_stock_history(
         self, symbol: str, period: str = "1y"
@@ -270,7 +270,7 @@ class AsiaMarketAdapter:
             data = resp.json()
 
             if data.get("stat") != "OK":
-                return {"error": True, "message": f"TWSE API returned: {data.get('stat', 'unknown')}"}
+                return error_response(f"TWSE API returned: {data.get('stat', 'unknown')}")
 
             fields = data.get("fields", [])
             rows = data.get("data", [])
@@ -283,18 +283,16 @@ class AsiaMarketAdapter:
                         record[field] = row[i]
                 records.append(record)
 
-            return {
-                "success": True,
-                "source": "TWSE OpenAPI",
-                "market": "Taiwan TWSE",
-                "date": data.get("date", date),
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                data=records,
+                source="Yahoo Finance",
+                market="Taiwan TWSE",
+                date=data.get("date", date),
+            )
 
         except Exception as e:
             logger.error(f"Taiwan top trades error: {e}")
-            return {"error": True, "message": f"TWSE top trades failed: {e}"}
+            return error_response(f"TWSE top trades failed: {e}")
 
     # ── Hong Kong (HKEX) ──────────────────────────────────────────────
 

@@ -1,9 +1,16 @@
 """Regulation & Compliance Adapter — EU regulations (EUR-Lex), US FINRA."""
 import logging
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict
 from urllib.parse import quote
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("regulation_adapter")
@@ -88,7 +95,7 @@ class RegulationAdapter:
             import re
             query = re.sub(r'["\'\\\{\}\(\)<>]', '', query).strip()
             if not query or len(query) > 200:
-                return {"error": True, "message": "Query must be 1-200 characters, no special characters"}
+                return error_response("Query must be 1-200 characters, no special characters")
 
             sparql = f"""
             PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
@@ -126,13 +133,7 @@ class RegulationAdapter:
                     "type": r.get("type", {}).get("value", ""),
                     "url": f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{celex}",
                 })
-            return {
-                "success": True,
-                "source": "EUR-Lex/CELLAR SPARQL",
-                "query": query,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="EUR-Lex/CELLAR SPARQL", query=query)
         except Exception as e:
             logger.error(f"EUR-Lex SPARQL search error: {e}")
             return self._fallback_search(query, limit)
@@ -154,15 +155,13 @@ class RegulationAdapter:
                     "url": f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{reg['celex']}",
                 })
         search_url = f"{self.BASE_EURLEX}/search.html?type=advanced&text={quote(query)}&qid=&DTS_DOM=ALL&scope=EURLEX"
-        return {
-            "success": True,
-            "source": "EUR-Lex/curated+search_url",
-            "query": query,
-            "count": len(matches[:limit]),
-            "data": matches[:limit],
-            "search_url": search_url,
-            "note": "Curated matches from key financial regulations. Use search_url for full EUR-Lex search.",
-        }
+        return success_response(
+            matches[:limit],
+            source="EUR-Lex/curated+search_url",
+            query=query,
+            search_url=search_url,
+            note="Curated matches from key financial regulations. Use search_url for full EUR-Lex search.",
+        )
 
     def get_regulation_text(self, celex_number: str) -> Dict[str, Any]:
         """Fetch regulation summary text from EUR-Lex by CELEX number."""
@@ -173,18 +172,18 @@ class RegulationAdapter:
                 # Try curated data
                 for key, reg in KEY_REGULATIONS.items():
                     if reg["celex"] == celex_number:
-                        return {
-                            "success": True,
-                            "source": "EUR-Lex/curated",
-                            "celex": celex_number,
-                            "title": reg["name"],
-                            "year": reg["year"],
-                            "type": reg["type"],
-                            "summary": reg.get("summary", ""),
-                            "url": f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{celex_number}",
-                            "note": "Full text unavailable; curated summary returned.",
-                        }
-                return {"error": True, "message": f"EUR-Lex returned HTTP {resp.status_code} for CELEX {celex_number}"}
+                        return success_response(
+                            None,
+                            source="EUR-Lex/curated",
+                            celex=celex_number,
+                            title=reg["name"],
+                            year=reg["year"],
+                            type=reg["type"],
+                            summary=reg.get("summary", ""),
+                            url=f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{celex_number}",
+                            note="Full text unavailable; curated summary returned.",
+                        )
+                return error_response(f"EUR-Lex returned HTTP {resp.status_code} for CELEX {celex_number}")
 
             # Extract text from HTML (simple extraction without heavy parsing)
             from html.parser import HTMLParser
@@ -229,20 +228,19 @@ class RegulationAdapter:
             if len(full_text) > 5000:
                 text_excerpt += "... [truncated]"
 
-            return {
-                "success": True,
-                "source": "EUR-Lex",
-                "celex": celex_number,
-                "title": title or "See document",
-                "type": reg_type or "Unknown",
-                "year": year or "Unknown",
-                "text_length": len(full_text),
-                "text": text_excerpt,
-                "url": f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{celex_number}",
-            }
+            return success_response(
+                text_excerpt,
+                source="EUR-Lex",
+                celex=celex_number,
+                title=title or "See document",
+                type=reg_type or "Unknown",
+                year=year or "Unknown",
+                text_length=len(full_text),
+                url=f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{celex_number}",
+            )
         except Exception as e:
             logger.error(f"EUR-Lex text fetch error for {celex_number}: {e}")
-            return {"error": True, "message": f"Failed to retrieve regulation text for CELEX {celex_number}"}
+            return error_response(f"Failed to retrieve regulation text for CELEX {celex_number}")
 
     def get_key_financial_regulations(self) -> Dict[str, Any]:
         """Return curated list of 19 key EU financial regulations."""
@@ -252,11 +250,10 @@ class RegulationAdapter:
                 **reg,
                 "url": f"{self.BASE_EURLEX}/legal-content/EN/TXT/?uri=CELEX:{reg['celex']}",
             }
-        return {
-            "success": True,
-            "source": "EUR-Lex/curated",
-            "count": len(data),
-            "categories": {
+        return success_response(
+            data,
+            source="EUR-Lex/curated",
+            categories={
                 "securities_markets": ["MiFID_II", "MiFIR", "EMIR", "BMR"],
                 "banking_prudential": ["CRD_V", "CRR_II"],
                 "investment_funds": ["AIFMD", "UCITS_V"],
@@ -267,22 +264,19 @@ class RegulationAdapter:
                 "aml_compliance": ["AMLD6"],
                 "artificial_intelligence": ["AI_Act"],
             },
-            "data": data,
-        }
+        )
 
     def search_finra_rules(self) -> Dict[str, Any]:
         """Return curated FINRA rules reference + useful links."""
-        return {
-            "success": True,
-            "source": "FINRA/curated",
-            "count": len(KEY_FINRA_RULES),
-            "data": KEY_FINRA_RULES,
-            "links": {
+        return success_response(
+            KEY_FINRA_RULES,
+            source="FINRA/curated",
+            links={
                 "finra_rulebook": "https://www.finra.org/rules-guidance/rulebooks/finra-rules",
                 "finra_rule_search": "https://www.finra.org/rules-guidance/rulebooks/search",
                 "sec_edgar": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany",
                 "sec_reg_bi": "https://www.sec.gov/regulation-best-interest",
                 "finra_brokercheck": "https://brokercheck.finra.org/",
             },
-            "note": "FINRA does not provide a public REST API. Use links for detailed rule text.",
-        }
+            note="FINRA does not provide a public REST API. Use links for detailed rule text.",
+        )

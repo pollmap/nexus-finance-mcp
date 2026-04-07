@@ -5,6 +5,15 @@ VAR decomposition, event study, regime detection.
 Works with the universal format: [{"date": "YYYY-MM-DD", "value": float}, ...]
 """
 import logging
+import sys
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
+
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -88,7 +97,7 @@ class QuantAnalysisAdapter:
             df = self._align(sa, sb)
 
             if len(df) < 3:
-                return {"error": True, "message": f"Insufficient overlapping data: {len(df)} points (need >= 3)"}
+                return error_response(f"Insufficient overlapping data: {len(df)} points (need >= 3)")
 
             a_vals, b_vals = df["a"].values, df["b"].values
 
@@ -100,11 +109,10 @@ class QuantAnalysisAdapter:
             elif method == "kendall":
                 r, p = stats.kendalltau(a_vals, b_vals)
             else:
-                return {"error": True, "message": f"Unknown method: {method}. Use pearson/spearman/kendall"}
+                return error_response(f"Unknown method: {method}. Use pearson/spearman/kendall")
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "method": method,
                     "correlation": round(float(r), 6),
                     "p_value": round(float(p), 8),
@@ -116,10 +124,11 @@ class QuantAnalysisAdapter:
                         "end": str(df.index.max().date()),
                     },
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("correlation failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 2. lagged_correlation
@@ -141,7 +150,7 @@ class QuantAnalysisAdapter:
             df = self._align(sa, sb)
 
             if len(df) < max_lag + 5:
-                return {"error": True, "message": f"Insufficient data: {len(df)} points for max_lag={max_lag}"}
+                return error_response(f"Insufficient data: {len(df)} points for max_lag={max_lag}")
 
             results = []
             for lag in range(0, max_lag + 1):
@@ -164,13 +173,12 @@ class QuantAnalysisAdapter:
                 })
 
             if not results:
-                return {"error": True, "message": "No valid lag results computed"}
+                return error_response("No valid lag results computed")
 
             best = max(results, key=lambda x: abs(x["correlation"]))
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "lag_results": results,
                     "best_lag": best["lag"],
                     "best_correlation": best["correlation"],
@@ -184,10 +192,11 @@ class QuantAnalysisAdapter:
                     ),
                     "n_total_observations": len(df),
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("lagged_correlation failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 3. regression
@@ -221,7 +230,7 @@ class QuantAnalysisAdapter:
             df = self._align(*all_s)
 
             if len(df) < len(x_series) + 2:
-                return {"error": True, "message": f"Insufficient data after alignment: {len(df)} rows"}
+                return error_response(f"Insufficient data after alignment: {len(df)} rows")
 
             Y = df["Y"]
             X = df.drop(columns=["Y"])
@@ -238,9 +247,8 @@ class QuantAnalysisAdapter:
                 }
 
             residuals = model.resid
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "method": method,
                     "coefficients": coefs,
                     "r_squared": round(float(model.rsquared), 6),
@@ -261,10 +269,11 @@ class QuantAnalysisAdapter:
                         "end": str(df.index.max().date()),
                     },
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("regression failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 4. granger_causality
@@ -289,7 +298,7 @@ class QuantAnalysisAdapter:
             df = self._align(sa, sb)
 
             if len(df) < max_lag * 3 + 5:
-                return {"error": True, "message": f"Insufficient data: {len(df)} rows for max_lag={max_lag}"}
+                return error_response(f"Insufficient data: {len(df)} rows for max_lag={max_lag}")
 
             # grangercausalitytests expects [Y, X] — tests if X Granger-causes Y
             # We test: does A Granger-cause B → pass [B, A]
@@ -327,9 +336,8 @@ class QuantAnalysisAdapter:
             else:
                 interp = "No Granger causality found from A to B at any tested lag"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "direction": "A → B",
                     "lag_results": lag_results,
                     "granger_causes": any_significant,
@@ -338,10 +346,11 @@ class QuantAnalysisAdapter:
                     "interpretation": interp,
                     "n_observations": len(df),
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("granger_causality failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 5. cointegration
@@ -365,7 +374,7 @@ class QuantAnalysisAdapter:
             df = self._align(sa, sb)
 
             if len(df) < 20:
-                return {"error": True, "message": f"Insufficient data: {len(df)} rows (need >= 20)"}
+                return error_response(f"Insufficient data: {len(df)} rows (need >= 20)")
 
             coint_stat, p_value, crit_values = coint(df["a"].values, df["b"].values)
 
@@ -377,9 +386,8 @@ class QuantAnalysisAdapter:
 
             cointegrated = p_value < 0.05
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "coint_statistic": round(float(coint_stat), 6),
                     "p_value": round(float(p_value), 8),
                     "significance": self._significance(p_value),
@@ -402,10 +410,11 @@ class QuantAnalysisAdapter:
                         "end": str(df.index.max().date()),
                     },
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("cointegration failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 6. var_decomposition
@@ -428,7 +437,7 @@ class QuantAnalysisAdapter:
             from statsmodels.tsa.api import VAR
 
             if len(series_dict) < 2:
-                return {"error": True, "message": "Need at least 2 variables for VAR decomposition"}
+                return error_response("Need at least 2 variables for VAR decomposition")
 
             all_series = []
             names = list(series_dict.keys())
@@ -438,7 +447,7 @@ class QuantAnalysisAdapter:
             df = self._align(*all_series)
 
             if len(df) < lags * 3 + 10:
-                return {"error": True, "message": f"Insufficient data: {len(df)} rows for {lags} lags"}
+                return error_response(f"Insufficient data: {len(df)} rows for {lags} lags")
 
             # Difference if needed for stationarity (simple first-difference)
             df_diff = df.diff().dropna()
@@ -459,9 +468,8 @@ class QuantAnalysisAdapter:
                     pct = float(fevd.decomp[i][-1][j]) * 100
                     decomp[target_name][shock_name] = round(pct, 2)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "lags_used": lags,
                     "forecast_horizon": periods,
                     "variables": names,
@@ -476,10 +484,11 @@ class QuantAnalysisAdapter:
                     ),
                     "n_observations": len(df_diff),
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("var_decomposition failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 7. event_study
@@ -508,7 +517,7 @@ class QuantAnalysisAdapter:
             returns = s.pct_change().dropna()
 
             if len(returns) < window_before + window_after + 10:
-                return {"error": True, "message": "Insufficient price data for the requested window"}
+                return error_response("Insufficient price data for the requested window")
 
             event_dates_parsed = pd.to_datetime(event_dates)
             total_window = window_before + window_after + 1
@@ -536,7 +545,7 @@ class QuantAnalysisAdapter:
                     valid_events.append(str(actual_date.date()))
 
             if not windows:
-                return {"error": True, "message": "No events had sufficient data within the requested window"}
+                return error_response("No events had sufficient data within the requested window")
 
             windows_arr = np.array(windows)
             avg_returns = np.mean(windows_arr, axis=0)
@@ -562,9 +571,8 @@ class QuantAnalysisAdapter:
 
             significant = not np.isnan(t_p) and t_p < 0.05
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "n_events": len(windows),
                     "valid_event_dates": valid_events,
                     "window_before": window_before,
@@ -583,10 +591,11 @@ class QuantAnalysisAdapter:
                            else "Only 1 event — no t-test.")
                     ),
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("event_study failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 8. regime_detection
@@ -610,7 +619,7 @@ class QuantAnalysisAdapter:
             returns = s.pct_change().dropna()
 
             if len(returns) < rolling_window + 10:
-                return {"error": True, "message": f"Insufficient data: {len(returns)} return observations"}
+                return error_response(f"Insufficient data: {len(returns)} return observations")
 
             roll_mean = returns.rolling(rolling_window).mean().dropna()
             roll_std = returns.rolling(rolling_window).std().dropna()
@@ -623,7 +632,7 @@ class QuantAnalysisAdapter:
             }, index=common_idx)
 
             if len(features) < n_regimes * 3:
-                return {"error": True, "message": f"Insufficient data for {n_regimes} regimes after rolling"}
+                return error_response(f"Insufficient data for {n_regimes} regimes after rolling")
 
             # Normalize for clustering
             feat_norm = (features - features.mean()) / features.std()
@@ -684,9 +693,8 @@ class QuantAnalysisAdapter:
 
             current = int(features["regime"].iloc[-1])
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "n_regimes": n_regimes,
                     "rolling_window": rolling_window,
                     "regimes": regimes,
@@ -702,7 +710,8 @@ class QuantAnalysisAdapter:
                     ),
                     "n_observations": len(features),
                 },
-            }
+                source="Quant Analysis",
+            )
         except Exception as e:
             logger.exception("regime_detection failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

@@ -4,6 +4,19 @@
 
 64 servers, 364 tools covering Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, PhD-level math, statistical arbitrage, Black-Litterman, HRP, Heston stochastic vol, Almgren-Chriss execution, market microstructure (VPIN/Kyle's λ), crypto derivatives (funding rate arb), on-chain analytics (MVRV/NVT), López de Prado ML pipeline, and alpha research toolkit — all through a single gateway.
 
+## Documentation
+
+> 상세 문서는 [`docs/`](docs/) 디렉토리 참조
+
+| 문서 | 내용 |
+|------|------|
+| [Usage Guide](docs/USAGE_GUIDE.md) | 5가지 입력 패턴, 워크플로우 예제 |
+| [Parsing Guide](docs/PARSING_GUIDE.md) | 응답 포맷 스펙, 파싱 전략 |
+| [Tool Catalog](docs/TOOL_CATALOG.md) | 364도구 복잡도/도메인별 분류 |
+| [Error Reference](docs/ERROR_REFERENCE.md) | 에러 코드, 재시도 전략 |
+| [Architecture](docs/ARCHITECTURE.md) | 시스템 아키텍처, 캐싱, 레이트 리밋 |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | 운영 디버깅 가이드 |
+
 ## Quick Connect
 
 ### Claude Desktop / Claude Code (원격 접속)
@@ -36,7 +49,7 @@ cp .env.template .env   # API 키 설정
 python server.py --transport streamable-http --port 8100
 ```
 
-## Tools (364)
+## Tools (376+)
 
 ### Korean Economy (한국 경제) — 27 tools
 
@@ -44,7 +57,7 @@ python server.py --transport streamable-http --port 8100
 |--------|-------|------------|
 | **ECOS** (8) | 기준금리, M2, GDP, 환율, CPI, PPI, 경상수지, 채권금리 | 한국은행 ECOS |
 | **KOSIS** (5) | 인구, 실업률, 주택가격, 통계표 검색/조회 | 통계청 KOSIS |
-| **DART** (7) | 기업정보, 재무제표, 재무비율, 대주주, 현금흐름, 배당, 검색 | 금융감독원 OpenDART |
+| **DART** (16) | 기업정보, 재무제표, 재무비율, 대주주, 현금흐름, 배당, 검색, **임원현황, 임원보수, 최대주주변동, 증자감자, 합병분할, 전환사채, 자기주식, 공정공시, 지분공시(5%)** | 금융감독원 OpenDART |
 | **FSC** (2) | 주가, 채권가격 | 금융위원회 data.go.kr |
 | **Stocks** (5) | 실시간 시세, 검색, 히스토리, 베타, 시장개요 | KIS + pykrx + Yahoo |
 
@@ -63,7 +76,7 @@ python server.py --transport streamable-http --port 8100
 | **US Equity** (4) | 미국 주가, 기업 프로필, 시장 뉴스, 경제일정 | Finnhub |
 | **Asia Market** (8) | 홍콩(HSI), 대만(TWSE), 중국 지수/시세/히스토리 | Yahoo Finance |
 | **India** (3) | Nifty/Sensex, 인도 주가, 히스토리 | Yahoo Finance |
-| **Crypto** (8) | 시세, 오더북, 김프, 거래소비교, OHLCV, 스프레드, 거래량 | CCXT (Upbit/Binance) |
+| **Crypto** (11) | 시세, 오더북, 김프, 거래소비교, OHLCV, 스프레드, 거래량, **거래소목록, 심볼검색, 체결내역** | CCXT (100+ exchanges) |
 | **DeFi** (4) | 프로토콜 TVL, 체인, Fear & Greed | DefiLlama |
 | **OnChain** (3) | ETH 잔액, 가스, 트랜잭션 | Etherscan |
 

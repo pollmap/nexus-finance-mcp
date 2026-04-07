@@ -17,12 +17,19 @@ References:
 - Johansen (1988), J. Economic Dynamics and Control 12: 231-254
 """
 import logging
+import sys
 import warnings
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import stats, cluster, optimize
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -63,7 +70,7 @@ class PortfolioAdvancedAdapter:
             returns = _build_returns_matrix(series_list, names)
             T, N = returns.shape
             if N < 2:
-                return {"error": True, "message": "Need at least 2 assets"}
+                return error_response("Need at least 2 assets")
 
             # Empirical correlation matrix
             corr = returns.corr().values
@@ -110,9 +117,7 @@ class PortfolioAdvancedAdapter:
                 for i, v in enumerate(eigenvalues[:min(10, N)])
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "n_assets": N,
                     "n_observations": T,
                     "q_ratio": round(float(q), 2),
@@ -134,11 +139,10 @@ class PortfolioAdvancedAdapter:
                         f"{eigenvalues[0]/np.sum(eigenvalues)*100:.1f}% of variance (market factor). "
                         f"Cleaned matrix differs by Frobenius distance {frob_dist:.3f}."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("rmt_clean failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Black-Litterman Model
@@ -227,9 +231,7 @@ class PortfolioAdvancedAdapter:
             equilibrium_returns = {names[i]: round(float(Pi[i]), 4) for i in range(N)}
             posterior_returns_dict = {names[i]: round(float(posterior_returns[i]), 4) for i in range(N)}
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "optimal_weights": weights_dict,
                     "equilibrium_returns": equilibrium_returns,
                     "posterior_returns": posterior_returns_dict,
@@ -246,11 +248,10 @@ class PortfolioAdvancedAdapter:
                         f"Sharpe: {port_sharpe:.2f}. "
                         f"Views tilt weights vs equilibrium."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("black_litterman failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Hierarchical Risk Parity (HRP)
@@ -345,9 +346,7 @@ class PortfolioAdvancedAdapter:
 
             weights_dict = {names[sort_ix[i]]: round(float(weights[i]), 4) for i in range(N)}
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "weights": weights_dict,
                     "expected_return": round(port_ret, 4),
                     "expected_volatility": round(port_vol, 4),
@@ -363,11 +362,10 @@ class PortfolioAdvancedAdapter:
                         f"Vol={port_vol:.1%}, Div ratio={div_ratio:.2f}. "
                         f"No covariance inversion → more stable OOS than Markowitz."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("hrp failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Johansen Multivariate Cointegration
@@ -391,11 +389,11 @@ class PortfolioAdvancedAdapter:
             prices = pd.DataFrame(all_prices).dropna()
 
             if len(prices) < 50:
-                return {"error": True, "message": f"Need >= 50 observations, got {len(prices)}"}
+                return error_response(f"Need >= 50 observations, got {len(prices)}")
 
             N = len(names)
             if N < 2:
-                return {"error": True, "message": "Need at least 2 series"}
+                return error_response("Need at least 2 series")
 
             from statsmodels.tsa.vector_ar.vecm import coint_johansen
             result = coint_johansen(prices.values, det_order=det_order, k_ar_diff=k_ar_diff)
@@ -438,9 +436,7 @@ class PortfolioAdvancedAdapter:
                 vec = {names[i]: round(float(coint_vectors[i, j]), 4) for i in range(N)}
                 vectors.append(vec)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "rank_trace": rank_trace,
                     "rank_max_eigenvalue": rank_maxeig,
                     "n_assets": N,
@@ -454,11 +450,10 @@ class PortfolioAdvancedAdapter:
                         f"at 95% (trace), {rank_maxeig} (max-eigenvalue). "
                         f"{'Multi-asset stat arb possible!' if rank_trace >= 1 else 'No cointegration found.'}"
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("johansen failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Advanced Information Theory
@@ -488,7 +483,7 @@ class PortfolioAdvancedAdapter:
 
             df = pd.concat([sa.rename("A"), sb.rename("B")], axis=1, join="inner").dropna()
             if len(df) < 50:
-                return {"error": True, "message": f"Need >= 50 points, got {len(df)}"}
+                return error_response(f"Need >= 50 points, got {len(df)}")
 
             ret_a = df["A"].pct_change().dropna().values
             ret_b = df["B"].pct_change().dropna().values
@@ -576,9 +571,7 @@ class PortfolioAdvancedAdapter:
             else:
                 causal_direction = "B → A (B leads A)"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "kl_divergence_a_to_b": round(kl_ab, 4),
                     "kl_divergence_b_to_a": round(kl_ba, 4),
                     "jensen_shannon_divergence": round(js_div, 4),
@@ -595,11 +588,10 @@ class PortfolioAdvancedAdapter:
                         f"Transfer entropy: {causal_direction} "
                         f"(net TE={net_te:.4f})."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("info_theory failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. Portfolio Method Comparison
@@ -672,9 +664,7 @@ class PortfolioAdvancedAdapter:
             # Find best Sharpe
             best = max(results.items(), key=lambda x: x[1].get("sharpe", -999) if isinstance(x[1].get("sharpe"), (int, float)) else -999)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response({
                     "methods": results,
                     "best_method": best[0],
                     "best_sharpe": best[1].get("sharpe", 0),
@@ -684,8 +674,7 @@ class PortfolioAdvancedAdapter:
                         f"Best method: {best[0]} (Sharpe={best[1].get('sharpe', 0):.3f}). "
                         f"Compared {len(results)} portfolio construction methods."
                     ),
-                }
-            }
+                })
         except Exception as e:
             logger.exception("compare failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

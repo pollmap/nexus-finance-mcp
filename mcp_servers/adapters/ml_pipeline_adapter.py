@@ -11,12 +11,20 @@ López de Prado ML Pipeline Adapter — Financial Machine Learning Framework.
 Reference: López de Prado (2018), Advances in Financial Machine Learning, Wiley.
 """
 import logging
+import sys
+import os
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -53,7 +61,7 @@ class MLPipelineAdapter:
             df = _ts_to_df(series)
             n = len(df)
             if n < 50:
-                return {"error": True, "message": f"Need >= 50 observations, got {n}"}
+                return error_response(f"Need >= 50 observations, got {n}")
 
             prices = df["value"].values
             has_vol = "volume" in df.columns
@@ -68,7 +76,7 @@ class MLPipelineAdapter:
             elif bar_type == "tick":
                 accum_values = np.ones(n)
             else:
-                return {"error": True, "message": f"Unknown bar_type: {bar_type}"}
+                return error_response(f"Unknown bar_type: {bar_type}")
 
             # Auto threshold: target ~n/5 bars
             if threshold is None:
@@ -117,9 +125,8 @@ class MLPipelineAdapter:
                 bar_returns = []
                 normality_p = None
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "bars": bars[-20:],  # last 20
                     "n_bars": n_bars,
                     "n_original": n,
@@ -133,11 +140,12 @@ class MLPipelineAdapter:
                         f"Threshold: {threshold:,.0f}. "
                         f"{'Returns more normal than time bars.' if normality_p and normality_p > 0.05 else 'Returns still non-normal.'}"
                     ),
-                }
-            }
+                },
+                source="ML Pipeline",
+            )
         except Exception as e:
             logger.exception("volume_bars failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 2. Fractional Differentiation
@@ -154,7 +162,7 @@ class MLPipelineAdapter:
             prices = df["value"].values
             n = len(prices)
             if n < 50:
-                return {"error": True, "message": f"Need >= 50 prices, got {n}"}
+                return error_response(f"Need >= 50 prices, got {n}")
 
             log_prices = np.log(prices)
 
@@ -214,9 +222,8 @@ class MLPipelineAdapter:
                 for d, v in zip(output_dates[-30:], fd_valid[-30:])
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "d": round(float(d), 2),
                     "adf_statistic": round(float(adf_stat), 4),
                     "adf_pvalue": round(float(adf_p), 4),
@@ -231,11 +238,12 @@ class MLPipelineAdapter:
                         f"Correlation with original: {corr_with_original:.3f}. "
                         f"{'Good: stationary with high memory preservation.' if adf_p < 0.05 and corr_with_original > 0.8 else ''}"
                     ),
-                }
-            }
+                },
+                source="ML Pipeline",
+            )
         except Exception as e:
             logger.exception("frac_diff failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 3. Triple-Barrier Labeling
@@ -256,7 +264,7 @@ class MLPipelineAdapter:
             prices = df["value"].values
             n = len(prices)
             if n < 30:
-                return {"error": True, "message": f"Need >= 30 prices, got {n}"}
+                return error_response(f"Need >= 30 prices, got {n}")
 
             labels = []
             details = []
@@ -301,9 +309,8 @@ class MLPipelineAdapter:
             avg_ret_pos = np.mean([d["return"] for d in details if d["label"] == 1]) if n_pos > 0 else 0
             avg_ret_neg = np.mean([d["return"] for d in details if d["label"] == -1]) if n_neg > 0 else 0
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "n_positive": n_pos,
                     "n_negative": n_neg,
                     "n_neutral": n_zero,
@@ -325,11 +332,12 @@ class MLPipelineAdapter:
                         f"Avg win: {avg_ret_pos:.2%}, Avg loss: {avg_ret_neg:.2%}. "
                         f"{'Balanced labels.' if 0.3 < n_pos/total < 0.7 else 'Imbalanced — adjust barriers.'}"
                     ),
-                }
-            }
+                },
+                source="ML Pipeline",
+            )
         except Exception as e:
             logger.exception("triple_barrier failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 4. Meta-Labeling
@@ -358,7 +366,7 @@ class MLPipelineAdapter:
             aligned = pd.DataFrame({"price": df["value"], "signal": sig_df}).dropna()
             n = len(aligned)
             if n < 50:
-                return {"error": True, "message": f"Need >= 50 aligned observations, got {n}"}
+                return error_response(f"Need >= 50 aligned observations, got {n}")
 
             prices = aligned["price"].values
             sigs = aligned["signal"].values
@@ -398,16 +406,15 @@ class MLPipelineAdapter:
                 })
 
             if not meta_labels:
-                return {"error": True, "message": "No signal events found (all signals are 0)"}
+                return error_response("No signal events found (all signals are 0)")
 
             ml_arr = np.array([m["meta_label"] for m in meta_labels])
             accuracy = float(np.mean(ml_arr))
             n_correct = int(np.sum(ml_arr == 1))
             n_wrong = int(np.sum(ml_arr == 0))
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "primary_model_accuracy": round(accuracy, 3),
                     "n_signal_events": len(meta_labels),
                     "n_correct": n_correct,
@@ -423,11 +430,12 @@ class MLPipelineAdapter:
                         f"({n_correct}/{len(meta_labels)} correct). "
                         f"{'Good primary model.' if accuracy > 0.55 else 'Weak primary model — meta-label can help size bets.'}"
                     ),
-                }
-            }
+                },
+                source="ML Pipeline",
+            )
         except Exception as e:
             logger.exception("meta_label failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Purged K-Fold Cross-Validation
@@ -445,9 +453,9 @@ class MLPipelineAdapter:
         """
         try:
             if n_samples < 50:
-                return {"error": True, "message": f"Need >= 50 samples, got {n_samples}"}
+                return error_response(f"Need >= 50 samples, got {n_samples}")
             if n_folds < 2 or n_folds > 20:
-                return {"error": True, "message": "n_folds must be 2-20"}
+                return error_response("n_folds must be 2-20")
 
             embargo_size = max(1, int(n_samples * embargo_pct))
             fold_size = n_samples // n_folds
@@ -482,9 +490,8 @@ class MLPipelineAdapter:
             avg_train = np.mean([s["train_size"] for s in splits])
             avg_test = np.mean([s["test_size"] for s in splits])
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "splits": splits,
                     "n_folds": n_folds,
                     "n_samples": n_samples,
@@ -500,11 +507,12 @@ class MLPipelineAdapter:
                         f"(embargo={embargo_size}, label_horizon={label_horizon}). "
                         f"No leakage between train/test."
                     ),
-                }
-            }
+                },
+                source="ML Pipeline",
+            )
         except Exception as e:
             logger.exception("purged_cv failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 6. Feature Importance (MDI, MDA, SFI)
@@ -536,9 +544,9 @@ class MLPipelineAdapter:
             y = np.array(labels)
 
             if len(X) < 30:
-                return {"error": True, "message": f"Need >= 30 samples, got {len(X)}"}
+                return error_response(f"Need >= 30 samples, got {len(X)}")
             if len(X) != len(y):
-                return {"error": True, "message": "features and labels must have same length"}
+                return error_response("features and labels must have same length")
 
             if feature_names:
                 X.columns = feature_names[:len(X.columns)]
@@ -592,9 +600,8 @@ class MLPipelineAdapter:
             # Sort by avg_rank
             ranking = sorted(combined.items(), key=lambda x: x[1]["avg_rank"])
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "ranking": [{"feature": f, **v} for f, v in ranking],
                     "mdi_importance": mdi,
                     "mda_importance": mda,
@@ -607,8 +614,9 @@ class MLPipelineAdapter:
                         f"MDI: {ranking[0][1]['mdi']:.3f}, MDA: {ranking[0][1]['mda']:.3f}. "
                         f"{len(names)} features analyzed across 3 methods."
                     ),
-                }
-            }
+                },
+                source="ML Pipeline",
+            )
         except Exception as e:
             logger.exception("feature_importance failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

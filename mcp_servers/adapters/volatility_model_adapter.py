@@ -21,12 +21,19 @@ Input format:
 Run standalone test: python -m mcp_servers.adapters.volatility_model_adapter
 """
 import logging
+import sys
 import warnings
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -101,18 +108,12 @@ class VolatilityModelAdapter:
         try:
             from arch import arch_model
         except ImportError:
-            return {
-                "success": False,
-                "error": "arch package not installed. Run: pip install arch",
-            }
+            return error_response("arch package not installed. Run: pip install arch", code="API_UNAVAILABLE")
 
         try:
             returns, converted = self._prepare_returns(series)
             if len(returns) < 50:
-                return {
-                    "success": False,
-                    "error": f"Insufficient data: {len(returns)} observations (need >= 50)",
-                }
+                return error_response(f"Insufficient data: {len(returns)} observations (need >= 50)")
 
             # GARCH expects returns in percentage
             returns_pct = returns * 100
@@ -167,9 +168,8 @@ class VolatilityModelAdapter:
                 for i, v in enumerate(variance_forecast.values)
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "model": f"GARCH({p},{q})",
                     "observations": len(returns),
                     "input_converted_from_prices": converted,
@@ -186,15 +186,15 @@ class VolatilityModelAdapter:
                     "bic": round(float(result.bic), 2),
                     "log_likelihood": round(float(result.loglikelihood), 2),
                 },
-            }
+                source="Volatility Model",
+            )
 
         except Exception as e:
             logger.exception("GARCH fit failed")
-            return {
-                "success": False,
-                "error": f"GARCH fitting failed: {str(e)}",
-                "hint": "Check data quality: need continuous daily returns, no NaN/Inf",
-            }
+            return error_response(
+                f"GARCH fitting failed: {str(e)}",
+                code="INTERNAL_ERROR",
+            )
 
     # ── 2. EGARCH Fit ─────────────────────────────────────────────────
 
@@ -219,18 +219,12 @@ class VolatilityModelAdapter:
         try:
             from arch import arch_model
         except ImportError:
-            return {
-                "success": False,
-                "error": "arch package not installed. Run: pip install arch",
-            }
+            return error_response("arch package not installed. Run: pip install arch", code="API_UNAVAILABLE")
 
         try:
             returns, converted = self._prepare_returns(series)
             if len(returns) < 50:
-                return {
-                    "success": False,
-                    "error": f"Insufficient data: {len(returns)} observations (need >= 50)",
-                }
+                return error_response(f"Insufficient data: {len(returns)} observations (need >= 50)")
 
             returns_pct = returns * 100
 
@@ -330,9 +324,8 @@ class VolatilityModelAdapter:
                 for d, v in cond_vol_tail.items()
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "model": "EGARCH(1,1,1)",
                     "observations": len(returns),
                     "input_converted_from_prices": converted,
@@ -347,15 +340,15 @@ class VolatilityModelAdapter:
                     "aic": round(float(result.aic), 2),
                     "bic": round(float(result.bic), 2),
                 },
-            }
+                source="Volatility Model",
+            )
 
         except Exception as e:
             logger.exception("EGARCH fit failed")
-            return {
-                "success": False,
-                "error": f"EGARCH fitting failed: {str(e)}",
-                "hint": "EGARCH may fail on very short or very noisy series",
-            }
+            return error_response(
+                f"EGARCH fitting failed: {str(e)}",
+                code="INTERNAL_ERROR",
+            )
 
     # ── 3. Volatility Surface ────────────────────────────────────────
 
@@ -376,10 +369,7 @@ class VolatilityModelAdapter:
         try:
             returns, converted = self._prepare_returns(series)
             if len(returns) < 60:
-                return {
-                    "success": False,
-                    "error": f"Insufficient data: {len(returns)} observations (need >= 60)",
-                }
+                return error_response(f"Insufficient data: {len(returns)} observations (need >= 60)")
 
             windows = [5, 10, 20, 40, 60, 120, 252]
             sqrt252 = np.sqrt(252)
@@ -442,9 +432,8 @@ class VolatilityModelAdapter:
                 regime = "unknown"
                 avg_pct = None
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "observations": len(returns),
                     "input_converted_from_prices": converted,
                     "vol_by_window": vol_by_window,
@@ -452,11 +441,12 @@ class VolatilityModelAdapter:
                     "regime_assessment": regime,
                     "avg_percentile": round(float(avg_pct), 1) if avg_pct is not None else None,
                 },
-            }
+                source="Volatility Model",
+            )
 
         except Exception as e:
             logger.exception("Volatility surface failed")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     # ── 4. HMM Regime Detection ──────────────────────────────────────
 
@@ -478,18 +468,12 @@ class VolatilityModelAdapter:
         try:
             from hmmlearn.hmm import GaussianHMM
         except ImportError:
-            return {
-                "success": False,
-                "error": "hmmlearn not installed. Run: pip install hmmlearn",
-            }
+            return error_response("hmmlearn not installed. Run: pip install hmmlearn", code="API_UNAVAILABLE")
 
         try:
             returns, converted = self._prepare_returns(series)
             if len(returns) < 100:
-                return {
-                    "success": False,
-                    "error": f"Insufficient data: {len(returns)} observations (need >= 100 for HMM)",
-                }
+                return error_response(f"Insufficient data: {len(returns)} observations (need >= 100 for HMM)")
 
             # Feature matrix: [return, rolling_vol_10d]
             rolling_vol = returns.rolling(window=10).std().fillna(method="bfill")
@@ -585,9 +569,8 @@ class VolatilityModelAdapter:
                 for i, d in enumerate(dates)
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "n_regimes": n_regimes,
                     "observations": len(returns),
                     "input_converted_from_prices": converted,
@@ -598,15 +581,15 @@ class VolatilityModelAdapter:
                     "state_sequence_last60": state_seq,
                     "model_score": round(float(model.score(features)), 2),
                 },
-            }
+                source="Volatility Model",
+            )
 
         except Exception as e:
             logger.exception("HMM regime detection failed")
-            return {
-                "success": False,
-                "error": f"HMM regime detection failed: {str(e)}",
-                "hint": "Ensure sufficient data (>100 obs) and try n_regimes=2 or 3",
-            }
+            return error_response(
+                f"HMM regime detection failed: {str(e)}",
+                code="INTERNAL_ERROR",
+            )
 
     # ── 5. Ensemble Volatility Forecast ──────────────────────────────
 
@@ -634,10 +617,7 @@ class VolatilityModelAdapter:
         try:
             returns, converted = self._prepare_returns(series)
             if len(returns) < 60:
-                return {
-                    "success": False,
-                    "error": f"Insufficient data: {len(returns)} observations (need >= 60)",
-                }
+                return error_response(f"Insufficient data: {len(returns)} observations (need >= 60)")
 
             sqrt252 = np.sqrt(252)
             ret_vals = returns.values
@@ -754,9 +734,8 @@ class VolatilityModelAdapter:
                     for d in range(horizon)
                 ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "horizon_days": horizon,
                     "observations": len(returns),
                     "input_converted_from_prices": converted,
@@ -768,11 +747,12 @@ class VolatilityModelAdapter:
                     },
                     "best_model": min(errors, key=errors.get),
                 },
-            }
+                source="Volatility Model",
+            )
 
         except Exception as e:
             logger.exception("Ensemble forecast failed")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     # ── 6. VIX Term Structure ────────────────────────────────────────
 
@@ -789,10 +769,7 @@ class VolatilityModelAdapter:
         try:
             import yfinance as yf
         except ImportError:
-            return {
-                "success": False,
-                "error": "yfinance not installed. Run: pip install yfinance",
-            }
+            return error_response("yfinance not installed. Run: pip install yfinance", code="API_UNAVAILABLE")
 
         try:
             vix_ticker = yf.Ticker("^VIX")
@@ -803,10 +780,7 @@ class VolatilityModelAdapter:
             vix3m_hist = vix3m_ticker.history(period="3mo")
 
             if vix_hist.empty:
-                return {
-                    "success": False,
-                    "error": "Failed to fetch VIX data from yfinance",
-                }
+                return error_response("Failed to fetch VIX data from yfinance", code="API_UNAVAILABLE")
 
             vix_current = round(float(vix_hist["Close"].iloc[-1]), 2)
 
@@ -870,9 +844,8 @@ class VolatilityModelAdapter:
             else:
                 vix_level = "극단 (Extreme) - 패닉/위기"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "vix_current": vix_current,
                     "vix3m_current": vix3m_current,
                     "ratio": ratio,
@@ -883,11 +856,12 @@ class VolatilityModelAdapter:
                     "historical_ratio_30d": historical_ratio,
                     "as_of": vix_hist.index[-1].strftime("%Y-%m-%d"),
                 },
-            }
+                source="Volatility Model",
+            )
 
         except Exception as e:
             logger.exception("VIX term structure failed")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
 
 # ── Standalone test ──────────────────────────────────────────────────

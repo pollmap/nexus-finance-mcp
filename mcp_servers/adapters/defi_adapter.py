@@ -4,8 +4,15 @@ DeFi Adapter — DefiLlama (TVL/protocols) + Fear & Greed Index.
 Both APIs are completely free, no authentication needed.
 """
 import logging
+import sys
+from pathlib import Path
 from typing import Any, Dict
 from utils.http_client import get_session
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("defi")
@@ -34,9 +41,9 @@ class DefiLlamaAdapter:
                 }
                 for p in data[:limit]
             ]
-            return {"success": True, "count": len(protocols), "data": protocols}
+            return success_response(protocols, source="DefiLlama")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_protocol(self, slug: str) -> Dict[str, Any]:
         """Get single protocol detail by slug (e.g., 'aave', 'uniswap')."""
@@ -44,16 +51,17 @@ class DefiLlamaAdapter:
             resp = _session.get(f"{DEFILLAMA_BASE}/protocol/{slug}", timeout=15)
             resp.raise_for_status()
             data = resp.json()
-            return {
-                "success": True,
-                "name": data.get("name"),
-                "tvl": data.get("tvl"),
-                "chain_tvls": data.get("chainTvls", {}),
-                "category": data.get("category"),
-                "url": data.get("url"),
-            }
+            return success_response(
+                data=None,
+                source="DefiLlama",
+                name=data.get("name"),
+                tvl=data.get("tvl"),
+                chain_tvls=data.get("chainTvls", {}),
+                category=data.get("category"),
+                url=data.get("url"),
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_chains(self) -> Dict[str, Any]:
         """Get TVL by chain."""
@@ -65,9 +73,9 @@ class DefiLlamaAdapter:
                 {"name": c.get("name"), "tvl": c.get("tvl")}
                 for c in sorted(data, key=lambda x: -(x.get("tvl") or 0))[:30]
             ]
-            return {"success": True, "count": len(chains), "data": chains}
+            return success_response(chains, source="DefiLlama")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_stablecoins(self) -> Dict[str, Any]:
         """Get stablecoin market cap data."""
@@ -82,9 +90,9 @@ class DefiLlamaAdapter:
                     "symbol": s.get("symbol"),
                     "circulating": s.get("circulating", {}).get("peggedUSD"),
                 })
-            return {"success": True, "count": len(stables), "data": stables}
+            return success_response(stables, source="DefiLlama")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 class FearGreedAdapter:
@@ -97,14 +105,15 @@ class FearGreedAdapter:
             resp.raise_for_status()
             data = resp.json()
             entry = data.get("data", [{}])[0]
-            return {
-                "success": True,
-                "value": int(entry.get("value", 0)),
-                "classification": entry.get("value_classification"),
-                "timestamp": entry.get("timestamp"),
-            }
+            return success_response(
+                data=None,
+                source="DefiLlama",
+                value=int(entry.get("value", 0)),
+                classification=entry.get("value_classification"),
+                timestamp=entry.get("timestamp"),
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_history(self, days: int = 30) -> Dict[str, Any]:
         """Get historical Fear & Greed values."""
@@ -120,6 +129,6 @@ class FearGreedAdapter:
                 }
                 for e in data.get("data", [])
             ]
-            return {"success": True, "count": len(history), "data": history}
+            return success_response(history, source="DefiLlama")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

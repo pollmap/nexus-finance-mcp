@@ -6,10 +6,18 @@ Free: 25,000 calls/day
 """
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("naver_adapter")
@@ -43,7 +51,7 @@ class NaverAdapter:
             sort: 'date' (latest) or 'sim' (relevance)
         """
         if not self._client_id:
-            return {"error": True, "message": "NAVER_CLIENT_ID not configured"}
+            return error_response("NAVER_CLIENT_ID not configured")
 
         try:
             params = {"query": query, "display": min(display, 100), "sort": sort}
@@ -62,15 +70,14 @@ class NaverAdapter:
                     "pubDate": item.get("pubDate"),
                 })
 
-            return {
-                "success": True,
-                "query": query,
-                "total": data.get("total", 0),
-                "count": len(articles),
-                "articles": articles,
-            }
+            return success_response(
+                articles,
+                source="Naver",
+                query=query,
+                total=data.get("total", 0),
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_trend(
         self, keywords: List[str], days: int = 30, time_unit: str = "date"
@@ -84,7 +91,7 @@ class NaverAdapter:
             time_unit: 'date' (daily), 'week', 'month'
         """
         if not self._client_id:
-            return {"error": True, "message": "NAVER_CLIENT_ID not configured"}
+            return error_response("NAVER_CLIENT_ID not configured")
 
         try:
             end = datetime.now()
@@ -115,11 +122,11 @@ class NaverAdapter:
                     ],
                 })
 
-            return {
-                "success": True,
-                "period": f"{start.strftime('%Y-%m-%d')} ~ {end.strftime('%Y-%m-%d')}",
-                "keywords": keywords,
-                "results": results,
-            }
+            return success_response(
+                results,
+                source="Naver",
+                period=f"{start.strftime('%Y-%m-%d')} ~ {end.strftime('%Y-%m-%d')}",
+                keywords=keywords,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

@@ -10,7 +10,15 @@ Universal format:
 """
 import logging
 import math
+import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 import numpy as np
 import pandas as pd
@@ -234,14 +242,11 @@ class FactorEngineAdapter:
                     factors = [f for f in factors if f not in FINANCIAL_FACTORS]
 
             if not factors:
-                return {"error": True, "message": "No computable factors after filtering"}
+                return error_response("No computable factors after filtering")
 
             stock_dfs = self._build_stock_dfs(stocks_data)
             if len(stock_dfs) < 2:
-                return {
-                    "error": True,
-                    "message": f"Need at least 2 valid stocks, got {len(stock_dfs)}",
-                }
+                return error_response(f"Need at least 2 valid stocks, got {len(stock_dfs)}")
 
             # Compute raw → z-scores
             raw = self._compute_raw_factors(stock_dfs, financial_data, factors)
@@ -267,16 +272,16 @@ class FactorEngineAdapter:
                     "rank": ranks[t],
                 }
 
-            return {
-                "success": True,
-                "data": result,
-                "factors_computed": factors,
-                "n_stocks": len(result),
-            }
+            return success_response(
+                result,
+                source="Factor Engine",
+                factors_computed=factors,
+                n_stocks=len(result),
+            )
 
         except Exception as e:
             logger.exception("factor_score failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 2. factor_backtest
@@ -306,10 +311,7 @@ class FactorEngineAdapter:
         try:
             stock_dfs = self._build_stock_dfs(stocks_data)
             if len(stock_dfs) < n_quantiles:
-                return {
-                    "error": True,
-                    "message": f"Need at least {n_quantiles} stocks for {n_quantiles}-quantile sort",
-                }
+                return error_response(f"Need at least {n_quantiles} stocks for {n_quantiles}-quantile sort")
 
             # Build combined close price panel
             close_dict = {}
@@ -317,14 +319,14 @@ class FactorEngineAdapter:
                 close_dict[ticker] = df["close"]
             panel = pd.DataFrame(close_dict).dropna(axis=0, how="all").ffill()
             if panel.empty:
-                return {"error": True, "message": "No overlapping date range"}
+                return error_response("No overlapping date range")
 
             # Monthly returns
             monthly = panel.resample("ME").last()
             monthly_ret = monthly.pct_change().dropna(how="all")
 
             if len(monthly_ret) < 3:
-                return {"error": True, "message": "Not enough monthly data for backtest"}
+                return error_response("Not enough monthly data for backtest")
 
             tickers = list(stock_dfs.keys())
             ic_list = []
@@ -407,7 +409,7 @@ class FactorEngineAdapter:
                     long_short_returns.append(float(long_r - short_r))
 
             if not ic_list:
-                return {"error": True, "message": "Could not compute any IC values"}
+                return error_response("Could not compute any IC values")
 
             ic_arr = np.array(ic_list)
             ic_mean = float(np.mean(ic_arr))
@@ -432,9 +434,8 @@ class FactorEngineAdapter:
                 for lag, v in decay_ics.items()
             }
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "factor": factor_name,
                     "n_quantiles": n_quantiles,
                     "n_periods": len(long_returns),
@@ -450,11 +451,12 @@ class FactorEngineAdapter:
                     "significant": abs(t_stat) > 1.96,
                     "factor_decay": factor_decay,
                 },
-            }
+                source="Factor Engine",
+            )
 
         except Exception as e:
             logger.exception("factor_backtest failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 3. factor_correlation
@@ -481,7 +483,7 @@ class FactorEngineAdapter:
 
             stock_dfs = self._build_stock_dfs(stocks_data)
             if len(stock_dfs) < 3:
-                return {"error": True, "message": "Need at least 3 stocks"}
+                return error_response("Need at least 3 stocks")
 
             raw = self._compute_raw_factors(stock_dfs, financial_data, factors)
 
@@ -494,7 +496,7 @@ class FactorEngineAdapter:
             factor_df = factor_df.dropna(how="all")
 
             if len(factor_df) < 3:
-                return {"error": True, "message": "Not enough stocks with factor data"}
+                return error_response("Not enough stocks with factor data")
 
             corr = factor_df.corr(method="spearman")
 
@@ -518,20 +520,20 @@ class FactorEngineAdapter:
                     if not math.isnan(corr.loc[f, f2])
                 }
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "correlation_matrix": corr_dict,
                     "redundant_pairs": redundant,
                     "n_factors": len(factors),
                     "n_stocks": len(factor_df),
                     "factors": factors,
                 },
-            }
+                source="Factor Engine",
+            )
 
         except Exception as e:
             logger.exception("factor_correlation failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 4. factor_exposure
@@ -560,14 +562,14 @@ class FactorEngineAdapter:
 
             stock_dfs = self._build_stock_dfs(stocks_data)
             if not stock_dfs:
-                return {"error": True, "message": "No valid stock data"}
+                return error_response("No valid stock data")
 
             raw = self._compute_raw_factors(stock_dfs, financial_data, factors)
             zscores = self._cross_sectional_zscore(raw, factors)
 
             total_weight = sum(portfolio_weights.values())
             if total_weight == 0:
-                return {"error": True, "message": "Portfolio weights sum to 0"}
+                return error_response("Portfolio weights sum to 0")
 
             # Normalize weights
             norm_weights = {
@@ -603,9 +605,8 @@ class FactorEngineAdapter:
             weights_arr = np.array(list(norm_weights.values()))
             hhi = float(np.sum(weights_arr ** 2))
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "factor_exposures": exposures,
                     "risk_warnings": risk_warnings,
                     "portfolio_hhi": round(hhi, 4),
@@ -613,11 +614,12 @@ class FactorEngineAdapter:
                     "total_weight_input": round(total_weight, 4),
                     "factors_analyzed": factors,
                 },
-            }
+                source="Factor Engine",
+            )
 
         except Exception as e:
             logger.exception("factor_exposure failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 5. factor_timing
@@ -645,7 +647,7 @@ class FactorEngineAdapter:
         try:
             stock_dfs = self._build_stock_dfs(stocks_data)
             if len(stock_dfs) < 5:
-                return {"error": True, "message": "Need at least 5 stocks"}
+                return error_response("Need at least 5 stocks")
 
             # Build monthly close panel
             close_dict = {t: df["close"] for t, df in stock_dfs.items()}
@@ -654,7 +656,7 @@ class FactorEngineAdapter:
             monthly_ret = monthly.pct_change().dropna(how="all")
 
             if len(monthly_ret) < 6:
-                return {"error": True, "message": "Not enough monthly data"}
+                return error_response("Not enough monthly data")
 
             # Limit to lookback
             monthly_ret = monthly_ret.iloc[-min(lookback, len(monthly_ret)):]
@@ -712,7 +714,7 @@ class FactorEngineAdapter:
                     })
 
             if not factor_returns:
-                return {"error": True, "message": "Could not compute factor returns"}
+                return error_response("Could not compute factor returns")
 
             fr_series = pd.Series([r["factor_return"] for r in factor_returns])
 
@@ -739,9 +741,8 @@ class FactorEngineAdapter:
             else:
                 recommendation = "NEUTRAL: No clear signal"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "factor": factor_name,
                     "n_periods": len(factor_returns),
                     "factor_returns_history": factor_returns,
@@ -753,11 +754,12 @@ class FactorEngineAdapter:
                     "current_momentum": round(momentum_ratio, 4),
                     "recommendation": recommendation,
                 },
-            }
+                source="Factor Engine",
+            )
 
         except Exception as e:
             logger.exception("factor_timing failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # 6. factor_custom
@@ -786,7 +788,7 @@ class FactorEngineAdapter:
         try:
             stock_dfs = self._build_stock_dfs(stocks_data)
             if len(stock_dfs) < 5:
-                return {"error": True, "message": "Need at least 5 stocks"}
+                return error_response("Need at least 5 stocks")
 
             formula_type = custom_formula.get("type", "return")
             raw_scores = {}
@@ -830,20 +832,16 @@ class FactorEngineAdapter:
                             raw_scores[ticker] = float((ma - current) / current)
 
                     else:
-                        return {
-                            "error": True,
-                            "message": f"Unknown formula type: {formula_type}. "
-                                       f"Supported: ratio, rank, return, volatility, mean_reversion",
-                        }
+                        return error_response(
+                            f"Unknown formula type: {formula_type}. "
+                            f"Supported: ratio, rank, return, volatility, mean_reversion"
+                        )
 
                 except Exception as e:
                     logger.warning("Custom factor failed for %s: %s", ticker, e)
 
             if len(raw_scores) < 5:
-                return {
-                    "error": True,
-                    "message": f"Only {len(raw_scores)} stocks computed, need >= 5",
-                }
+                return error_response(f"Only {len(raw_scores)} stocks computed, need >= 5")
 
             # Z-score
             scores_series = pd.Series(raw_scores)
@@ -895,9 +893,8 @@ class FactorEngineAdapter:
             sorted_t = sorted(factor_scores_dict, key=factor_scores_dict.get, reverse=True)
             ranked = {t: {"z_score": factor_scores_dict[t], "rank": i + 1} for i, t in enumerate(sorted_t)}
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "formula": custom_formula,
                     "factor_scores": ranked,
                     "n_stocks": len(ranked),
@@ -907,11 +904,12 @@ class FactorEngineAdapter:
                     "significant": abs(t_stat) > 1.96,
                     "n_ic_observations": len(ic_list),
                 },
-            }
+                source="Factor Engine",
+            )
 
         except Exception as e:
             logger.exception("factor_custom failed")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------ #
     # field resolver for custom factors

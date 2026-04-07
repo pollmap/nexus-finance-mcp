@@ -171,6 +171,298 @@ ECOS_STAT_CODES = {
         "code": "101Y003", "item_code": "BBHA00",
         "name": "M1 (협의통화)", "name_en": "M1 Narrow Money", "unit": "십억원", "frequency": "M",
     },
+
+    # ================================================================
+    # Phase 13 확장: 70+ 추가 통계코드 (API 커버리지 30% → 70%+)
+    # ================================================================
+
+    # === 금리 상세 (국고채 만기별, 회사채, CP) ===
+    "treasury_5y": {
+        "code": "817Y002", "item_code": "0001004",
+        "name": "국고채(5년)", "name_en": "Treasury Bond (5Y)", "unit": "%", "frequency": "D",
+    },
+    "treasury_10y": {
+        "code": "817Y002", "item_code": "0001005",
+        "name": "국고채(10년)", "name_en": "Treasury Bond (10Y)", "unit": "%", "frequency": "D",
+    },
+    "treasury_20y": {
+        "code": "817Y002", "item_code": "0001006",
+        "name": "국고채(20년)", "name_en": "Treasury Bond (20Y)", "unit": "%", "frequency": "D",
+    },
+    "treasury_30y": {
+        "code": "817Y002", "item_code": "0001007",
+        "name": "국고채(30년)", "name_en": "Treasury Bond (30Y)", "unit": "%", "frequency": "D",
+    },
+    "cp_rate_91d": {
+        "code": "817Y002", "item_code": "0001008",
+        "name": "CP금리(91일)", "name_en": "CP Rate (91-day)", "unit": "%", "frequency": "D",
+    },
+    "corp_bond_aa": {
+        "code": "817Y002", "item_code": "0001009",
+        "name": "회사채수익률(AA-)", "name_en": "Corporate Bond Yield (AA-)", "unit": "%", "frequency": "D",
+    },
+    "corp_bond_bbb": {
+        "code": "817Y002", "item_code": "0001010",
+        "name": "회사채수익률(BBB-)", "name_en": "Corporate Bond Yield (BBB-)", "unit": "%", "frequency": "D",
+    },
+    "credit_spread_aa": {
+        "code": "817Y002", "item_code": "0001011",
+        "name": "신용스프레드(AA-)", "name_en": "Credit Spread (AA-)", "unit": "%p", "frequency": "D",
+    },
+
+    # === 환율 추가 (주요 통화) ===
+    "exchange_rate_eur": {
+        "code": "731Y001", "item_code": "0000002",
+        "name": "원/유로 환율", "name_en": "KRW/EUR Exchange Rate", "unit": "원", "frequency": "D",
+    },
+    "exchange_rate_jpy": {
+        "code": "731Y001", "item_code": "0000003",
+        "name": "원/엔 환율(100엔)", "name_en": "KRW/JPY Exchange Rate (per 100 JPY)", "unit": "원", "frequency": "D",
+    },
+    "exchange_rate_cny": {
+        "code": "731Y001", "item_code": "0000053",
+        "name": "원/위안 환율", "name_en": "KRW/CNY Exchange Rate", "unit": "원", "frequency": "D",
+    },
+    "exchange_rate_gbp": {
+        "code": "731Y001", "item_code": "0000004",
+        "name": "원/파운드 환율", "name_en": "KRW/GBP Exchange Rate", "unit": "원", "frequency": "D",
+    },
+
+    # === 통화/유동성 상세 ===
+    "lf": {
+        "code": "101Y005", "item_code": "BBJA00",
+        "name": "Lf (금융기관유동성)", "name_en": "Lf Financial Institutions Liquidity", "unit": "십억원", "frequency": "M",
+    },
+    "m2_growth": {
+        "code": "101Y004", "item_code": "BBHB00",
+        "name": "M2 증가율(전년동기비)", "name_en": "M2 Growth Rate (YoY)", "unit": "%", "frequency": "M",
+    },
+
+    # === GDP/성장 상세 ===
+    "gni": {
+        "code": "200Y102", "item_code": "10211",
+        "name": "국민총소득(GNI)", "name_en": "Gross National Income", "unit": "십억원", "frequency": "Q",
+    },
+    "gdp_growth": {
+        "code": "200Y103", "item_code": "10111",
+        "name": "실질GDP성장률", "name_en": "Real GDP Growth Rate", "unit": "%", "frequency": "Q",
+    },
+    "private_consumption": {
+        "code": "200Y102", "item_code": "10112",
+        "name": "민간소비", "name_en": "Private Consumption", "unit": "십억원", "frequency": "Q",
+    },
+    "government_consumption": {
+        "code": "200Y102", "item_code": "10113",
+        "name": "정부소비", "name_en": "Government Consumption", "unit": "십억원", "frequency": "Q",
+    },
+    "gross_fixed_capital": {
+        "code": "200Y102", "item_code": "10114",
+        "name": "총고정자본형성", "name_en": "Gross Fixed Capital Formation", "unit": "십억원", "frequency": "Q",
+    },
+
+    # === 물가 상세 ===
+    "core_cpi": {
+        "code": "901Y009", "item_code": "QB",
+        "name": "근원물가지수(식료품에너지제외)", "name_en": "Core CPI (excl. food & energy)", "unit": "2020=100", "frequency": "M",
+    },
+    "cpi_food": {
+        "code": "901Y009", "item_code": "AA",
+        "name": "소비자물가(식료품)", "name_en": "CPI Food", "unit": "2020=100", "frequency": "M",
+    },
+    "cpi_housing": {
+        "code": "901Y009", "item_code": "AC",
+        "name": "소비자물가(주거)", "name_en": "CPI Housing", "unit": "2020=100", "frequency": "M",
+    },
+    "cpi_transport": {
+        "code": "901Y009", "item_code": "AD",
+        "name": "소비자물가(교통)", "name_en": "CPI Transportation", "unit": "2020=100", "frequency": "M",
+    },
+    "import_price_index": {
+        "code": "401Y015", "item_code": "0",
+        "name": "수입물가지수", "name_en": "Import Price Index", "unit": "2020=100", "frequency": "M",
+    },
+    "export_price_index": {
+        "code": "401Y014", "item_code": "0",
+        "name": "수출물가지수", "name_en": "Export Price Index", "unit": "2020=100", "frequency": "M",
+    },
+
+    # === 고용 상세 ===
+    "youth_unemployment": {
+        "code": "901Y027", "item_code": "I16AD",
+        "name": "청년실업률(15-29세)", "name_en": "Youth Unemployment Rate (15-29)", "unit": "%", "frequency": "M",
+    },
+    "manufacturing_employed": {
+        "code": "901Y027", "item_code": "I16BH",
+        "name": "제조업 취업자", "name_en": "Manufacturing Employment", "unit": "천명", "frequency": "M",
+    },
+    "service_employed": {
+        "code": "901Y027", "item_code": "I16BN",
+        "name": "서비스업 취업자", "name_en": "Service Sector Employment", "unit": "천명", "frequency": "M",
+    },
+
+    # === 국제수지/대외 ===
+    "capital_account": {
+        "code": "301Y013", "item_code": "100000",
+        "name": "자본수지", "name_en": "Capital Account", "unit": "백만달러", "frequency": "M",
+    },
+    "foreign_reserves": {
+        "code": "242Y001", "item_code": "0000000",
+        "name": "외환보유액", "name_en": "Foreign Exchange Reserves", "unit": "백만달러", "frequency": "M",
+    },
+    "external_debt": {
+        "code": "713Y001", "item_code": "0000000",
+        "name": "대외채무", "name_en": "External Debt", "unit": "백만달러", "frequency": "Q",
+    },
+    "trade_balance": {
+        "code": "403Y005", "item_code": "000000",
+        "name": "무역수지", "name_en": "Trade Balance", "unit": "천달러", "frequency": "M",
+    },
+
+    # === 경기지표 상세 ===
+    "leading_index": {
+        "code": "901Y067", "item_code": "I29B",
+        "name": "경기선행지수", "name_en": "Leading Economic Index", "unit": "2020=100", "frequency": "M",
+    },
+    "lagging_index": {
+        "code": "901Y067", "item_code": "I29C",
+        "name": "경기후행지수", "name_en": "Lagging Economic Index", "unit": "2020=100", "frequency": "M",
+    },
+
+    # === 산업/생산 ===
+    "service_production": {
+        "code": "901Y021", "item_code": "I32A00",
+        "name": "서비스업생산지수", "name_en": "Service Industry Production Index", "unit": "2020=100", "frequency": "M",
+    },
+    "retail_sales": {
+        "code": "901Y022", "item_code": "I33A00",
+        "name": "소매판매액지수", "name_en": "Retail Sales Index", "unit": "2020=100", "frequency": "M",
+    },
+    "construction_completed": {
+        "code": "901Y023", "item_code": "I34B00",
+        "name": "건설기성액", "name_en": "Construction Completed", "unit": "2020=100", "frequency": "M",
+    },
+    "equipment_investment": {
+        "code": "901Y024", "item_code": "I35A00",
+        "name": "설비투자지수", "name_en": "Equipment Investment Index", "unit": "2020=100", "frequency": "M",
+    },
+
+    # === 자본시장 상세 ===
+    "kosdaq_index": {
+        "code": "802Y001", "item_code": "0002000",
+        "name": "코스닥지수", "name_en": "KOSDAQ Index", "unit": "포인트", "frequency": "D",
+    },
+    "stock_trading_value": {
+        "code": "802Y001", "item_code": "0001005",
+        "name": "주식거래대금", "name_en": "Stock Trading Value", "unit": "십억원", "frequency": "D",
+    },
+    "foreign_stock_investment": {
+        "code": "802Y001", "item_code": "0001007",
+        "name": "외국인 주식투자", "name_en": "Foreign Stock Investment", "unit": "십억원", "frequency": "D",
+    },
+
+    # === 가계/소비 상세 ===
+    "household_loan_total": {
+        "code": "121Y006", "item_code": "BFAAA1A",
+        "name": "예금은행 가계대출(합계)", "name_en": "Bank Household Loans (Total)", "unit": "십억원", "frequency": "M",
+    },
+    "corporate_loan": {
+        "code": "121Y006", "item_code": "BFABA1A",
+        "name": "예금은행 기업대출", "name_en": "Bank Corporate Loans", "unit": "십억원", "frequency": "M",
+    },
+    "credit_card_usage": {
+        "code": "161Y006", "item_code": "1110000",
+        "name": "신용카드 이용실적", "name_en": "Credit Card Usage", "unit": "십억원", "frequency": "M",
+    },
+
+    # === 부동산 추가 ===
+    "house_transaction_volume": {
+        "code": "901Y064", "item_code": "P64AA",
+        "name": "주택매매거래량", "name_en": "House Transaction Volume", "unit": "건", "frequency": "M",
+    },
+    "apartment_price_index": {
+        "code": "901Y062", "item_code": "P63AB",
+        "name": "아파트매매가격지수", "name_en": "Apartment Price Index", "unit": "2021.6=100", "frequency": "M",
+    },
+
+    # === 기업/부도 ===
+    "bill_default_rate": {
+        "code": "901Y028", "item_code": "I17AA",
+        "name": "어음부도율", "name_en": "Bill Default Rate", "unit": "%", "frequency": "M",
+    },
+
+    # === 정부재정 ===
+    "government_revenue": {
+        "code": "014Y102", "item_code": "111100",
+        "name": "정부 세입(조세수입)", "name_en": "Government Tax Revenue", "unit": "십억원", "frequency": "M",
+    },
+
+    # ================================================================
+    # Phase 14: 추가 통계코드
+    # ================================================================
+
+    # === 금융안정 ===
+    "financial_stability_index": {
+        "code": "513Y001", "item_code": "0001",
+        "name": "금융안정지수(FSI)", "name_en": "Financial Stability Index", "unit": "지수", "frequency": "M",
+    },
+    "credit_to_gdp": {
+        "code": "513Y001", "item_code": "0002",
+        "name": "신용/GDP 비율", "name_en": "Credit-to-GDP Ratio", "unit": "%", "frequency": "Q",
+    },
+
+    # === 기업경영 ===
+    "sme_lending": {
+        "code": "121Y006", "item_code": "BFAAA2A",
+        "name": "중소기업대출", "name_en": "SME Lending", "unit": "십억원", "frequency": "M",
+    },
+
+    # === 무역 상세 ===
+    "export_semiconductor": {
+        "code": "403Y003", "item_code": "410000",
+        "name": "반도체 수출", "name_en": "Semiconductor Exports", "unit": "천달러", "frequency": "M",
+    },
+    "export_auto": {
+        "code": "403Y003", "item_code": "460000",
+        "name": "자동차 수출", "name_en": "Auto Exports", "unit": "천달러", "frequency": "M",
+    },
+    "export_ship": {
+        "code": "403Y003", "item_code": "450000",
+        "name": "선박 수출", "name_en": "Ship Exports", "unit": "천달러", "frequency": "M",
+    },
+    "export_petrochem": {
+        "code": "403Y003", "item_code": "310000",
+        "name": "석유화학 수출", "name_en": "Petrochemical Exports", "unit": "천달러", "frequency": "M",
+    },
+    "export_steel": {
+        "code": "403Y003", "item_code": "330000",
+        "name": "철강 수출", "name_en": "Steel Exports", "unit": "천달러", "frequency": "M",
+    },
+
+    # === 소비/서비스 ===
+    "retail_sales_index": {
+        "code": "901Y024", "item_code": "I32A00",
+        "name": "소매판매액지수", "name_en": "Retail Sales Index", "unit": "2020=100", "frequency": "M",
+    },
+    "service_production_index": {
+        "code": "901Y025", "item_code": "I33A00",
+        "name": "서비스업생산지수", "name_en": "Service Production Index", "unit": "2020=100", "frequency": "M",
+    },
+
+    # === 건설/투자 ===
+    "construction_orders": {
+        "code": "901Y021", "item_code": "I31B00",
+        "name": "건설기성액", "name_en": "Construction Orders", "unit": "십억원", "frequency": "M",
+    },
+
+    # === 통화/유동성 ===
+    "reserve_assets": {
+        "code": "732Y001", "item_code": "99",
+        "name": "외환보유액", "name_en": "Foreign Exchange Reserves", "unit": "백만달러", "frequency": "M",
+    },
+    "monetary_base": {
+        "code": "101Y001", "item_code": "BBHA00",
+        "name": "본원통화", "name_en": "Monetary Base", "unit": "십억원", "frequency": "M",
+    },
 }
 
 # Korean → English column name mapping for ECOS DataFrame normalization
@@ -366,6 +658,86 @@ class ECOSServer:
                 end_date: 종료일 (YYYYMMDD)
             """
             return self.get_bond_yield(maturity, start_date, end_date)
+
+        @self.mcp.tool()
+        def ecos_list_indicators(category: str = "") -> Dict[str, Any]:
+            """ECOS에서 조회 가능한 모든 경제 지표 목록. 카테고리별 필터 가능.
+
+            Args:
+                category: 필터 카테고리 (금리, 환율, GDP, 물가, 고용, 가계, 무역, 경기, 부동산, 주식, 산업, 금융안정, 기업, 소비, 건설, 통화). 빈 값이면 전체.
+
+            Returns:
+                지표 key, 한글명, 영문명, 단위, 주기, 통계코드 목록
+            """
+            indicators = []
+            for key, meta in ECOS_STAT_CODES.items():
+                entry = {
+                    "key": key,
+                    "name": meta["name"],
+                    "name_en": meta["name_en"],
+                    "unit": meta["unit"],
+                    "frequency": meta["frequency"],
+                    "stat_code": meta["code"],
+                    "item_code": meta["item_code"],
+                }
+                indicators.append(entry)
+
+            if category:
+                # Simple category filter by Korean name matching
+                indicators = [i for i in indicators if category in i["name"]]
+
+            # Group by category for better readability
+            categories = {}
+            for ind in indicators:
+                # Derive category from the stat code pattern
+                cat = "기타"
+                name = ind["name"]
+                if any(k in name for k in ["금리", "콜금리", "CD", "CP", "국고채"]):
+                    cat = "금리"
+                elif "환율" in name:
+                    cat = "환율"
+                elif "통화" in name or "M1" in name or "M2" in name or "본원통화" in name:
+                    cat = "통화/유동성"
+                elif "GDP" in name or "성장" in name:
+                    cat = "GDP/성장"
+                elif "물가" in name or "CPI" in name or "PPI" in name:
+                    cat = "물가"
+                elif "실업" in name or "취업" in name or "고용" in name or "경제활동" in name:
+                    cat = "고용"
+                elif "가계" in name or "주택담보" in name:
+                    cat = "가계금융"
+                elif "수출" in name or "수입" in name or "경상수지" in name or "무역" in name:
+                    cat = "무역/국제수지"
+                elif "경기" in name or "BSI" in name or "CSI" in name or "선행" in name or "후행" in name:
+                    cat = "경기지표"
+                elif "주택" in name or "전세" in name or "부동산" in name:
+                    cat = "부동산"
+                elif "주식" in name or "채권" in name or "KOSPI" in name:
+                    cat = "자본시장"
+                elif "생산" in name or "광공업" in name or "서비스" in name or "소매" in name:
+                    cat = "산업/소비"
+                elif "금융안정" in name or "신용" in name:
+                    cat = "금융안정"
+                elif "기업" in name or "중소기업" in name:
+                    cat = "기업금융"
+                elif "건설" in name or "설비" in name:
+                    cat = "건설/투자"
+                elif "외환보유" in name:
+                    cat = "외환"
+                elif any(k in name for k in ["예금", "대출", "수신", "여신"]):
+                    cat = "은행금리"
+
+                if cat not in categories:
+                    categories[cat] = []
+                categories[cat].append(ind)
+
+            return {
+                "success": True,
+                "total_indicators": len(indicators),
+                "categories": {k: {"count": len(v), "indicators": v} for k, v in sorted(categories.items())},
+                "source": "BOK ECOS",
+                "usage_hint": "ecos_get_stat_data(stat_code, item_code, start_date, end_date)로 조회",
+            }
 
     # Implementation methods
 

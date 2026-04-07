@@ -1,10 +1,17 @@
 """Disaster Adapter — USGS Earthquake, NASA EONET, GDACS."""
 import logging
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("disaster_adapter")
@@ -32,7 +39,7 @@ class DisasterAdapter:
             }
             resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
-                return {"error": True, "message": f"USGS API returned {resp.status_code}"}
+                return error_response(f"USGS API returned {resp.status_code}")
 
             data = resp.json()
             features = data.get("features", [])
@@ -55,16 +62,14 @@ class DisasterAdapter:
                     "url": props.get("url", ""),
                 })
 
-            return {
-                "success": True,
-                "source": "USGS/FDSNWS",
-                "min_magnitude": min_magnitude,
-                "period_days": days,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                records,
+                source="USGS/EONET",
+                min_magnitude=min_magnitude,
+                period_days=days,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def _fetch_eonet_events(self, category: str, days: int, limit: int) -> Dict[str, Any]:
         """NASA EONET v3 공통 이벤트 조회."""
@@ -78,7 +83,7 @@ class DisasterAdapter:
             }
             resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
-                return {"error": True, "message": f"NASA EONET returned {resp.status_code}"}
+                return error_response(f"NASA EONET returned {resp.status_code}")
 
             data = resp.json()
             events = data.get("events", [])
@@ -98,16 +103,14 @@ class DisasterAdapter:
                     "closed": ev.get("closed"),
                 })
 
-            return {
-                "success": True,
-                "source": "NASA/EONET",
-                "category": category,
-                "period_days": days,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                records,
+                source="USGS/EONET",
+                category=category,
+                period_days=days,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_volcanoes(self, days: int = 60, limit: int = 20) -> Dict[str, Any]:
         """NASA EONET 화산 활동 이벤트."""
@@ -151,25 +154,23 @@ class DisasterAdapter:
                             "severity": props.get("severity", {}).get("severity_text", "") if isinstance(props.get("severity"), dict) else str(props.get("severity", "")),
                             "url": props.get("url", {}).get("report", "") if isinstance(props.get("url"), dict) else str(props.get("url", "")),
                         })
-                    return {
-                        "success": True,
-                        "source": "GDACS",
-                        "event_type": "flood",
-                        "period_days": days,
-                        "count": len(records),
-                        "data": records,
-                    }
+                    return success_response(
+                        records,
+                        source="USGS/EONET",
+                        event_type="flood",
+                        period_days=days,
+                    )
                 except (ValueError, KeyError):
                     pass
 
             # Fallback: parse XML
             resp_xml = _session.get(url, params=params, timeout=20)
             if resp_xml.status_code != 200:
-                return {"error": True, "message": f"GDACS API returned {resp_xml.status_code}"}
+                return error_response(f"GDACS API returned {resp_xml.status_code}")
 
             return self._parse_gdacs_xml(resp_xml.text, "flood", days)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def _parse_gdacs_xml(self, xml_text: str, event_type: str, days: int) -> Dict[str, Any]:
         """GDACS XML 응답 파싱."""
@@ -202,16 +203,14 @@ class DisasterAdapter:
                     "url": link,
                 })
 
-            return {
-                "success": True,
-                "source": "GDACS",
-                "event_type": event_type,
-                "period_days": days,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                records,
+                source="USGS/EONET",
+                event_type=event_type,
+                period_days=days,
+            )
         except ET.ParseError as e:
-            return {"error": True, "message": f"XML parse error: {str(e)}"}
+            return error_response(f"XML parse error: {str(e)}")
 
     def get_active_events(self) -> Dict[str, Any]:
         """GDACS 현재 활성 재난 이벤트."""
@@ -244,23 +243,21 @@ class DisasterAdapter:
                             "longitude": coords[0] if len(coords) > 0 else None,
                             "latitude": coords[1] if len(coords) > 1 else None,
                         })
-                    return {
-                        "success": True,
-                        "source": "GDACS",
-                        "description": "Active events in last 7 days",
-                        "count": len(records),
-                        "data": records,
-                    }
+                    return success_response(
+                        records,
+                        source="USGS/EONET",
+                        description="Active events in last 7 days",
+                    )
                 except (ValueError, KeyError):
                     pass
 
             # Fallback XML
             resp_xml = _session.get(url, params=params, timeout=20)
             if resp_xml.status_code != 200:
-                return {"error": True, "message": f"GDACS returned {resp_xml.status_code}"}
+                return error_response(f"GDACS returned {resp_xml.status_code}")
             return self._parse_gdacs_xml(resp_xml.text, "all", 7)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_disaster_summary(self, year: Optional[int] = None) -> Dict[str, Any]:
         """연간 재난 통계 요약 (USGS 지진 수 + EONET 이벤트 수)."""
@@ -313,10 +310,9 @@ class DisasterAdapter:
                 except Exception:
                     summary["eonet_events"][cat] = None
 
-            return {
-                "success": True,
-                "source": "USGS+NASA/EONET",
-                "data": summary,
-            }
+            return success_response(
+                summary,
+                source="USGS/EONET",
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

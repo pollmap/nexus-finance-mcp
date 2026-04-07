@@ -10,6 +10,7 @@ import requests
 from utils.http_client import get_session
 from typing import Any, Dict
 from datetime import datetime, timedelta
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("phase3_adapters")
@@ -31,32 +32,32 @@ class MaritimeAdapter:
             resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
-            return {"success": True, "source": "FRED/DBDI", "count": len(records), "data": records}
+            return success_response(records, source="FRED/DBDI")
         except Exception as e:
             logger.error(f"BDI proxy error: {e}")
-            return {"error": True, "message": f"BDI data retrieval failed: {e}"}
+            return error_response(f"BDI data retrieval failed: {e}")
 
     def get_port_stats(self) -> Dict[str, Any]:
         """Korean port statistics summary."""
-        return {
-            "success": True,
-            "source": "manual/reference",
-            "major_ports": [
-                {"name": "부산항", "code": "KRPUS", "type": "container", "rank_global": 7},
-                {"name": "인천항", "code": "KRINC", "type": "general", "rank_korea": 2},
-                {"name": "울산항", "code": "KRUSN", "type": "oil/chemical", "rank_korea": 3},
-                {"name": "광양항", "code": "KRKWN", "type": "container", "rank_korea": 4},
-                {"name": "평택당진항", "code": "KRPTK", "type": "general/auto", "rank_korea": 5},
-                {"name": "대산항", "code": "KRDAS", "type": "petrochemical", "rank_korea": 6},
-                {"name": "마산항", "code": "KRMAS", "type": "general", "rank_korea": 7},
-                {"name": "동해항", "code": "KRDHE", "type": "general/coal", "rank_korea": 8},
-                {"name": "포항항", "code": "KRPOH", "type": "steel", "rank_korea": 9},
-                {"name": "목포항", "code": "KRMOK", "type": "general", "rank_korea": 10},
-                {"name": "군산항", "code": "KRKSN", "type": "general", "rank_korea": 11},
-                {"name": "여수항", "code": "KRYOS", "type": "petrochemical", "rank_korea": 12},
-            ],
-            "note": "For live vessel tracking, use AISstream.io WebSocket (requires separate integration).",
-        }
+        major_ports = [
+            {"name": "부산항", "code": "KRPUS", "type": "container", "rank_global": 7},
+            {"name": "인천항", "code": "KRINC", "type": "general", "rank_korea": 2},
+            {"name": "울산항", "code": "KRUSN", "type": "oil/chemical", "rank_korea": 3},
+            {"name": "광양항", "code": "KRKWN", "type": "container", "rank_korea": 4},
+            {"name": "평택당진항", "code": "KRPTK", "type": "general/auto", "rank_korea": 5},
+            {"name": "대산항", "code": "KRDAS", "type": "petrochemical", "rank_korea": 6},
+            {"name": "마산항", "code": "KRMAS", "type": "general", "rank_korea": 7},
+            {"name": "동해항", "code": "KRDHE", "type": "general/coal", "rank_korea": 8},
+            {"name": "포항항", "code": "KRPOH", "type": "steel", "rank_korea": 9},
+            {"name": "목포항", "code": "KRMOK", "type": "general", "rank_korea": 10},
+            {"name": "군산항", "code": "KRKSN", "type": "general", "rank_korea": 11},
+            {"name": "여수항", "code": "KRYOS", "type": "petrochemical", "rank_korea": 12},
+        ]
+        return success_response(
+            major_ports,
+            source="manual/reference",
+            note="For live vessel tracking, use AISstream.io WebSocket (requires separate integration).",
+        )
 
     def get_container_index(self) -> Dict[str, Any]:
         """Get Freightos Baltic Index (container shipping) from FRED."""
@@ -68,10 +69,10 @@ class MaritimeAdapter:
             resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
-            return {"success": True, "source": "FRED/FBXIUS", "index": "Freightos Baltic Index (US)", "count": len(records), "data": records}
+            return success_response(records, source="FRED/FBXIUS", index="Freightos Baltic Index (US)")
         except Exception as e:
             logger.error(f"Container index error: {e}")
-            return {"error": True, "message": f"Container index data retrieval failed: {e}"}
+            return error_response(f"Container index data retrieval failed: {e}")
 
 
 # ============================================================
@@ -89,10 +90,10 @@ class AviationAdapter:
             resp = _session.get(f"{self.BASE}/flights/departure", params={"airport": airport, "begin": begin, "end": end}, timeout=20)
             if resp.status_code == 200:
                 flights = resp.json()[:30]
-                return {"success": True, "airport": airport, "count": len(flights), "flights": flights}
-            return {"error": True, "message": f"HTTP {resp.status_code}"}
+                return success_response(flights, source="OpenSky", airport=airport)
+            return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_all_states(self, country: str = "") -> Dict[str, Any]:
         """Get all aircraft currently in the air."""
@@ -107,10 +108,10 @@ class AviationAdapter:
                 aircraft = [{"icao24": s[0], "callsign": (s[1] or "").strip(), "country": s[2],
                             "longitude": s[5], "latitude": s[6], "altitude": s[7]}
                            for s in states if len(s) >= 8]
-                return {"success": True, "total": data.get("time"), "count": len(aircraft), "aircraft": aircraft}
-            return {"error": True, "message": f"HTTP {resp.status_code}"}
+                return success_response(aircraft, source="OpenSky", total=data.get("time"))
+            return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ============================================================
@@ -133,9 +134,9 @@ class EnergyAdapter:
             resp = _session.get(url, params=params, timeout=15)
             data = resp.json().get("response", {}).get("data", [])
             records = [{"date": d.get("period"), "price": d.get("value"), "unit": "$/barrel"} for d in data]
-            return {"success": True, "source": "EIA", "series": "WTI Crude", "count": len(records), "data": records}
+            return success_response(records, source="EIA", series="WTI Crude")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_natural_gas_price(self, limit: int = 30) -> Dict[str, Any]:
         """Get Henry Hub natural gas spot price."""
@@ -146,9 +147,9 @@ class EnergyAdapter:
             resp = _session.get(url, params=params, timeout=15)
             data = resp.json().get("response", {}).get("data", [])
             records = [{"date": d.get("period"), "price": d.get("value")} for d in data]
-            return {"success": True, "source": "EIA", "series": "Natural Gas", "count": len(records), "data": records}
+            return success_response(records, source="EIA", series="Natural Gas")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     # Allowed EIA API routes to prevent path traversal
     ALLOWED_EIA_ROUTES = {
@@ -159,7 +160,7 @@ class EnergyAdapter:
     def get_eia_series(self, route: str, series_id: str = "", frequency: str = "monthly", limit: int = 30) -> Dict[str, Any]:
         """범용 EIA API v2 시계열 조회. route 예: petroleum/pri/spt, electricity/retail-sales."""
         if route not in self.ALLOWED_EIA_ROUTES:
-            return {"error": True, "message": f"Unknown EIA route. Allowed: {', '.join(sorted(self.ALLOWED_EIA_ROUTES))}"}
+            return error_response(f"Unknown EIA route. Allowed: {', '.join(sorted(self.ALLOWED_EIA_ROUTES))}")
         try:
             url = f"{self.BASE}/{route}/data/"
             params = {"api_key": self._api_key, "frequency": frequency, "data[0]": "value",
@@ -169,9 +170,9 @@ class EnergyAdapter:
             resp = _session.get(url, params=params, timeout=15)
             data = resp.json().get("response", {}).get("data", [])
             records = [{"date": d.get("period"), "value": d.get("value"), "unit": d.get("units", "")} for d in data]
-            return {"success": True, "source": "EIA", "route": route, "count": len(records), "data": records}
+            return success_response(records, source="EIA", route=route)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_electricity_data(self, limit: int = 30) -> Dict[str, Any]:
         """미국 전력 소매 판매 데이터."""
@@ -189,10 +190,10 @@ class EnergyAdapter:
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "price": d["value"], "unit": "$/gallon"} for d in data if d["value"] != "."]
             if records:
-                return {"success": True, "source": "FRED/DHOILNYH", "series": "NY Harbor No.2 Heating Oil (bunker proxy)", "count": len(records), "data": records}
-            return {"success": True, "data": [], "message": "No bunker fuel data available"}
+                return success_response(records, source="FRED/DHOILNYH", series="NY Harbor No.2 Heating Oil (bunker proxy)")
+            return success_response([], source="FRED/DHOILNYH", message="No bunker fuel data available")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_opec_production(self) -> Dict[str, Any]:
         """OPEC 원유 생산량 — EIA 국제 데이터."""
@@ -220,9 +221,9 @@ class WeatherAdapter:
                 records.append({"date": d, "temp_max": daily.get("temperature_2m_max", [None])[i],
                     "temp_min": daily.get("temperature_2m_min", [None])[i],
                     "precip_mm": daily.get("precipitation_sum", [None])[i]})
-            return {"success": True, "source": "Open-Meteo", "location": f"{lat},{lon}", "data": records}
+            return success_response(records, source="Open-Meteo", location=f"{lat},{lon}")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ============================================================
@@ -249,18 +250,18 @@ class AgricultureAdapter:
                 items = raw.get("item", [])[:20]
             else:
                 items = []
-            return {"success": True, "source": "KAMIS", "count": len(items), "data": items}
+            return success_response(items, source="KAMIS")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_fao_food_price_index(self) -> Dict[str, Any]:
         """FAO Food Price Index (public data)."""
-        return {
-            "success": True,
-            "source": "FAO",
-            "note": "FAO Food Price Index available at https://www.fao.org/worldfoodsituation/foodpricesindex/en/",
-            "api": "Use FAOSTAT bulk download or sdmx1 for programmatic access.",
-        }
+        return success_response(
+            None,
+            source="FAO",
+            note="FAO Food Price Index available at https://www.fao.org/worldfoodsituation/foodpricesindex/en/",
+            api="Use FAOSTAT bulk download or sdmx1 for programmatic access.",
+        )
 
     def get_fao_production(self, item_code: str = "0015", area_code: str = "410", limit: int = 20) -> Dict[str, Any]:
         """FAOSTAT 농업 생산 데이터. item_code: 0015=Wheat, 0027=Rice. area_code: 410=Korea."""
@@ -272,9 +273,9 @@ class AgricultureAdapter:
             resp = _session.get(url, params=params, timeout=20)
             data = resp.json().get("data", [])
             records = [{"year": d.get("Year"), "value": d.get("Value"), "unit": d.get("Unit"), "item": d.get("Item")} for d in data]
-            return {"success": True, "source": "FAOSTAT/QCL", "count": len(records), "data": records}
+            return success_response(records, source="FAOSTAT/QCL")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_fao_trade(self, item_code: str = "0015", area_code: str = "410", limit: int = 20) -> Dict[str, Any]:
         """FAOSTAT 농산물 무역 데이터."""
@@ -286,9 +287,9 @@ class AgricultureAdapter:
             resp = _session.get(url, params=params, timeout=20)
             data = resp.json().get("data", [])
             records = [{"year": d.get("Year"), "value": d.get("Value"), "unit": d.get("Unit"), "item": d.get("Item")} for d in data]
-            return {"success": True, "source": "FAOSTAT/TCL", "count": len(records), "data": records}
+            return success_response(records, source="FAOSTAT/TCL")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_usda_psd(self, commodity: str = "Rice, Milled", country: str = "Korea, South") -> Dict[str, Any]:
         """USDA FAS Production, Supply, and Distribution data."""
@@ -299,10 +300,10 @@ class AgricultureAdapter:
             if resp.status_code == 200:
                 raw = resp.json()
                 data = raw[:20] if isinstance(raw, list) else []
-                return {"success": True, "source": "USDA/PSD", "commodity": commodity, "country": country, "count": len(data), "data": data}
-            return {"error": True, "message": f"HTTP {resp.status_code}"}
+                return success_response(data, source="USDA/PSD", commodity=commodity, country=country)
+            return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ============================================================
@@ -334,10 +335,10 @@ class TradeAdapter:
                         "trade_value": r.get("primaryValue"),
                         "net_weight_kg": r.get("netWgt"),
                     })
-                return {"success": True, "source": "UN Comtrade v1", "count": len(records), "data": records}
-            return {"error": True, "message": f"HTTP {resp.status_code}"}
+                return success_response(records, source="UN Comtrade")
+            return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ============================================================
@@ -358,10 +359,10 @@ class PoliticsAdapter:
             rows = data.get("TVBPMBILL11", [{}])
             if len(rows) > 1:
                 items = rows[1].get("row", [])
-                return {"success": True, "source": "National Assembly", "count": len(items), "bills": items[:limit]}
-            return {"success": True, "data": [], "message": "No data"}
+                return success_response(items[:limit], source="National Assembly", count=len(items))
+            return success_response([], source="National Assembly", message="No data")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ============================================================
@@ -388,7 +389,7 @@ class PatentAdapter:
                         "date": item.findtext("applicationDate", ""),
                         "number": item.findtext("applicationNumber", ""),
                     })
-                return {"success": True, "source": "KIPRIS", "query": keyword, "count": len(items), "patents": items}
-            return {"success": True, "data": [], "message": "Unexpected response format"}
+                return success_response(items, source="KIPRIS", query=keyword)
+            return success_response([], source="KIPRIS", message="Unexpected response format")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

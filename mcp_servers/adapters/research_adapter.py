@@ -5,9 +5,16 @@ Most use data.go.kr unified gateway API key.
 """
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("research_adapter")
@@ -51,10 +58,10 @@ class ResearchAdapter:
                     "url": item.get("link", item.get("url", "")),
                 })
 
-            return {"success": True, "source": "RISS", "query": query, "count": len(records), "data": records}
+            return success_response(records, source="NANET/NKIS", query=query)
         except Exception as e:
             logger.error(f"RISS search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_nkis(self, query: str, page: int = 1, count: int = 10) -> Dict[str, Any]:
         """NKIS 국책연구원 보고서 검색."""
@@ -87,10 +94,10 @@ class ResearchAdapter:
                     "abstract": item.get("abstract", item.get("ABSTRACT", ""))[:300],
                 })
 
-            return {"success": True, "source": "NKIS", "query": query, "count": len(records), "data": records}
+            return success_response(records, source="NANET/NKIS", query=query)
         except Exception as e:
             logger.error(f"NKIS search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_prism(self, query: str, page: int = 1, count: int = 10) -> Dict[str, Any]:
         """PRISM 정부 정책연구과제 검색."""
@@ -122,10 +129,10 @@ class ResearchAdapter:
                     "year": (item.get("rsrchEndDe") or item.get("year") or "")[:4],
                 })
 
-            return {"success": True, "source": "PRISM", "query": query, "count": len(records), "data": records}
+            return success_response(records, source="NANET/NKIS", query=query)
         except Exception as e:
             logger.error(f"PRISM search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_nl(self, query: str, page: int = 1, count: int = 10) -> Dict[str, Any]:
         """국립중앙도서관 서지정보 검색."""
@@ -155,10 +162,10 @@ class ResearchAdapter:
                     "year": (item.get("PUBLISH_PREDATE") or item.get("year") or "")[:4],
                 })
 
-            return {"success": True, "source": "NL", "query": query, "count": len(records), "data": records}
+            return success_response(records, source="NANET/NKIS", query=query)
         except Exception as e:
             logger.error(f"NL search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_nanet(self, query: str, page: int = 1, count: int = 10) -> Dict[str, Any]:
         """국회전자도서관 K-Scholar 검색."""
@@ -191,10 +198,10 @@ class ResearchAdapter:
                     "url": item.get("url", item.get("LINK", "")),
                 })
 
-            return {"success": True, "source": "NANET", "query": query, "count": len(records), "data": records}
+            return success_response(records, source="NANET/NKIS", query=query)
         except Exception as e:
             logger.error(f"NANET search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_scholar(self, query: str, count: int = 5) -> Dict[str, Any]:
         """Google Scholar 검색 (scholarly 라이브러리)."""
@@ -217,9 +224,9 @@ class ResearchAdapter:
                     "url": result.get("pub_url", result.get("eprint_url", "")),
                 })
 
-            return {"success": True, "source": "Google Scholar", "query": query, "count": len(records), "data": records}
+            return success_response(records, source="NANET/NKIS", query=query)
         except ImportError:
-            return {"error": True, "message": "scholarly not installed. pip install scholarly"}
+            return error_response("scholarly not installed. pip install scholarly")
         except Exception as e:
             logger.error(f"Scholar search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

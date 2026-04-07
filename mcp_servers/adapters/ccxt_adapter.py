@@ -8,8 +8,16 @@ Key feature: Kimchi premium calculation (Korean vs global price spread).
 """
 import logging
 import os
+import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -51,45 +59,47 @@ class CCXTAdapter:
         """
         ex = _get_exchange(exchange_id)
         if not ex:
-            return {"error": True, "message": f"Exchange '{exchange_id}' not available"}
+            return error_response(f"Exchange '{exchange_id}' not available", code="NOT_INITIALIZED")
 
         try:
             ticker = ex.fetch_ticker(symbol)
-            return {
-                "success": True,
-                "exchange": exchange_id,
-                "symbol": symbol,
-                "last": ticker.get("last"),
-                "bid": ticker.get("bid"),
-                "ask": ticker.get("ask"),
-                "high": ticker.get("high"),
-                "low": ticker.get("low"),
-                "volume": ticker.get("baseVolume"),
-                "quote_volume": ticker.get("quoteVolume"),
-                "change_pct": ticker.get("percentage"),
-                "timestamp": ticker.get("datetime"),
-            }
+            return success_response(
+                data=None,
+                source="CCXT",
+                exchange=exchange_id,
+                symbol=symbol,
+                last=ticker.get("last"),
+                bid=ticker.get("bid"),
+                ask=ticker.get("ask"),
+                high=ticker.get("high"),
+                low=ticker.get("low"),
+                volume=ticker.get("baseVolume"),
+                quote_volume=ticker.get("quoteVolume"),
+                change_pct=ticker.get("percentage"),
+                timestamp=ticker.get("datetime"),
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_orderbook(self, exchange_id: str, symbol: str, limit: int = 10) -> Dict[str, Any]:
         """Get orderbook (bids/asks)."""
         ex = _get_exchange(exchange_id)
         if not ex:
-            return {"error": True, "message": f"Exchange '{exchange_id}' not available"}
+            return error_response(f"Exchange '{exchange_id}' not available", code="NOT_INITIALIZED")
 
         try:
             ob = ex.fetch_order_book(symbol, limit=limit)
-            return {
-                "success": True,
-                "exchange": exchange_id,
-                "symbol": symbol,
-                "bids": [{"price": b[0], "amount": b[1]} for b in ob.get("bids", [])[:limit]],
-                "asks": [{"price": a[0], "amount": a[1]} for a in ob.get("asks", [])[:limit]],
-                "timestamp": ob.get("datetime"),
-            }
+            return success_response(
+                data=None,
+                source="CCXT",
+                exchange=exchange_id,
+                symbol=symbol,
+                bids=[{"price": b[0], "amount": b[1]} for b in ob.get("bids", [])[:limit]],
+                asks=[{"price": a[0], "amount": a[1]} for a in ob.get("asks", [])[:limit]],
+                timestamp=ob.get("datetime"),
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_ohlcv(
         self, exchange_id: str, symbol: str, timeframe: str = "1d", limit: int = 100
@@ -97,7 +107,7 @@ class CCXTAdapter:
         """Get OHLCV candle data."""
         ex = _get_exchange(exchange_id)
         if not ex:
-            return {"error": True, "message": f"Exchange '{exchange_id}' not available"}
+            return error_response(f"Exchange '{exchange_id}' not available", code="NOT_INITIALIZED")
 
         try:
             candles = ex.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
@@ -112,22 +122,21 @@ class CCXTAdapter:
                 }
                 for c in candles
             ]
-            return {
-                "success": True,
-                "exchange": exchange_id,
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "count": len(data),
-                "data": data,
-            }
+            return success_response(
+                data=data,
+                source="CCXT",
+                exchange=exchange_id,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_all_tickers(self, exchange_id: str) -> Dict[str, Any]:
         """Get all tickers from an exchange."""
         ex = _get_exchange(exchange_id)
         if not ex:
-            return {"error": True, "message": f"Exchange '{exchange_id}' not available"}
+            return error_response(f"Exchange '{exchange_id}' not available", code="NOT_INITIALIZED")
 
         try:
             tickers = ex.fetch_tickers()
@@ -139,14 +148,14 @@ class CCXTAdapter:
                     "change_pct": t.get("percentage"),
                     "volume": t.get("quoteVolume"),
                 })
-            return {
-                "success": True,
-                "exchange": exchange_id,
-                "count": len(summary),
-                "data": summary[:50],
-            }
+            return success_response(
+                data=summary[:50],
+                count=len(summary),
+                source="CCXT",
+                exchange=exchange_id,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def calculate_kimchi_premium(self, coin: str = "BTC") -> Dict[str, Any]:
         """
@@ -159,7 +168,7 @@ class CCXTAdapter:
             upbit = _get_exchange("upbit")
             binance = _get_exchange("binance")
             if not upbit or not binance:
-                return {"error": True, "message": "Upbit or Binance not available"}
+                return error_response("Upbit or Binance not available", code="NOT_INITIALIZED")
 
             krw_ticker = upbit.fetch_ticker(f"{coin}/KRW")
             usdt_ticker = binance.fetch_ticker(f"{coin}/USDT")
@@ -178,23 +187,24 @@ class CCXTAdapter:
 
             premium_pct = ((krw_price - global_krw_price) / global_krw_price) * 100
 
-            return {
-                "success": True,
-                "coin": coin,
-                "upbit_krw": krw_price,
-                "binance_usdt": usdt_price,
-                "usdt_krw_rate": usdt_krw_rate,
-                "binance_krw_equivalent": round(global_krw_price),
-                "premium_krw": round(krw_price - global_krw_price),
-                "premium_pct": round(premium_pct, 2),
-                "interpretation": (
+            return success_response(
+                data=None,
+                source="CCXT",
+                coin=coin,
+                upbit_krw=krw_price,
+                binance_usdt=usdt_price,
+                usdt_krw_rate=usdt_krw_rate,
+                binance_krw_equivalent=round(global_krw_price),
+                premium_krw=round(krw_price - global_krw_price),
+                premium_pct=round(premium_pct, 2),
+                interpretation=(
                     "프리미엄 (한국이 비쌈)" if premium_pct > 0.5
                     else "디스카운트 (한국이 쌈)" if premium_pct < -0.5
                     else "균형"
                 ),
-            }
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def exchange_compare(self, symbol_base: str = "BTC") -> Dict[str, Any]:
         """Compare prices across Korean exchanges."""
@@ -217,11 +227,10 @@ class CCXTAdapter:
                 })
 
         if not results:
-            return {"error": True, "message": "No exchange data available"}
+            return error_response("No exchange data available", code="NOT_FOUND")
 
-        return {
-            "success": True,
-            "base": symbol_base,
-            "count": len(results),
-            "data": results,
-        }
+        return success_response(
+            data=results,
+            source="CCXT",
+            base=symbol_base,
+        )

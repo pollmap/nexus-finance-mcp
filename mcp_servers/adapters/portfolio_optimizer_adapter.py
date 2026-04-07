@@ -15,10 +15,18 @@ Methods:
 Run standalone test: python -m mcp_servers.adapters.portfolio_optimizer_adapter
 """
 import logging
+import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import minimize
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -238,9 +246,8 @@ class PortfolioOptimizerAdapter:
             list(tickers), method, sharpe, port_ret, port_vol,
         )
 
-        return {
-            "success": True,
-            "data": {
+        return success_response(
+            {
                 "method": method,
                 "optimal_weights": weight_dict,
                 "expected_return": round(port_ret, 6),
@@ -251,7 +258,8 @@ class PortfolioOptimizerAdapter:
                 "n_assets": n,
                 "n_observations": returns_matrix.shape[0],
             },
-        }
+            source="Portfolio Optimizer",
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # 2. risk_parity
@@ -305,9 +313,8 @@ class PortfolioOptimizerAdapter:
 
         logger.info("risk_parity(%s): total_risk=%.4f", list(tickers), port_vol)
 
-        return {
-            "success": True,
-            "data": {
+        return success_response(
+            {
                 "weights": weight_dict,
                 "risk_contributions": rc_dict,
                 "total_risk": round(port_vol, 6),
@@ -317,7 +324,8 @@ class PortfolioOptimizerAdapter:
                     float(np.max(risk_contribs) - np.min(risk_contribs)), 6
                 ),
             },
-        }
+            source="Portfolio Optimizer",
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # 3. kelly
@@ -375,9 +383,8 @@ class PortfolioOptimizerAdapter:
             win_rate, avg_win, avg_loss, full_kelly, recommended,
         )
 
-        return {
-            "success": True,
-            "data": {
+        return success_response(
+            {
                 "full_kelly_pct": round(full_kelly * 100, 2),
                 "recommended_pct": round(recommended * 100, 2),
                 "fraction_used": fraction,
@@ -395,7 +402,8 @@ class PortfolioOptimizerAdapter:
                     else "풀 켈리 (공격적)"
                 ),
             },
-        }
+            source="Portfolio Optimizer",
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # 4. correlation_matrix
@@ -475,9 +483,8 @@ class PortfolioOptimizerAdapter:
             list(tickers), max_pair, max_corr, div_ratio,
         )
 
-        return {
-            "success": True,
-            "data": {
+        return success_response(
+            {
                 "current_matrix": _matrix_to_dict(current_corr),
                 "rolling_avg_matrix": _matrix_to_dict(rolling_avg),
                 "diversification_ratio": round(div_ratio, 4),
@@ -493,7 +500,8 @@ class PortfolioOptimizerAdapter:
                 "window": window,
                 "n_observations": T,
             },
-        }
+            source="Portfolio Optimizer",
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # 5. stress_test
@@ -581,9 +589,8 @@ class PortfolioOptimizerAdapter:
             list(weights.keys()), scenario, portfolio_impact * 100,
         )
 
-        return {
-            "success": True,
-            "data": {
+        return success_response(
+            {
                 "scenario": scenario,
                 "portfolio_impact_pct": round(portfolio_impact * 100, 2),
                 "per_asset_impact": per_asset,
@@ -591,7 +598,8 @@ class PortfolioOptimizerAdapter:
                 "best_hedge": best_hedge,
                 "historical_var": historical_var,
             },
-        }
+            source="Portfolio Optimizer",
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # 6. rebalance_check
@@ -660,9 +668,8 @@ class PortfolioOptimizerAdapter:
             len(drifted), total_turnover * 100, estimated_cost, net_benefit,
         )
 
-        return {
-            "success": True,
-            "data": {
+        return success_response(
+            {
                 "rebalance_needed": rebalance_needed,
                 "drifted_assets": drifted,
                 "trades_required": trades,
@@ -680,7 +687,8 @@ class PortfolioOptimizerAdapter:
                     else "리밸런싱 불필요 (허용 범위 내)"
                 ),
             },
-        }
+            source="Portfolio Optimizer",
+        )
 
 
 # ── Standalone test ───────────────────────────────────────────────────

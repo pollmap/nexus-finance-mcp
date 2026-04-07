@@ -1,9 +1,17 @@
 """Environment/Utilities Adapter — EPA, Carbon pricing."""
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("environ_adapter")
@@ -43,9 +51,9 @@ class EnvironAdapter:
                     "year": r.get("year", year),
                 })
 
-            return {"success": True, "source": "EPA/AQS", "state": state, "year": year, "count": len(records), "data": records}
+            return success_response(records, source="EPA/KRBN", state=state, year=year)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_carbon_price(self, limit: int = 30) -> Dict[str, Any]:
         """탄소배출권 가격 (EU ETS proxy via FRED 또는 Yahoo)."""
@@ -58,12 +66,17 @@ class EnvironAdapter:
                 hist = hist.reset_index()
                 records = [{"date": str(row["Date"].date()), "price": round(row["Close"], 2)} for _, row in hist.iterrows()]
                 records = records[-limit:]
-                return {"success": True, "source": "Yahoo/KRBN", "series": "Global Carbon Strategy ETF (proxy)", "count": len(records), "data": records}
+                return success_response(
+                    records,
+                    source="EPA/KRBN",
+                    series="Global Carbon Strategy ETF (proxy)",
+                )
         except Exception as e:
             logger.warning(f"Carbon price fetch failed (KRBN ETF): {e}")
 
         # Fallback: FRED EU ETS or just return info
-        return {
-            "success": True, "source": "info", "count": 0, "data": [],
-            "message": "EU ETS carbon price not available via free API. Use KRBN ETF as proxy or check ember-climate.org.",
-        }
+        return success_response(
+            [],
+            source="EPA/KRBN",
+            message="EU ETS carbon price not available via free API. Use KRBN ETF as proxy or check ember-climate.org.",
+        )

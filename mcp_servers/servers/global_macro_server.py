@@ -1,12 +1,16 @@
 """
-Global Macro MCP Server — OECD/IMF/BIS/World Bank.
+Global Macro MCP Server — OECD/IMF/BIS/World Bank/FRED.
 
-Tools (6):
+Tools (10):
 - macro_oecd: OECD 지표 조회
 - macro_imf: IMF 지표 조회
 - macro_bis: BIS 지표 조회 (부동산가격, 신용/GDP)
 - macro_worldbank: World Bank 지표 조회
 - macro_datasets: 사용 가능한 데이터셋 목록
+- macro_search_indicators: 지표 키워드 검색
+- macro_country_compare: 국가간 경제지표 비교
+- macro_fred: FRED 미국 경제데이터 조회
+- macro_fred_search: FRED 시리즈 검색
 - macro_korea_snapshot: 한국 국제비교 스냅샷
 """
 import logging
@@ -55,6 +59,47 @@ class GlobalMacroServer:
         def macro_datasets(source: str = "OECD") -> dict:
             """사용 가능한 데이터셋 목록. source: OECD, IMF, BIS."""
             return self._adapter.get_available_datasets(source)
+
+        @self.mcp.tool()
+        def macro_search_indicators(keyword: str, source: str = "worldbank", limit: int = 30) -> dict:
+            """거시경제 지표 키워드 검색. 1500+ World Bank 지표 중 검색. 예: 'inflation', 'GDP', 'unemployment', 'trade'."""
+            return self._adapter.search_indicators(keyword, source, limit)
+
+        @self.mcp.tool()
+        def macro_country_compare(indicator: str = "NY.GDP.MKTP.CD",
+                                   countries: str = "KOR,USA,JPN,CHN,DEU",
+                                   recent: int = 10) -> dict:
+            """국가간 경제지표 비교 (World Bank). 예: GDP, 물가, 실업률 등 국제비교.
+
+            Args:
+                indicator: World Bank 지표 ID (예: NY.GDP.MKTP.CD=GDP, FP.CPI.TOTL.ZG=물가)
+                countries: 국가코드 쉼표구분 (ISO3: KOR,USA,JPN,CHN,DEU)
+                recent: 최근 N개 데이터
+            """
+            return self._adapter.country_compare(indicator, countries, recent)
+
+        @self.mcp.tool()
+        def macro_fred(series_id: str = "FEDFUNDS", limit: int = 30) -> dict:
+            """FRED (미국 연준 경제데이터) 시계열 조회. 미국 금리, 물가, 고용, 환율 등.
+
+            주요 시리즈: FEDFUNDS(기준금리), DGS10(10년국채), CPIAUCSL(CPI),
+            UNRATE(실업률), GDP, DEXKOUS(원달러환율), SP500, VIXCLS(VIX), T10Y2Y(장단기스프레드)
+
+            Args:
+                series_id: FRED 시리즈 ID
+                limit: 최근 N개 관측치
+            """
+            return self._adapter.get_fred_series(series_id, limit)
+
+        @self.mcp.tool()
+        def macro_fred_search(keyword: str, limit: int = 20) -> dict:
+            """FRED 시리즈 키워드 검색. 800,000+ 경제 시계열 중 검색.
+
+            Args:
+                keyword: 검색어 (예: 'interest rate', 'inflation', 'korea')
+                limit: 최대 결과 수
+            """
+            return self._adapter.search_fred(keyword, limit)
 
         @self.mcp.tool()
         def macro_korea_snapshot() -> dict:

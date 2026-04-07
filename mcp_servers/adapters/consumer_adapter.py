@@ -1,9 +1,17 @@
 """Consumer/Retail Adapter — FRED series, Eurostat."""
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("consumer_adapter")
@@ -24,10 +32,10 @@ class ConsumerAdapter:
             resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
             records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
-            return {"success": True, "source": f"FRED/{series_id}", "count": len(records), "data": records}
+            return success_response(records, source=f"FRED/{series_id}")
         except Exception as e:
             logger.error(f"FRED {series_id} error: {e}")
-            return {"error": True, "message": f"FRED data retrieval failed for {series_id}"}
+            return error_response(f"FRED data retrieval failed for {series_id}")
 
     def get_us_retail_sales(self, limit: int = 60) -> Dict[str, Any]:
         """미국 소매판매 (Advance Retail Sales)."""
@@ -60,7 +68,7 @@ class ConsumerAdapter:
             params = {"format": "JSON", "lang": "en"}
             resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
-                return {"error": True, "message": f"Eurostat HTTP {resp.status_code}"}
+                return error_response(f"Eurostat HTTP {resp.status_code}")
 
             data = resp.json()
             values = data.get("value", {})
@@ -72,6 +80,11 @@ class ConsumerAdapter:
                 if val is not None:
                     records.append({"date": time_key, "value": val})
 
-            return {"success": True, "source": "Eurostat/HICP", "series": "Euro Area HICP Annual Rate", "unit": "%", "count": len(records), "data": records}
+            return success_response(
+                records,
+                source="FRED/Eurostat",
+                series="Euro Area HICP Annual Rate",
+                unit="%",
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

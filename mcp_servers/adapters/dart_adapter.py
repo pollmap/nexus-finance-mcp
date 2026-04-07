@@ -29,6 +29,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -115,9 +116,9 @@ class DARTAdapter:
             Company info dict
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code: {stock_code}. Must be 6 digits."}
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
         if not self._dart:
-            return {"error": True, "message": "DART client not initialized"}
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("dart")
@@ -131,22 +132,21 @@ class DARTAdapter:
             info = self._dart.company(stock_code)
 
             if info is None:
-                return {"error": True, "message": f"No company info for {stock_code}"}
+                return error_response(f"No company info for {stock_code}", code="NOT_FOUND")
             if isinstance(info, dict) and info.get("status") != "000":
-                return {"error": True, "message": info.get("message", "Unknown error")}
+                return error_response(info.get("message", "Unknown error"))
 
-            result = {
-                "success": True,
-                "stock_code": stock_code,
-                "data": info if isinstance(info, dict) else (info.to_dict() if hasattr(info, 'to_dict') else dict(info)),
-            }
+            result = success_response(
+                info if isinstance(info, dict) else (info.to_dict() if hasattr(info, 'to_dict') else dict(info)),
+                source="OpenDART", stock_code=stock_code,
+            )
 
             self._cache.set("dart", cache_key, result, "static_meta")
             return result
 
         except Exception as e:
             logger.error(f"DART company info error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_financial_statements(
         self,
@@ -170,9 +170,9 @@ class DARTAdapter:
             Financial statements dict
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code: {stock_code}. Must be 6 digits."}
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
         if not self._dart:
-            return {"error": True, "message": "DART client not initialized"}
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("dart")
@@ -189,30 +189,22 @@ class DARTAdapter:
             fs = self._dart.finstate(stock_code, year, reprt_code=report_type)
 
             if fs is None or (hasattr(fs, 'empty') and fs.empty):
-                return {
-                    "success": True,
-                    "data": [],
-                    "message": f"No financial data for {stock_code} in {year}",
-                }
+                return success_response([], source="OpenDART", message=f"No financial data for {stock_code} in {year}")
 
             # Convert to records
             records = fs.to_dict("records") if hasattr(fs, 'to_dict') else []
 
-            result = {
-                "success": True,
-                "stock_code": stock_code,
-                "year": year,
-                "report_type": report_type,
-                "count": len(records),
-                "data": records,
-            }
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                stock_code=stock_code, year=year, report_type=report_type,
+            )
 
             self._cache.set("dart", cache_key, result, "historical")
             return result
 
         except Exception as e:
             logger.error(f"DART financial statements error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_financial_ratios(self, stock_code: str, year: int = None) -> Dict[str, Any]:
         """
@@ -226,14 +218,14 @@ class DARTAdapter:
             Financial ratios dict
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code: {stock_code}. Must be 6 digits."}
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
         fs_result = self.get_financial_statements(stock_code, year)
 
         if fs_result.get("error"):
             return fs_result
 
         if not fs_result.get("data"):
-            return {"error": True, "message": "No financial data available"}
+            return error_response("No financial data available", code="NOT_FOUND")
 
         try:
             # Parse key metrics from financial statements
@@ -282,16 +274,14 @@ class DARTAdapter:
                 ratios["operating_margin"] = (operating_income / revenue) * 100
                 ratios["net_margin"] = (net_income / revenue) * 100
 
-            return {
-                "success": True,
-                "stock_code": stock_code,
-                "year": fs_result.get("year"),
-                "ratios": ratios,
-            }
+            return success_response(
+                ratios, source="OpenDART",
+                stock_code=stock_code, year=fs_result.get("year"),
+            )
 
         except Exception as e:
             logger.error(f"DART ratio calculation error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_major_shareholders(self, stock_code: str) -> Dict[str, Any]:
         """
@@ -304,9 +294,9 @@ class DARTAdapter:
             Major shareholders list
         """
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code: {stock_code}. Must be 6 digits."}
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
         if not self._dart:
-            return {"error": True, "message": "DART client not initialized"}
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("dart")
@@ -320,30 +310,28 @@ class DARTAdapter:
             sh = self._dart.major_shareholders(stock_code)
 
             if sh is None or (hasattr(sh, 'empty') and sh.empty):
-                return {"success": True, "data": [], "message": "No shareholder data"}
+                return success_response([], source="OpenDART", message="No shareholder data")
 
             records = sh.to_dict("records") if hasattr(sh, 'to_dict') else []
 
-            result = {
-                "success": True,
-                "stock_code": stock_code,
-                "count": len(records),
-                "data": records,
-            }
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                stock_code=stock_code,
+            )
 
             self._cache.set("dart", cache_key, result, "daily_data")
             return result
 
         except Exception as e:
             logger.error(f"DART shareholders error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_cash_flow(self, stock_code: str, year: int = None, report_type: str = "11011") -> Dict[str, Any]:
         """Get cash flow statement using finstate_all (includes CF)."""
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code: {stock_code}. Must be 6 digits."}
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
         if not self._dart:
-            return {"error": True, "message": "DART client not initialized"}
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
         try:
             self._limiter.acquire("dart")
             if year is None:
@@ -356,7 +344,7 @@ class DARTAdapter:
 
             fs = self._dart.finstate_all(stock_code, year, reprt_code=report_type)
             if fs is None or (hasattr(fs, 'empty') and fs.empty):
-                return {"success": True, "data": [], "message": f"No CF data for {stock_code} in {year}"}
+                return success_response([], source="OpenDART", message=f"No CF data for {stock_code} in {year}")
 
             # Filter for cash flow statement rows
             cf_keywords = ["현금흐름", "CF", "cash"]
@@ -369,20 +357,22 @@ class DARTAdapter:
 
             records = cf_df.to_dict("records") if hasattr(cf_df, 'to_dict') else []
 
-            result = {"success": True, "stock_code": stock_code, "year": year,
-                      "report_type": report_type, "count": len(records), "data": records}
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                stock_code=stock_code, year=year, report_type=report_type,
+            )
             self._cache.set("dart", cache_key, result, "historical")
             return result
         except Exception as e:
             logger.error(f"DART cash flow error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_dividend(self, stock_code: str, year: int = None) -> Dict[str, Any]:
         """Get dividend info."""
         if not self._validate_stock_code(stock_code):
-            return {"error": True, "message": f"Invalid stock code: {stock_code}. Must be 6 digits."}
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
         if not self._dart:
-            return {"error": True, "message": "DART client not initialized"}
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
         try:
             self._limiter.acquire("dart")
             if year is None:
@@ -395,16 +385,18 @@ class DARTAdapter:
 
             div = self._dart.report(stock_code, "배당", year)
             if div is None or (hasattr(div, 'empty') and div.empty):
-                return {"success": True, "data": [], "message": f"No dividend data for {stock_code}"}
+                return success_response([], source="OpenDART", message=f"No dividend data for {stock_code}")
 
             records = div.to_dict("records") if hasattr(div, 'to_dict') else []
-            result = {"success": True, "stock_code": stock_code, "year": year,
-                      "count": len(records), "data": records}
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                stock_code=stock_code, year=year,
+            )
             self._cache.set("dart", cache_key, result, "historical")
             return result
         except Exception as e:
             logger.error(f"DART dividend error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def search_company(self, keyword: str) -> Dict[str, Any]:
         """
@@ -417,7 +409,7 @@ class DARTAdapter:
             List of matching companies
         """
         if not self._dart:
-            return {"error": True, "message": "DART client not initialized"}
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
 
         try:
             self._limiter.acquire("dart")
@@ -426,7 +418,7 @@ class DARTAdapter:
             result = self._dart.corp_codes
 
             if result is None:
-                return {"success": True, "data": [], "message": "No results"}
+                return success_response([], source="OpenDART", message="No results")
 
             # Filter by keyword (safe boolean indexing, no query injection)
             if hasattr(result, 'columns') and 'corp_name' in result.columns:
@@ -439,16 +431,440 @@ class DARTAdapter:
             else:
                 records = []
 
-            return {
-                "success": True,
-                "keyword": keyword,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                records, count=len(records), source="OpenDART",
+                keyword=keyword,
+            )
 
         except Exception as e:
             logger.error(f"DART search error: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
+
+
+    def _report_section(self, stock_code: str, section: str, year: int = None,
+                         cache_type: str = "historical") -> Dict[str, Any]:
+        """Generic helper for DART report sections."""
+        if not self._validate_stock_code(stock_code):
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
+        if not self._dart:
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
+        try:
+            self._limiter.acquire("dart")
+            if year is None:
+                year = datetime.now().year - 1
+
+            cache_key = {"method": section, "code": stock_code, "year": year}
+            cached = self._cache.get("dart", cache_key)
+            if cached:
+                return cached
+
+            data = self._dart.report(stock_code, section, year)
+            if data is None or (hasattr(data, 'empty') and data.empty):
+                return success_response([], source="OpenDART",
+                                        message=f"No {section} data for {stock_code}")
+
+            records = data.to_dict("records") if hasattr(data, 'to_dict') else []
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                stock_code=stock_code, year=year, section=section,
+            )
+            self._cache.set("dart", cache_key, result, cache_type)
+            return result
+        except Exception as e:
+            logger.error(f"DART {section} error: {e}")
+            return error_response(str(e))
+
+    def get_executives(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """임원현황 조회."""
+        return self._report_section(stock_code, "임원현황", year)
+
+    def get_executive_compensation(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """임원보수 조회."""
+        return self._report_section(stock_code, "임원보수", year)
+
+    def get_shareholder_changes(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """최대주주 변동 조회."""
+        return self._report_section(stock_code, "최대주주변동", year)
+
+    def get_capital_changes(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """증자/감자 조회."""
+        return self._report_section(stock_code, "증자감자", year)
+
+    def get_mergers(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """합병/분할 조회."""
+        return self._report_section(stock_code, "합병분할", year)
+
+    def get_convertible_bonds(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """전환사채/신주인수권 조회."""
+        return self._report_section(stock_code, "전환사채", year)
+
+    def get_treasury_stock(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """자기주식 취득/처분 조회."""
+        return self._report_section(stock_code, "자기주식", year)
+
+    def get_related_party(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """공정공시 (특수관계자 거래) 조회."""
+        return self._report_section(stock_code, "공정공시", year)
+
+    def get_5pct_disclosure(self, stock_code: str, year: int = None) -> Dict[str, Any]:
+        """지분공시 (5% 룰) 조회."""
+        return self._report_section(stock_code, "지분공시", year)
+
+    def get_events(
+        self,
+        stock_code: str,
+        keyword: str = "",
+        start_date: str = None,
+        end_date: str = None,
+    ) -> Dict[str, Any]:
+        """
+        이벤트 공시 조회 (유상증자, 무상증자, 전환사채, 합병 등 주요 이벤트).
+
+        Args:
+            stock_code: 종목코드 (6자리)
+            keyword: 이벤트 키워드 (예: 유상증자, 합병)
+            start_date: 시작일 YYYYMMDD
+            end_date: 종료일 YYYYMMDD
+
+        Returns:
+            이벤트 공시 목록
+        """
+        if not self._validate_stock_code(stock_code):
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
+        if not self._dart:
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
+
+        try:
+            self._limiter.acquire("dart")
+
+            # Resolve corp_code from stock_code
+            corp_code = None
+            corp_name = None
+            try:
+                codes_df = self._dart.corp_codes
+                if codes_df is not None and 'stock_code' in codes_df.columns:
+                    match = codes_df[codes_df['stock_code'] == stock_code]
+                    if not match.empty:
+                        corp_code = match.iloc[0].get('corp_code', None)
+                        corp_name = match.iloc[0].get('corp_name', None)
+            except Exception as e:
+                logger.warning(f"corp_codes lookup failed: {e}")
+
+            if not corp_code:
+                try:
+                    info = self._dart.company(stock_code)
+                    if info and isinstance(info, dict):
+                        corp_code = info.get('corp_code')
+                        corp_name = info.get('corp_name')
+                except Exception as e:
+                    logger.warning(f"company() lookup failed: {e}")
+
+            if not corp_code:
+                return error_response(f"Cannot find corp_code for stock_code {stock_code}", code="NOT_FOUND")
+
+            # Default date range
+            from datetime import timedelta
+            today = datetime.now()
+            if not end_date:
+                end_date = today.strftime("%Y%m%d")
+            if not start_date:
+                start_date = (today - timedelta(days=365)).strftime("%Y%m%d")
+
+            cache_key = {
+                "method": "events",
+                "corp": corp_code,
+                "keyword": keyword,
+                "start": start_date,
+                "end": end_date,
+            }
+            cached = self._cache.get("dart", cache_key)
+            if cached:
+                return cached
+
+            # Call OpenDartReader.event()
+            df = self._dart.event(corp_code, key_word=keyword or "", start=start_date, end=end_date)
+
+            if df is None or (hasattr(df, 'empty') and df.empty):
+                return success_response(
+                    [], source="OpenDART",
+                    message=f"No events found for {corp_name or corp_code}",
+                    corp_code=corp_code, corp_name=corp_name,
+                    start_date=start_date, end_date=end_date,
+                )
+
+            records = df.to_dict("records") if hasattr(df, 'to_dict') else []
+
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                corp_code=corp_code, corp_name=corp_name,
+                keyword=keyword, start_date=start_date, end_date=end_date,
+            )
+
+            self._cache.set("dart", cache_key, result, "daily_data")
+            return result
+
+        except Exception as e:
+            logger.error(f"DART events error: {e}")
+            return error_response(str(e))
+
+    def get_full_financial_statements(
+        self,
+        stock_code: str,
+        year: int = None,
+        report_type: str = "11011",
+        fs_div: str = "CFS",
+    ) -> Dict[str, Any]:
+        """
+        전체 재무제표 조회 (개별/연결 선택 가능).
+
+        Args:
+            stock_code: 종목코드 (6자리)
+            year: 사업연도 (기본: 전년도)
+            report_type: 보고서 유형 (11011=사업보고서)
+            fs_div: CFS=연결재무제표, OFS=개별재무제표
+
+        Returns:
+            전체 재무제표 항목 (BS, IS, CF 모두 포함)
+        """
+        if not self._validate_stock_code(stock_code):
+            return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
+        if not self._dart:
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
+
+        try:
+            self._limiter.acquire("dart")
+
+            if year is None:
+                year = datetime.now().year - 1
+
+            if fs_div not in ("CFS", "OFS"):
+                return error_response("fs_div must be 'CFS' (연결) or 'OFS' (개별)", code="INVALID_INPUT")
+
+            cache_key = {
+                "method": "full_financial",
+                "code": stock_code,
+                "year": year,
+                "type": report_type,
+                "fs_div": fs_div,
+            }
+            cached = self._cache.get("dart", cache_key)
+            if cached:
+                return cached
+
+            fs = self._dart.finstate_all(stock_code, year, reprt_code=report_type, fs_div=fs_div)
+
+            if fs is None or (hasattr(fs, 'empty') and fs.empty):
+                return success_response(
+                    [], source="OpenDART",
+                    message=f"No financial data for {stock_code} in {year} ({fs_div})",
+                )
+
+            records = fs.to_dict("records") if hasattr(fs, 'to_dict') else []
+
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                stock_code=stock_code, year=year, report_type=report_type, fs_div=fs_div,
+            )
+
+            self._cache.set("dart", cache_key, result, "historical")
+            return result
+
+        except Exception as e:
+            logger.error(f"DART full financial statements error: {e}")
+            return error_response(str(e))
+
+    def get_document(self, rcp_no: str, max_chars: int = 5000) -> Dict[str, Any]:
+        """
+        공시 원문 텍스트 조회.
+
+        Args:
+            rcp_no: 접수번호 (dart_disclosure_search 결과에서 획득)
+            max_chars: 최대 반환 문자 수 (기본: 5000)
+
+        Returns:
+            공시 원문 텍스트
+        """
+        if not rcp_no or not rcp_no.strip():
+            return error_response("rcp_no (접수번호) is required.", code="INVALID_INPUT")
+        if not self._dart:
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
+
+        try:
+            self._limiter.acquire("dart")
+
+            cache_key = {"method": "document", "rcp_no": rcp_no}
+            cached = self._cache.get("dart", cache_key)
+            if cached:
+                return cached
+
+            doc_text = self._dart.document(rcp_no)
+
+            if doc_text is None or (isinstance(doc_text, str) and not doc_text.strip()):
+                return success_response(
+                    "", source="OpenDART",
+                    message=f"No document found for rcp_no: {rcp_no}",
+                    rcp_no=rcp_no,
+                )
+
+            # Convert to string if needed, truncate to max_chars
+            text = str(doc_text)
+            truncated = len(text) > max_chars
+            if truncated:
+                text = text[:max_chars]
+
+            result = success_response(
+                text, source="OpenDART",
+                rcp_no=rcp_no, total_chars=len(str(doc_text)),
+                truncated=truncated, max_chars=max_chars,
+            )
+
+            self._cache.set("dart", cache_key, result, "historical")
+            return result
+
+        except Exception as e:
+            logger.error(f"DART document error: {e}")
+            return error_response(str(e))
+
+    def search_disclosures(
+        self,
+        stock_code: str = None,
+        keyword: str = None,
+        start_date: str = None,
+        end_date: str = None,
+        kind: str = None,
+        limit: int = 20,
+    ) -> Dict[str, Any]:
+        """
+        Search corporate disclosures (공시 검색).
+
+        Args:
+            stock_code: 6-digit stock code (optional, use keyword if not provided)
+            keyword: Company name keyword (used if stock_code not provided)
+            start_date: Start date YYYYMMDD (default: 6 months ago)
+            end_date: End date YYYYMMDD (default: today)
+            kind: Filing type — A=정기, B=주요사항, C=발행, D=지분, E=기타
+            limit: Max results (default 20)
+
+        Returns:
+            List of disclosure records
+        """
+        if not self._dart:
+            return error_response("DART client not initialized", code="NOT_INITIALIZED")
+
+        if not stock_code and not keyword:
+            return error_response("stock_code 또는 keyword 중 하나를 입력하세요.", code="INVALID_INPUT")
+
+        try:
+            self._limiter.acquire("dart")
+
+            # Resolve corp_code
+            corp_code = None
+            corp_name = None
+
+            if stock_code:
+                if not self._validate_stock_code(stock_code):
+                    return error_response(f"Invalid stock code: {stock_code}. Must be 6 digits.", code="INVALID_INPUT")
+
+                # Look up corp_code from stock_code via corp_codes DataFrame
+                try:
+                    codes_df = self._dart.corp_codes
+                    if codes_df is not None and 'stock_code' in codes_df.columns:
+                        match = codes_df[codes_df['stock_code'] == stock_code]
+                        if not match.empty:
+                            corp_code = match.iloc[0].get('corp_code', None)
+                            corp_name = match.iloc[0].get('corp_name', None)
+                except Exception as e:
+                    logger.warning(f"corp_codes lookup failed: {e}")
+
+                # Fallback: use company() to get corp_code
+                if not corp_code:
+                    try:
+                        info = self._dart.company(stock_code)
+                        if info and isinstance(info, dict):
+                            corp_code = info.get('corp_code')
+                            corp_name = info.get('corp_name')
+                    except Exception as e:
+                        logger.warning(f"company() lookup failed: {e}")
+
+                if not corp_code:
+                    return error_response(f"Cannot find corp_code for stock_code {stock_code}", code="NOT_FOUND")
+
+            elif keyword:
+                # Find corp_code by company name keyword
+                try:
+                    codes_df = self._dart.corp_codes
+                    if codes_df is not None and 'corp_name' in codes_df.columns:
+                        matches = codes_df[codes_df['corp_name'].str.contains(keyword, na=False, regex=False)]
+                        if matches.empty:
+                            return error_response(f"No company found for keyword: {keyword}", code="NOT_FOUND")
+                        # Use first match
+                        corp_code = matches.iloc[0].get('corp_code', None)
+                        corp_name = matches.iloc[0].get('corp_name', None)
+                except Exception as e:
+                    return error_response(f"Company search failed: {e}")
+
+                if not corp_code:
+                    return error_response(f"Cannot find corp_code for keyword: {keyword}", code="NOT_FOUND")
+
+            # Default date range: 6 months ago ~ today
+            from datetime import timedelta
+            today = datetime.now()
+            if not end_date:
+                end_date = today.strftime("%Y%m%d")
+            if not start_date:
+                start_date = (today - timedelta(days=180)).strftime("%Y%m%d")
+
+            # Build cache key
+            cache_key = {
+                "method": "disclosure_search",
+                "corp": corp_code,
+                "start": start_date,
+                "end": end_date,
+                "kind": kind,
+            }
+            cached = self._cache.get("dart", cache_key)
+            if cached:
+                return cached
+
+            # Call OpenDartReader.list()
+            kwargs = {
+                "corp": corp_code,
+                "start": start_date,
+                "end": end_date,
+                "final": True,
+            }
+            if kind:
+                kwargs["kind"] = kind
+
+            df = self._dart.list(**kwargs)
+
+            if df is None or (hasattr(df, 'empty') and df.empty):
+                return success_response(
+                    [], source="OpenDART",
+                    message=f"No disclosures found for {corp_name or corp_code}",
+                    corp_code=corp_code, corp_name=corp_name,
+                    start_date=start_date, end_date=end_date,
+                )
+
+            # Limit results
+            if hasattr(df, 'head'):
+                df = df.head(limit)
+
+            records = df.to_dict("records") if hasattr(df, 'to_dict') else []
+
+            result = success_response(
+                records, count=len(records), source="OpenDART",
+                corp_code=corp_code, corp_name=corp_name,
+                start_date=start_date, end_date=end_date,
+                kind=kind,
+            )
+
+            self._cache.set("dart", cache_key, result, "daily_data")
+            return result
+
+        except Exception as e:
+            logger.error(f"DART disclosure search error: {e}")
+            return error_response(str(e))
 
 
 def test_dart_adapter():

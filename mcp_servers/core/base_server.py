@@ -189,51 +189,9 @@ class BaseMCPServer(ABC):
         svc = service or self.name
         return await self._limiter.acquire_async(svc, wait=True)
 
-    def _format_error(self, error: Exception, context: str = "") -> Dict[str, Any]:
-        """
-        Format error for MCP response.
-
-        Args:
-            error: Exception that occurred
-            context: Additional context
-
-        Returns:
-            Error dict suitable for MCP response
-        """
-        error_msg = str(error)
-        error_type = type(error).__name__
-
-        logger.error(f"{context}: {error_type} - {error_msg}")
-
-        return {
-            "error": True,
-            "error_type": error_type,
-            "message": error_msg,
-            "context": context,
-        }
-
-    def _format_success(
-        self,
-        data: Any,
-        metadata: Dict[str, Any] = None,
-    ) -> Dict[str, Any]:
-        """
-        Format successful response.
-
-        Args:
-            data: Response data
-            metadata: Optional metadata
-
-        Returns:
-            Formatted response dict
-        """
-        response = {
-            "success": True,
-            "data": data,
-        }
-        if metadata:
-            response["metadata"] = metadata
-        return response
+    # NOTE: _format_error() and _format_success() were removed (dead code).
+    # Use responses.error_response() and responses.success_response() instead.
+    # See docs/ARCHITECTURE.md "Dead Code Audit" section.
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
@@ -257,7 +215,8 @@ def tool_handler(func):
     """
     Decorator for MCP tool handlers with standard error handling.
 
-    Catches exceptions and formats them consistently.
+    Catches exceptions and returns standardized error responses
+    via responses.error_response().
 
     Usage:
         @tool_handler
@@ -265,25 +224,17 @@ def tool_handler(func):
             ...
     """
     from functools import wraps
+    from mcp_servers.core.responses import error_response
 
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except ToolError as e:
-            return {
-                "error": True,
-                "code": e.code,
-                "message": str(e),
-                "details": e.details,
-            }
+            return error_response(str(e), code=e.code)
         except Exception as e:
             logger.exception(f"Tool error in {func.__name__}")
-            return {
-                "error": True,
-                "code": "INTERNAL_ERROR",
-                "message": str(e),
-            }
+            return error_response(str(e), code="INTERNAL_ERROR")
 
     return wrapper
 
@@ -291,24 +242,16 @@ def tool_handler(func):
 def async_tool_handler(func):
     """Async version of tool_handler decorator."""
     from functools import wraps
+    from mcp_servers.core.responses import error_response
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except ToolError as e:
-            return {
-                "error": True,
-                "code": e.code,
-                "message": str(e),
-                "details": e.details,
-            }
+            return error_response(str(e), code=e.code)
         except Exception as e:
             logger.exception(f"Tool error in {func.__name__}")
-            return {
-                "error": True,
-                "code": "INTERNAL_ERROR",
-                "message": str(e),
-            }
+            return error_response(str(e), code="INTERNAL_ERROR")
 
     return wrapper

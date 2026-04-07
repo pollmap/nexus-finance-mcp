@@ -26,11 +26,18 @@ Run standalone test: python -m mcp_servers.adapters.backtest_adapter
 """
 import logging
 import itertools
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -684,11 +691,11 @@ class BacktestAdapter:
         """
         try:
             if strategy_name not in STRATEGIES:
-                return {"error": True, "message": f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys())}"}
+                return error_response(f"Unknown strategy: {strategy_name}. Available: {list(STRATEGIES.keys())}")
 
             df = self._build_df(ohlcv_data)
             if len(df) < 60:
-                return {"error": True, "message": f"Insufficient data: {len(df)} rows. Need at least 60."}
+                return error_response(f"Insufficient data: {len(df)} rows. Need at least 60.")
 
             signals = self._get_signals(df, strategy_name, params)
             cash, shares, trades, equity = self._simulate(
@@ -705,9 +712,8 @@ class BacktestAdapter:
                 step = len(equity) // 500
                 equity_sampled = equity[::step]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": strategy_name,
                     "params": {**STRATEGIES[strategy_name]["params"], **(params or {})},
                     "period": {
@@ -722,10 +728,11 @@ class BacktestAdapter:
                     "trades": trades,
                     "equity_curve": equity_sampled,
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Backtest run failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def compare(
         self,
@@ -773,17 +780,17 @@ class BacktestAdapter:
             )
             errors = [r for r in results if "error" in r]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "comparison": ranked + errors,
                     "best_strategy": ranked[0]["strategy"] if ranked else None,
                     "strategies_count": len(strategy_names),
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Backtest compare failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def optimize(
         self,
@@ -808,18 +815,18 @@ class BacktestAdapter:
         """
         try:
             if strategy_name not in STRATEGIES:
-                return {"error": True, "message": f"Unknown strategy: {strategy_name}"}
+                return error_response(f"Unknown strategy: {strategy_name}")
 
             keys = list(param_ranges.keys())
             value_lists = [param_ranges[k] for k in keys]
             combinations = list(itertools.product(*value_lists))
 
             if len(combinations) > 500:
-                return {"error": True, "message": f"Too many combinations ({len(combinations)}). Max 500. Reduce param_ranges."}
+                return error_response(f"Too many combinations ({len(combinations)}). Max 500. Reduce param_ranges.")
 
             df = self._build_df(ohlcv_data)
             if len(df) < 60:
-                return {"error": True, "message": f"Insufficient data: {len(df)} rows."}
+                return error_response(f"Insufficient data: {len(df)} rows.")
 
             all_results = []
             for combo in combinations:
@@ -836,14 +843,13 @@ class BacktestAdapter:
                     logger.debug(f"Optimization combo {params} failed: {ex}")
 
             if not all_results:
-                return {"error": True, "message": "All parameter combinations failed."}
+                return error_response("All parameter combinations failed.")
 
             all_results.sort(key=lambda x: x["sharpe_ratio"], reverse=True)
             best = all_results[0]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": strategy_name,
                     "best_params": best["params"],
                     "best_sharpe": best["sharpe_ratio"],
@@ -852,10 +858,11 @@ class BacktestAdapter:
                     "top_10": all_results[:10],
                     "all_results": all_results[:50],  # cap response size
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Backtest optimize failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def portfolio(
         self,
@@ -878,13 +885,13 @@ class BacktestAdapter:
         """
         try:
             if abs(sum(weights.values()) - 1.0) > 0.01:
-                return {"error": True, "message": f"Weights must sum to 1.0. Current sum: {sum(weights.values()):.3f}"}
+                return error_response(f"Weights must sum to 1.0. Current sum: {sum(weights.values()):.3f}")
 
             tickers = list(weights.keys())
             dfs = {}
             for ticker in tickers:
                 if ticker not in assets_data:
-                    return {"error": True, "message": f"Missing data for ticker: {ticker}"}
+                    return error_response(f"Missing data for ticker: {ticker}")
                 dfs[ticker] = self._build_df(assets_data[ticker])
 
             # Find common date range
@@ -894,7 +901,7 @@ class BacktestAdapter:
                 dfs[t] = dfs[t].loc[common_start:common_end]
 
             if any(len(df) < 20 for df in dfs.values()):
-                return {"error": True, "message": "Insufficient overlapping data (need >= 20 trading days)."}
+                return error_response("Insufficient overlapping data (need >= 20 trading days).")
 
             # Build daily returns for each asset
             asset_returns = pd.DataFrame({
@@ -946,9 +953,8 @@ class BacktestAdapter:
 
             metrics = self._calc_metrics(equity, [], initial_capital)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "portfolio_metrics": metrics,
                     "final_value": equity[-1]["value"] if equity else initial_capital,
                     "rebalance_freq": rebalance_freq,
@@ -957,10 +963,11 @@ class BacktestAdapter:
                     "asset_contributions": asset_contributions,
                     "equity_curve": equity[::max(1, len(equity) // 500)],
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Portfolio backtest failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def benchmark(
         self,
@@ -1001,7 +1008,7 @@ class BacktestAdapter:
             # Align lengths
             min_len = min(len(strat_returns), len(bench_returns))
             if min_len < 20:
-                return {"error": True, "message": "Insufficient overlapping data for benchmark comparison."}
+                return error_response("Insufficient overlapping data for benchmark comparison.")
 
             sr = strat_returns[:min_len]
             br = bench_returns.values[:min_len]
@@ -1012,7 +1019,7 @@ class BacktestAdapter:
             br = br[mask]
 
             if len(sr) < 20:
-                return {"error": True, "message": "Too few valid data points after filtering."}
+                return error_response("Too few valid data points after filtering.")
 
             # Beta = Cov(strategy, benchmark) / Var(benchmark)
             cov_matrix = np.cov(sr, br)
@@ -1031,9 +1038,8 @@ class BacktestAdapter:
             # Benchmark buy-and-hold return
             bench_total_ret = float(bench_df["close"].iloc[-1] / bench_df["close"].iloc[0] - 1) * 100
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": {
                         "name": strategy_name,
                         "total_return_pct": strat_result["data"]["total_return_pct"],
@@ -1050,10 +1056,11 @@ class BacktestAdapter:
                         strat_result["data"]["total_return_pct"] - bench_total_ret, 2
                     ),
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Benchmark comparison failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def risk_analysis(
         self,
@@ -1084,19 +1091,19 @@ class BacktestAdapter:
             equity = result["data"]["equity_curve"]
             risk = self._calc_risk_metrics(equity, initial_capital)
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": strategy_name,
                     "initial_capital": initial_capital,
                     "final_value": result["data"]["final_value"],
                     "total_return_pct": result["data"]["total_return_pct"],
                     "risk_metrics": risk,
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Risk analysis failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def signal_history(
         self,
@@ -1119,11 +1126,11 @@ class BacktestAdapter:
         """
         try:
             if strategy_name not in STRATEGIES:
-                return {"error": True, "message": f"Unknown strategy: {strategy_name}"}
+                return error_response(f"Unknown strategy: {strategy_name}")
 
             df = self._build_df(ohlcv_data)
             if len(df) < 60:
-                return {"error": True, "message": f"Insufficient data: {len(df)} rows."}
+                return error_response(f"Insufficient data: {len(df)} rows.")
 
             signals = self._get_signals(df, strategy_name, params)
             forward_periods = [5, 10, 20, 60]
@@ -1169,19 +1176,19 @@ class BacktestAdapter:
                     avg["count"] = len(type_records)
                     avg_returns[sig_type] = avg
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": strategy_name,
                     "params": {**STRATEGIES[strategy_name]["params"], **(params or {})},
                     "total_signals": len(signal_records),
                     "avg_returns": avg_returns,
                     "signals": signal_records[-100:],  # last 100 signals to limit size
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Signal history failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def drawdown_analysis(
         self,
@@ -1211,7 +1218,7 @@ class BacktestAdapter:
 
             equity = result["data"]["equity_curve"]
             if len(equity) < 2:
-                return {"error": True, "message": "Insufficient equity curve data."}
+                return error_response("Insufficient equity curve data.")
 
             values = np.array([e["value"] for e in equity], dtype=float)
             dates = [e["date"] for e in equity]
@@ -1260,9 +1267,8 @@ class BacktestAdapter:
             # Sort by depth (most severe first)
             drawdowns.sort(key=lambda x: x["depth_pct"])
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "strategy": strategy_name,
                     "total_drawdown_periods": len(drawdowns),
                     "max_drawdown_pct": drawdowns[0]["depth_pct"] if drawdowns else 0.0,
@@ -1271,10 +1277,11 @@ class BacktestAdapter:
                     "current_drawdown": current_dd,
                     "drawdowns": drawdowns[:20],  # top 20 worst
                 },
-            }
+                source="Backtest Engine",
+            )
         except Exception as e:
             logger.exception(f"Drawdown analysis failed: {e}")
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
 
 # ── Standalone test ────────────────────────────────────────────────────

@@ -1,7 +1,14 @@
 """Sentiment & Attention Adapter — Google Trends, Wikipedia, VADER, Fear&Greed."""
 import logging
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -24,10 +31,7 @@ class SentimentAdapter:
         try:
             from pytrends.request import TrendReq
         except ImportError:
-            return {
-                "error": True,
-                "message": "pytrends not installed. Run: pip install pytrends",
-            }
+            return error_response("pytrends not installed. Run: pip install pytrends")
 
         try:
             keywords = keywords[:5]  # max 5 keywords
@@ -36,14 +40,9 @@ class SentimentAdapter:
             df = pytrends.interest_over_time()
 
             if df is None or df.empty:
-                return {
-                    "success": True,
-                    "source": "Google Trends",
-                    "keywords": keywords,
-                    "count": 0,
-                    "data": [],
-                    "message": "No data returned for these keywords/timeframe",
-                }
+                return success_response([], source="Google Trends",
+                                        keywords=keywords,
+                                        message="No data returned for these keywords/timeframe")
 
             records = []
             for idx, row in df.iterrows():
@@ -53,17 +52,11 @@ class SentimentAdapter:
                         entry[kw] = int(row[kw])
                 records.append(entry)
 
-            return {
-                "success": True,
-                "source": "Google Trends",
-                "keywords": keywords,
-                "timeframe": timeframe,
-                "geo": geo if geo else "worldwide",
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="Google Trends",
+                                    keywords=keywords, timeframe=timeframe,
+                                    geo=geo if geo else "worldwide")
         except Exception as e:
-            return {"error": True, "message": f"Google Trends error: {str(e)}"}
+            return error_response(f"Google Trends error: {str(e)}")
 
     def get_wiki_pageviews(
         self, articles: List[str], days: int = 90
@@ -115,25 +108,16 @@ class SentimentAdapter:
                     "daily_views": daily_views,
                 })
 
-            return {
-                "success": True,
-                "source": "Wikipedia/Pageviews",
-                "period_days": days,
-                "count": len(results),
-                "data": results,
-            }
+            return success_response(results, source="Wikipedia/Pageviews", period_days=days)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_news_sentiment(self, headlines: List[str]) -> Dict[str, Any]:
         """VADER sentiment analysis on headline strings."""
         try:
             from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
         except ImportError:
-            return {
-                "error": True,
-                "message": "vaderSentiment not installed. Run: pip install vaderSentiment",
-            }
+            return error_response("vaderSentiment not installed. Run: pip install vaderSentiment")
 
         try:
             analyzer = SentimentIntensityAnalyzer()
@@ -154,25 +138,17 @@ class SentimentAdapter:
             avg_compound = round(compound_sum / len(results), 4) if results else 0.0
             overall = "positive" if avg_compound > 0.05 else "negative" if avg_compound < -0.05 else "neutral"
 
-            return {
-                "success": True,
-                "source": "VADER Sentiment",
-                "count": len(results),
-                "overall": {
-                    "avg_compound": avg_compound,
-                    "sentiment": overall,
-                },
-                "data": results,
-            }
+            return success_response(results, source="VADER Sentiment",
+                                    overall={"avg_compound": avg_compound, "sentiment": overall})
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_fear_greed_multi(self) -> Dict[str, Any]:
         """Crypto Fear & Greed Index — last 30 days with interpretation."""
         try:
             resp = _session.get(self._fng_url, params={"limit": 30}, timeout=15)
             if resp.status_code != 200:
-                return {"error": True, "message": f"Fear&Greed API returned {resp.status_code}"}
+                return error_response(f"Fear&Greed API returned {resp.status_code}")
 
             data = resp.json().get("data", [])
             records = []
@@ -211,15 +187,10 @@ class SentimentAdapter:
             else:
                 interpretation["signal"] = "Extreme Greed — historically a contrarian sell signal."
 
-            return {
-                "success": True,
-                "source": "Alternative.me/Crypto Fear & Greed",
-                "count": len(records),
-                "interpretation": interpretation,
-                "data": records,
-            }
+            return success_response(records, source="Alternative.me/Crypto Fear & Greed",
+                                    interpretation=interpretation)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_keyword_correlation(
         self, keyword: str, stock_symbol: str, days: int = 180
@@ -228,10 +199,7 @@ class SentimentAdapter:
         try:
             from pytrends.request import TrendReq
         except ImportError:
-            return {
-                "error": True,
-                "message": "pytrends not installed. Run: pip install pytrends",
-            }
+            return error_response("pytrends not installed. Run: pip install pytrends")
 
         try:
             # Determine timeframe from days
@@ -251,15 +219,9 @@ class SentimentAdapter:
             df = pytrends.interest_over_time()
 
             if df is None or df.empty:
-                return {
-                    "success": True,
-                    "source": "Google Trends",
-                    "keyword": keyword,
-                    "stock_symbol": stock_symbol,
-                    "count": 0,
-                    "data": [],
-                    "note": "No trend data returned.",
-                }
+                return success_response([], source="Google Trends",
+                                        keyword=keyword, stock_symbol=stock_symbol,
+                                        note="No trend data returned.")
 
             records = []
             for idx, row in df.iterrows():
@@ -269,20 +231,14 @@ class SentimentAdapter:
                         "search_interest": int(row[keyword]),
                     })
 
-            return {
-                "success": True,
-                "source": "Google Trends",
-                "keyword": keyword,
-                "stock_symbol": stock_symbol,
-                "timeframe": timeframe,
-                "count": len(records),
-                "data": records,
-                "note": (
-                    f"This returns Google Trends data for '{keyword}'. "
-                    f"To correlate with {stock_symbol} stock price, use "
-                    f"stocks_quote or stocks_history tools to get price data "
-                    f"and compare the time series."
-                ),
-            }
+            return success_response(records, source="Google Trends",
+                                    keyword=keyword, stock_symbol=stock_symbol,
+                                    timeframe=timeframe,
+                                    note=(
+                                        f"This returns Google Trends data for '{keyword}'. "
+                                        f"To correlate with {stock_symbol} stock price, use "
+                                        f"stocks_quote or stocks_history tools to get price data "
+                                        f"and compare the time series."
+                                    ))
         except Exception as e:
-            return {"error": True, "message": f"Google Trends error: {str(e)}"}
+            return error_response(f"Google Trends error: {str(e)}")

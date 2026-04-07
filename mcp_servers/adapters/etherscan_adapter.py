@@ -6,9 +6,16 @@ Base URL: https://api.etherscan.io/v2/api
 """
 import logging
 import os
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
 from typing import Any, Dict
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("etherscan_adapter")
@@ -25,25 +32,25 @@ class EtherscanAdapter:
     def _call(self, chainid: int = 1, **params) -> Dict[str, Any]:
         """Make Etherscan V2 API call."""
         if not self._api_key:
-            return {"error": True, "message": "ETHERSCAN_API_KEY not configured"}
+            return error_response("ETHERSCAN_API_KEY not configured", code="NOT_INITIALIZED")
         try:
             params["apikey"] = self._api_key
             params["chainid"] = chainid
             resp = _session.get(BASE_URL, params=params, timeout=15)
             data = resp.json()
             if data.get("status") == "1" or data.get("message") == "OK":
-                return {"success": True, "result": data.get("result")}
-            return {"error": True, "message": data.get("message", "Unknown error"), "result": data.get("result")}
+                return success_response(data.get("result"), source="Etherscan")
+            return error_response(data.get("message", "Unknown error"), code="API_UNAVAILABLE")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_balance(self, address: str, chainid: int = 1) -> Dict[str, Any]:
         """Get ETH balance for an address."""
         result = self._call(chainid=chainid, module="account", action="balance", address=address, tag="latest")
         if result.get("success"):
-            wei = int(result["result"])
+            wei = int(result["data"])
             eth = wei / 1e18
-            return {"success": True, "address": address, "balance_wei": wei, "balance_eth": round(eth, 6)}
+            return success_response(None, source="Etherscan", address=address, balance_wei=wei, balance_eth=round(eth, 6))
         return result
 
     def get_transactions(self, address: str, limit: int = 20, chainid: int = 1) -> Dict[str, Any]:
@@ -54,7 +61,7 @@ class EtherscanAdapter:
         )
         if result.get("success"):
             txns = []
-            for tx in result["result"][:limit]:
+            for tx in result["data"][:limit]:
                 txns.append({
                     "hash": tx.get("hash"),
                     "from": tx.get("from"),
@@ -63,18 +70,19 @@ class EtherscanAdapter:
                     "gas_used": tx.get("gasUsed"),
                     "timestamp": tx.get("timeStamp"),
                 })
-            return {"success": True, "address": address, "count": len(txns), "data": txns}
+            return success_response(txns, source="Etherscan", address=address)
         return result
 
     def get_gas_price(self, chainid: int = 1) -> Dict[str, Any]:
         """Get current gas price."""
         result = self._call(chainid=chainid, module="gastracker", action="gasoracle")
         if result.get("success"):
-            r = result["result"]
-            return {
-                "success": True,
-                "safe_gwei": r.get("SafeGasPrice"),
-                "propose_gwei": r.get("ProposeGasPrice"),
-                "fast_gwei": r.get("FastGasPrice"),
-            }
+            r = result["data"]
+            return success_response(
+                None,
+                source="Etherscan",
+                safe_gwei=r.get("SafeGasPrice"),
+                propose_gwei=r.get("ProposeGasPrice"),
+                fast_gwei=r.get("FastGasPrice"),
+            )
         return result

@@ -1,10 +1,17 @@
 """Power Grid & Energy Adapter — Electricity Maps, EIA, ENTSO-E."""
 import logging
+import sys
 import os
 import requests
 from utils.http_client import get_session
 from datetime import datetime
 from typing import Any, Dict, Optional
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 _session = get_session("power_grid_adapter")
@@ -24,18 +31,15 @@ class PowerGridAdapter:
             try:
                 from entsoe import EntsoePandasClient
             except ImportError:
-                return {
-                    "error": True,
-                    "message": (
-                        "entsoe-py library not installed. "
-                        "Install with: pip install entsoe-py. "
-                        "Also requires ENTSOE_API_KEY env variable from "
-                        "https://transparency.entsoe.eu/ (free registration)."
-                    ),
-                }
+                return error_response(
+                    "entsoe-py library not installed. "
+                    "Install with: pip install entsoe-py. "
+                    "Also requires ENTSOE_API_KEY env variable from "
+                    "https://transparency.entsoe.eu/ (free registration)."
+                )
 
             if not self._entsoe_key:
-                return {"error": True, "message": "ENTSOE_API_KEY not set. Register free at https://transparency.entsoe.eu/"}
+                return error_response("ENTSOE_API_KEY not set. Register free at https://transparency.entsoe.eu/")
 
             import pandas as pd
             client = EntsoePandasClient(api_key=self._entsoe_key)
@@ -55,16 +59,15 @@ class PowerGridAdapter:
             else:
                 gen_data = {"raw": str(generation)[:1000]}
 
-            return {
-                "success": True,
-                "source": "ENTSO-E Transparency Platform",
-                "country_code": country_code,
-                "timestamp": datetime.now().isoformat(),
-                "unit": "MW",
-                "data": gen_data,
-            }
+            return success_response(
+                gen_data,
+                source="Power Grid",
+                country_code=country_code,
+                timestamp=datetime.now().isoformat(),
+                unit="MW",
+            )
         except Exception as e:
-            return {"error": True, "message": f"ENTSO-E query failed: {str(e)}"}
+            return error_response(f"ENTSO-E query failed: {str(e)}")
 
     def get_eu_price(self, country_code: str = "DE") -> Dict[str, Any]:
         """ENTSO-E day-ahead electricity prices (requires entsoe-py library)."""
@@ -72,17 +75,14 @@ class PowerGridAdapter:
             try:
                 from entsoe import EntsoePandasClient
             except ImportError:
-                return {
-                    "error": True,
-                    "message": (
-                        "entsoe-py library not installed. "
-                        "Install with: pip install entsoe-py. "
-                        "Also requires ENTSOE_API_KEY env variable."
-                    ),
-                }
+                return error_response(
+                    "entsoe-py library not installed. "
+                    "Install with: pip install entsoe-py. "
+                    "Also requires ENTSOE_API_KEY env variable."
+                )
 
             if not self._entsoe_key:
-                return {"error": True, "message": "ENTSOE_API_KEY not set. Register free at https://transparency.entsoe.eu/"}
+                return error_response("ENTSOE_API_KEY not set. Register free at https://transparency.entsoe.eu/")
 
             import pandas as pd
             client = EntsoePandasClient(api_key=self._entsoe_key)
@@ -102,19 +102,18 @@ class PowerGridAdapter:
             min_price = round(float(prices.min()), 2) if len(prices) > 0 else None
             max_price = round(float(prices.max()), 2) if len(prices) > 0 else None
 
-            return {
-                "success": True,
-                "source": "ENTSO-E Transparency Platform",
-                "country_code": country_code,
-                "unit": "EUR/MWh",
-                "average_price": avg_price,
-                "min_price": min_price,
-                "max_price": max_price,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                records,
+                count=len(records),
+                source="Power Grid",
+                country_code=country_code,
+                unit="EUR/MWh",
+                average_price=avg_price,
+                min_price=min_price,
+                max_price=max_price,
+            )
         except Exception as e:
-            return {"error": True, "message": f"ENTSO-E price query failed: {str(e)}"}
+            return error_response(f"ENTSO-E price query failed: {str(e)}")
 
     def get_carbon_intensity(self, zone: str = "DE") -> Dict[str, Any]:
         """Electricity Maps — real-time carbon intensity (gCO2eq/kWh)."""
@@ -127,36 +126,34 @@ class PowerGridAdapter:
 
             resp = _session.get(url, params=params, headers=headers, timeout=15)
             if resp.status_code == 401:
-                return {
-                    "error": True,
-                    "message": (
-                        "Electricity Maps API requires auth token. "
-                        "Set ELECTRICITY_MAPS_TOKEN env variable. "
-                        "Free tier available at https://app.electricitymap.org/map"
-                    ),
-                }
+                return error_response(
+                    "Electricity Maps API requires auth token. "
+                    "Set ELECTRICITY_MAPS_TOKEN env variable. "
+                    "Free tier available at https://app.electricitymap.org/map"
+                )
             if resp.status_code != 200:
-                return {"error": True, "message": f"Electricity Maps returned {resp.status_code}: {resp.text[:200]}"}
+                return error_response(f"Electricity Maps returned {resp.status_code}: {resp.text[:200]}")
 
             data = resp.json()
-            return {
-                "success": True,
-                "source": "Electricity Maps",
-                "zone": zone,
-                "carbon_intensity_gco2_kwh": data.get("carbonIntensity"),
-                "fossil_fuel_percentage": data.get("fossilFuelPercentage"),
-                "renewable_percentage": data.get("renewablePercentage"),
-                "datetime": data.get("datetime"),
-                "updated_at": data.get("updatedAt"),
-            }
+            return success_response(
+                {
+                    "carbon_intensity_gco2_kwh": data.get("carbonIntensity"),
+                    "fossil_fuel_percentage": data.get("fossilFuelPercentage"),
+                    "renewable_percentage": data.get("renewablePercentage"),
+                    "datetime": data.get("datetime"),
+                    "updated_at": data.get("updatedAt"),
+                },
+                source="Power Grid",
+                zone=zone,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_nuclear_status(self) -> Dict[str, Any]:
         """EIA — US nuclear electricity generation (daily, last 30 days)."""
         try:
             if not self._eia_key:
-                return {"error": True, "message": "EIA_API_KEY not set. Free key at https://www.eia.gov/opendata/register.php"}
+                return error_response("EIA_API_KEY not set. Free key at https://www.eia.gov/opendata/register.php")
 
             url = "https://api.eia.gov/v2/electricity/rto/daily-fuel-type-data/data/"
             params = {
@@ -170,7 +167,7 @@ class PowerGridAdapter:
             }
             resp = _session.get(url, params=params, timeout=20)
             if resp.status_code != 200:
-                return {"error": True, "message": f"EIA API returned {resp.status_code}"}
+                return error_response(f"EIA API returned {resp.status_code}")
 
             data = resp.json()
             response_data = data.get("response", {}).get("data", [])
@@ -184,16 +181,15 @@ class PowerGridAdapter:
                     "type_name": entry.get("type-name", ""),
                 })
 
-            return {
-                "success": True,
-                "source": "EIA (US Energy Information Administration)",
-                "description": "US48 nuclear electricity generation (daily)",
-                "unit": "MWh",
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(
+                records,
+                count=len(records),
+                source="Power Grid",
+                description="US48 nuclear electricity generation (daily)",
+                unit="MWh",
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_renewable_forecast(self, zone: str = "DE") -> Dict[str, Any]:
         """Electricity Maps — power production breakdown by source."""
@@ -206,15 +202,12 @@ class PowerGridAdapter:
 
             resp = _session.get(url, params=params, headers=headers, timeout=15)
             if resp.status_code == 401:
-                return {
-                    "error": True,
-                    "message": (
-                        "Electricity Maps API requires auth token for this endpoint. "
-                        "Set ELECTRICITY_MAPS_TOKEN env variable."
-                    ),
-                }
+                return error_response(
+                    "Electricity Maps API requires auth token for this endpoint. "
+                    "Set ELECTRICITY_MAPS_TOKEN env variable."
+                )
             if resp.status_code != 200:
-                return {"error": True, "message": f"Electricity Maps returned {resp.status_code}: {resp.text[:200]}"}
+                return error_response(f"Electricity Maps returned {resp.status_code}: {resp.text[:200]}")
 
             data = resp.json()
 
@@ -232,17 +225,18 @@ class PowerGridAdapter:
             )
             renewable_pct = round(renewable_total / total_production * 100, 1) if total_production > 0 else None
 
-            return {
-                "success": True,
-                "source": "Electricity Maps",
-                "zone": zone,
-                "datetime": data.get("datetime"),
-                "renewable_percentage": renewable_pct,
-                "total_production_mw": round(total_production, 1) if total_production else None,
-                "power_production_breakdown": production,
-                "power_import_breakdown": imports,
-                "power_consumption_breakdown": consumption,
-                "fossil_fuel_percentage": data.get("fossilFuelPercentage"),
-            }
+            return success_response(
+                {
+                    "datetime": data.get("datetime"),
+                    "renewable_percentage": renewable_pct,
+                    "total_production_mw": round(total_production, 1) if total_production else None,
+                    "power_production_breakdown": production,
+                    "power_import_breakdown": imports,
+                    "power_consumption_breakdown": consumption,
+                    "fossil_fuel_percentage": data.get("fossilFuelPercentage"),
+                },
+                source="Power Grid",
+                zone=zone,
+            )
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

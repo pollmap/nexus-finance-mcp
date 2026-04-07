@@ -2,8 +2,15 @@
 import logging
 import csv
 import io
+import sys
+from pathlib import Path
 import requests
 from utils.http_client import get_session
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -34,7 +41,7 @@ class ClimateAdapter:
             }
             resp = _session.get(self._meteo_base, params=params, timeout=30)
             if resp.status_code != 200:
-                return {"error": True, "message": f"Open-Meteo returned {resp.status_code}: {resp.text[:200]}"}
+                return error_response(f"Open-Meteo returned {resp.status_code}: {resp.text[:200]}")
 
             data = resp.json()
             daily = data.get("daily", {})
@@ -49,23 +56,18 @@ class ClimateAdapter:
                     "windspeed_max_kmh": daily.get("windspeed_10m_max", [None])[i] if i < len(daily.get("windspeed_10m_max", [])) else None,
                 })
 
-            return {
-                "success": True,
-                "source": "Open-Meteo/Archive",
-                "location": {"latitude": latitude, "longitude": longitude},
-                "period": {"start": start_date, "end": end_date},
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="Open-Meteo/Archive",
+                                    location={"latitude": latitude, "longitude": longitude},
+                                    period={"start": start_date, "end": end_date})
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_temperature_anomaly(self, period: str = "monthly") -> Dict[str, Any]:
         """NASA GISS global temperature anomaly — last 120 months."""
         try:
             resp = _session.get(self._giss_url, timeout=20)
             if resp.status_code != 200:
-                return {"error": True, "message": f"NASA GISS returned {resp.status_code}"}
+                return error_response(f"NASA GISS returned {resp.status_code}")
 
             text = resp.text
             reader = csv.reader(io.StringIO(text))
@@ -79,7 +81,7 @@ class ClimateAdapter:
                     break
 
             if header_idx is None:
-                return {"error": True, "message": "Could not parse NASA GISS CSV header"}
+                return error_response("Could not parse NASA GISS CSV header")
 
             month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -110,16 +112,11 @@ class ClimateAdapter:
             # Return last 120 months
             records = records[-120:]
 
-            return {
-                "success": True,
-                "source": "NASA/GISS",
-                "description": "Global Land-Ocean Temperature Anomaly (base: 1951-1980)",
-                "period_type": period,
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="NASA/GISS",
+                                    description="Global Land-Ocean Temperature Anomaly (base: 1951-1980)",
+                                    period_type=period)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_extreme_events(
         self, latitude: float, longitude: float, start_date: str, end_date: str
@@ -136,7 +133,7 @@ class ClimateAdapter:
             }
             resp = _session.get(self._meteo_base, params=params, timeout=30)
             if resp.status_code != 200:
-                return {"error": True, "message": f"Open-Meteo returned {resp.status_code}"}
+                return error_response(f"Open-Meteo returned {resp.status_code}")
 
             data = resp.json()
             daily = data.get("daily", {})
@@ -163,32 +160,30 @@ class ClimateAdapter:
                     if len(rain_events) < 5:
                         rain_events.append({"date": dates[i], "precipitation_mm": precip[i]})
 
-            return {
-                "success": True,
-                "source": "Open-Meteo/Archive",
-                "location": {"latitude": latitude, "longitude": longitude},
-                "period": {"start": start_date, "end": end_date},
-                "total_days": total_days,
-                "extreme_counts": {
-                    "heat_days_above_35c": heat_days,
-                    "cold_days_below_neg10c": cold_days,
-                    "heavy_rain_days_above_50mm": heavy_rain_days,
-                },
-                "sample_events": {
-                    "heat": heat_events,
-                    "cold": cold_events,
-                    "heavy_rain": rain_events,
-                },
-            }
+            return success_response({
+                    "extreme_counts": {
+                        "heat_days_above_35c": heat_days,
+                        "cold_days_below_neg10c": cold_days,
+                        "heavy_rain_days_above_50mm": heavy_rain_days,
+                    },
+                    "sample_events": {
+                        "heat": heat_events,
+                        "cold": cold_events,
+                        "heavy_rain": rain_events,
+                    },
+                }, source="Open-Meteo/Archive",
+                location={"latitude": latitude, "longitude": longitude},
+                period={"start": start_date, "end": end_date},
+                total_days=total_days)
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_enso_index(self) -> Dict[str, Any]:
         """NOAA Oceanic Nino Index (ONI) — last 24 quarters."""
         try:
             resp = _session.get(self._enso_url, timeout=20)
             if resp.status_code != 200:
-                return {"error": True, "message": f"NOAA ENSO returned {resp.status_code}"}
+                return error_response(f"NOAA ENSO returned {resp.status_code}")
 
             lines = resp.text.strip().split("\n")
             # Format: " SEAS  YR   TOTAL   ANOM" — each line is one season
@@ -218,15 +213,10 @@ class ClimateAdapter:
             # Return last 24 quarters
             records = records[-24:]
 
-            return {
-                "success": True,
-                "source": "NOAA/CPC",
-                "description": "Oceanic Nino Index (ONI): +0.5=El Nino, -0.5=La Nina",
-                "count": len(records),
-                "data": records,
-            }
+            return success_response(records, source="NOAA/CPC",
+                                    description="Oceanic Nino Index (ONI): +0.5=El Nino, -0.5=La Nina")
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_city_comparison(self, cities: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Compare weather across multiple cities — last 365 days."""
@@ -276,15 +266,10 @@ class ClimateAdapter:
                     "days_analyzed": len(data.get("time", [])),
                 })
 
-            return {
-                "success": True,
-                "source": "Open-Meteo/Archive",
-                "period": {"start": start_date, "end": end_date},
-                "count": len(results),
-                "data": results,
-            }
+            return success_response(results, source="Open-Meteo/Archive",
+                                    period={"start": start_date, "end": end_date})
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))
 
     def get_crop_weather(self) -> Dict[str, Any]:
         """Crop weather for major agricultural regions — last 30 days."""
@@ -337,13 +322,8 @@ class ClimateAdapter:
                     "days_analyzed": len(data.get("time", [])),
                 })
 
-            return {
-                "success": True,
-                "source": "Open-Meteo/Archive",
-                "description": "30-day crop weather for major agricultural regions",
-                "period": {"start": start_date, "end": end_date},
-                "count": len(results),
-                "data": results,
-            }
+            return success_response(results, source="Open-Meteo/Archive",
+                                    description="30-day crop weather for major agricultural regions",
+                                    period={"start": start_date, "end": end_date})
         except Exception as e:
-            return {"error": True, "message": str(e)}
+            return error_response(str(e))

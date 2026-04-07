@@ -15,13 +15,20 @@ Input format: list[dict] with {"date": "YYYY-MM-DD", "value": float}
 Run standalone test: python -m mcp_servers.adapters.advanced_math_adapter
 """
 import logging
+import sys
 import warnings
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from mcp_servers.core.responses import error_response, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +99,7 @@ class AdvancedMathAdapter:
             dates, values = _ts_to_array(series)
             n = len(values)
             if n < 30:
-                return {"success": False, "error": f"Kalman filter requires 30+ observations, got {n}"}
+                return error_response(f"Kalman filter requires 30+ observations, got {n}")
 
             # State: [price, velocity], Measurement: observed price
             F = np.array([[1.0, 1.0], [0.0, 1.0]])  # state transition
@@ -196,11 +203,11 @@ class AdvancedMathAdapter:
                 except Exception as e:
                     result["dynamic_beta"] = {"error": str(e)}
 
-            return {"success": True, "data": result}
+            return success_response(result, source="Advanced Math")
 
         except Exception as e:
             logger.error(f"Kalman filter error: {e}")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _compute_dynamic_beta(
         self,
@@ -280,7 +287,7 @@ class AdvancedMathAdapter:
             dates, values = _ts_to_array(series)
             n = len(values)
             if n < 100:
-                return {"success": False, "error": f"Hurst exponent requires 100+ observations, got {n}"}
+                return error_response(f"Hurst exponent requires 100+ observations, got {n}")
 
             # Work with returns if price series
             if _is_return_series(values):
@@ -313,9 +320,8 @@ class AdvancedMathAdapter:
             else:
                 confidence = "low"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "hurst_exponent": round(float(H), 4),
                     "method": method,
                     "interpretation": interpretation,
@@ -329,11 +335,12 @@ class AdvancedMathAdapter:
                         else "random_walk"
                     ),
                 },
-            }
+                source="Advanced Math",
+            )
 
         except Exception as e:
             logger.error(f"Hurst exponent error: {e}")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _hurst_rs(self, series: np.ndarray, min_window: int = 10) -> Tuple[float, float, float]:
         """Rescaled Range (R/S) analysis."""
@@ -451,7 +458,7 @@ class AdvancedMathAdapter:
             dates, values = _ts_to_array(series)
             n = len(values)
             if n < 100:
-                return {"success": False, "error": f"Entropy analysis requires 100+ observations, got {n}"}
+                return error_response(f"Entropy analysis requires 100+ observations, got {n}")
 
             # Work with returns
             if _is_return_series(values):
@@ -490,9 +497,8 @@ class AdvancedMathAdapter:
             else:
                 interpretation = "Very low predictability. Near-random behavior."
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "shannon_entropy": round(float(shannon), 4),
                     "shannon_normalized": round(float(normalized_shannon), 4),
                     "approx_entropy": round(float(apen), 4),
@@ -506,11 +512,12 @@ class AdvancedMathAdapter:
                     },
                     "n_observations": n,
                 },
-            }
+                source="Advanced Math",
+            )
 
         except Exception as e:
             logger.error(f"Information entropy error: {e}")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _shannon_entropy(self, returns: np.ndarray, n_bins: int) -> float:
         """Shannon entropy of return distribution."""
@@ -599,10 +606,9 @@ class AdvancedMathAdapter:
             n = len(values)
             min_required = 2 ** levels
             if n < min_required:
-                return {
-                    "success": False,
-                    "error": f"Wavelet decomposition with {levels} levels requires {min_required}+ observations, got {n}",
-                }
+                return error_response(
+                    f"Wavelet decomposition with {levels} levels requires {min_required}+ observations, got {n}"
+                )
 
             # Auto-adjust levels if needed
             max_level = pywt.dwt_max_level(n, pywt.Wavelet(wavelet).dec_len)
@@ -677,9 +683,8 @@ class AdvancedMathAdapter:
                 for d in level_details
             ]
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "levels": level_details,
                     "dominant_scale": dominant_level,
                     "dominant_scale_energy_pct": round(float(dominant_energy / total_energy * 100), 2),
@@ -693,13 +698,14 @@ class AdvancedMathAdapter:
                         f"Approximation (trend) holds {round(float(approx_energy / total_energy * 100), 1)}% of energy."
                     ),
                 },
-            }
+                source="Advanced Math",
+            )
 
         except ImportError:
-            return {"success": False, "error": "pywt (PyWavelets) not installed. Run: pip install PyWavelets"}
+            return error_response("pywt (PyWavelets) not installed. Run: pip install PyWavelets", code="API_UNAVAILABLE")
         except Exception as e:
             logger.error(f"Wavelet decomposition error: {e}")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     # ------------------------------------------------------------------
     # 5. Fractal Dimension
@@ -726,12 +732,12 @@ class AdvancedMathAdapter:
             dates, values = _ts_to_array(series)
             n = len(values)
             if n < 200:
-                return {"success": False, "error": f"Fractal dimension requires 200+ observations, got {n}"}
+                return error_response(f"Fractal dimension requires 200+ observations, got {n}")
 
             if method == "box_counting":
                 D, r2, se = self._box_counting_dimension(values)
             else:
-                return {"success": False, "error": f"Unknown method: {method}. Use 'box_counting'."}
+                return error_response(f"Unknown method: {method}. Use 'box_counting'.", code="INVALID_INPUT")
 
             # Interpretation
             if D < 1.2:
@@ -754,9 +760,8 @@ class AdvancedMathAdapter:
             else:
                 market_efficiency = "inefficient"
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "fractal_dimension": round(float(D), 4),
                     "interpretation": interpretation,
                     "r_squared": round(float(r2), 4),
@@ -765,11 +770,12 @@ class AdvancedMathAdapter:
                     "distance_from_random_walk": round(float(efficiency), 4),
                     "n_observations": n,
                 },
-            }
+                source="Advanced Math",
+            )
 
         except Exception as e:
             logger.error(f"Fractal dimension error: {e}")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
     def _box_counting_dimension(self, series: np.ndarray) -> Tuple[float, float, float]:
         """Box-counting fractal dimension."""
@@ -832,7 +838,7 @@ class AdvancedMathAdapter:
             dates, values = _ts_to_array(series)
             n = len(values)
             if n < 60:
-                return {"success": False, "error": f"Monte Carlo requires 60+ observations, got {n}"}
+                return error_response(f"Monte Carlo requires 60+ observations, got {n}")
 
             # Cap simulations for performance
             n_simulations = min(n_simulations, 50000)
@@ -845,7 +851,7 @@ class AdvancedMathAdapter:
             dt = 1.0 / 252
 
             if model != "gbm":
-                return {"success": False, "error": f"Unknown model: {model}. Use 'gbm'."}
+                return error_response(f"Unknown model: {model}. Use 'gbm'.", code="INVALID_INPUT")
 
             # Vectorized GBM simulation
             z = np.random.standard_normal((n_simulations, horizon))
@@ -882,9 +888,8 @@ class AdvancedMathAdapter:
             cvar_95 = float(np.mean(worst_5pct)) if len(worst_5pct) > 0 else var_95
             prob_loss = float(np.mean(final_returns < 0))
 
-            return {
-                "success": True,
-                "data": {
+            return success_response(
+                {
                     "percentiles_by_step": percentiles_by_step,
                     "final_distribution": {
                         "mean_price": round(float(np.mean(final_prices)), 2),
@@ -913,11 +918,12 @@ class AdvancedMathAdapter:
                     },
                     "n_observations": n,
                 },
-            }
+                source="Advanced Math",
+            )
 
         except Exception as e:
             logger.error(f"Monte Carlo simulation error: {e}")
-            return {"success": False, "error": str(e)}
+            return error_response(str(e))
 
 
 # ------------------------------------------------------------------
