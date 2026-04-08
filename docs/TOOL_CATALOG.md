@@ -1,7 +1,39 @@
 # Tool Catalog — 396 Tools across 64 Servers
 
-> Complete reference for every tool in the Nexus Finance MCP platform.
-> For a high-level overview, see [README.md](../README.md). This document lists every tool, grouped by domain and server.
+> Complete reference for every tool in the Nexus Finance MCP platform.  
+> For visual architecture, see [DATA_FLOW.md](DATA_FLOW.md). For a cheat sheet, see [QUICK_REFERENCE.md](QUICK_REFERENCE.md).
+
+---
+
+## Domain Overview
+
+```mermaid
+graph LR
+    GW[Gateway<br/>396 tools]
+
+    KF[Korean Finance<br/>49 tools]
+    GM[Global Markets<br/>37 tools]
+    CD[Crypto & DeFi<br/>36 tools]
+    NR[News & Research<br/>31 tools]
+    RE[Real Economy<br/>31 tools]
+    AV[Analysis & Viz<br/>38 tools]
+    QE[Quant Engine<br/>22 tools]
+    PQ[Pro Quant<br/>18 tools]
+    PM[PhD Math<br/>18 tools]
+    AA[Academic Alpha<br/>24 tools]
+    CQ[Crypto Quant+ML<br/>24 tools]
+    AD[Alt Data<br/>32 tools]
+    RG[Regulatory<br/>26 tools]
+    INF[Infrastructure<br/>25 tools]
+
+    GW --> KF & GM & CD & NR & RE
+    GW --> AV & QE & PQ & PM
+    GW --> AA & CQ & AD & RG & INF
+
+    style GW fill:#1a1a2e,stroke:#7c6af7,color:#e0e0e0
+```
+
+**Jump to:** [Korean Economy](#1-korean-economy-한국-경제--41-tools) | [Real Estate](#2-korean-real-estate-부동산--8-tools) | [Global Markets](#3-global-markets--37-tools) | [Crypto](#4-crypto--defi--36-tools) | [News](#5-news--research--31-tools) | [Real Economy](#6-real-economy--31-tools) | [Regulatory](#7-regulatory--environment--26-tools) | [Alt Data](#8-quant-alternative-data--32-tools) | [Viz](#9-analysis--visualization--38-tools) | [Quant](#10-quant-analysis-engine-phase-8--22-tools) | [Pro Quant](#11-professional-quant-phase-9--18-tools) | [PhD Math](#12-phd-level-quant-math-phase-10--18-tools) | [Academic Alpha](#13-academic-alpha-core-phase-11--24-tools) | [Crypto Quant+ML](#14-crypto-quant--ml-pipeline-phase-12--24-tools) | [Infrastructure](#15-infrastructure--knowledge--25-tools)
 
 ---
 

@@ -35,6 +35,7 @@ Connect any MCP client and start asking questions — about Korean equities, US 
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Tool Overview](#tool-overview)
+- [Response Format](#response-format)
 - [Example Workflows](#example-workflows)
 - [Getting the Best Output](#getting-the-best-output)
 - [API Keys](#api-keys)
@@ -42,6 +43,7 @@ Connect any MCP client and start asking questions — about Korean equities, US 
 - [Documentation](#documentation)
 - [Data Policy](#data-policy)
 - [Contributing](#contributing)
+- [Changelog](#changelog)
 - [Star History](#star-history)
 - [License](#license)
 
@@ -391,31 +393,50 @@ All tools return structured JSON. Example:
 
 ## Architecture
 
+```mermaid
+graph TD
+    subgraph Clients
+        CC[Claude Code / Desktop]
+        CU[Cursor / Windsurf]
+        SDK[Python / TS SDK]
+    end
+
+    subgraph Proxy["Nginx Reverse Proxy"]
+        RL["Rate Limit: 5 req/s per IP"]
+    end
+
+    subgraph Gateway["MCP Gateway :8100"]
+        GW[GatewayServer — FastMCP 3.x]
+        META[gateway_status, list_tools, ...]
+    end
+
+    subgraph Servers["64 Sub-Servers"]
+        direction LR
+        S1["Korean Finance (8)"]
+        S2["Global Markets (6)"]
+        S3["Crypto & DeFi (6)"]
+        S4["Quant Engine (11)"]
+        S5["News & Research (6)"]
+        S6["Alt Data + Env (12)"]
+        S7["Viz + Infra (6)"]
+        S8["ML & Alpha (4)"]
+        S9["Regulatory (5)"]
+    end
+
+    subgraph Core["Core Infrastructure"]
+        CACHE["3-Tier Cache (LRU → TTL → Disk)"]
+        RLM["Rate Limiter (Token Bucket)"]
+    end
+
+    CC & CU & SDK -->|"HTTP POST /mcp"| Proxy
+    Proxy --> Gateway
+    GW --> META
+    GW --> Servers
+    Servers -->|"60 Adapters"| APIs["External APIs (ECOS, DART, CCXT, FRED, ...)"]
+    Servers --> Core
 ```
-┌─────────────────────────────────────────────────────┐
-│                    Client Layer                       │
-│  Claude Desktop · Claude Code · Cursor · Smithery     │
-└────────────────────────┬────────────────────────────┘
-                         │
-                    HTTP / HTTPS
-                         │
-┌────────────────────────▼────────────────────────────┐
-│              nginx Reverse Proxy                      │
-│              TLS + Rate Limiting                      │
-└────────────────────────┬────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────┐
-│           MCP Gateway (127.0.0.1:8100)               │
-│              streamable-http transport                 │
-│                                                       │
-│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │ 64 Servers   │  │ Tool Metadata │  │ API Counter │ │
-│  │ (FastMCP     │  │ (domain,      │  │ (daily      │ │
-│  │  mount)      │  │  pattern,     │  │  stats)     │ │
-│  │              │  │  complexity)  │  │             │ │
-│  └─────────────┘  └──────────────┘  └─────────────┘ │
-└─────────────────────────────────────────────────────┘
-```
+
+> For detailed diagrams (request lifecycle, server tree, caching flow), see [docs/DATA_FLOW.md](docs/DATA_FLOW.md).
 
 ### Gateway Meta Tools
 
@@ -434,14 +455,22 @@ api_call_stats()                    → Daily call counts
 
 | Document | Description |
 |----------|-------------|
+| **Getting Started** | |
+| [Connection Guide](CONNECT.md) | Connect from Claude Code, Cursor, Windsurf, Python/TS SDK |
+| [Quick Reference](docs/QUICK_REFERENCE.md) | One-page cheat sheet — top tools, patterns, limits |
 | [Usage Guide](docs/USAGE_GUIDE.md) | 5 input patterns, workflow examples |
-| [Tool Catalog](docs/TOOL_CATALOG.md) | All 396 tools by domain/complexity |
+| **Reference** | |
+| [Tool Catalog](docs/TOOL_CATALOG.md) | All 396 tools by domain and complexity tier |
 | [Parsing Guide](docs/PARSING_GUIDE.md) | Response format spec, parsing strategies |
 | [Error Reference](docs/ERROR_REFERENCE.md) | Error codes, retry strategies |
-| [Architecture](docs/ARCHITECTURE.md) | System architecture, caching, rate limiting |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | Operational debugging guide |
-| [Competitive Analysis](docs/COMPETITIVE_ANALYSIS.md) | Benchmarking vs other financial APIs |
+| **Architecture** | |
+| [Architecture Diagrams](docs/DATA_FLOW.md) | Mermaid diagrams — system, data flow, server tree, caching |
+| [Architecture Deep Dive](docs/ARCHITECTURE.md) | Technical internals, caching, rate limiting, dead code audit |
 | [Coverage Audit](docs/COVERAGE_AUDIT.md) | API coverage by source + improvement roadmap |
+| **Contributing** | |
+| [Contributing Guide](CONTRIBUTING.md) | How to add servers, adapters, and tools |
+| [Changelog](CHANGELOG.md) | Phase 1-14 evolution history |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Operational debugging guide |
 
 ## Data Policy
 
@@ -454,14 +483,18 @@ api_call_stats()                    → Daily call counts
 
 ## Contributing
 
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/new-server`)
-3. Add server in `mcp_servers/servers/` + adapter in `mcp_servers/adapters/`
-4. Register in `gateway_server.py` SERVERS list
-5. Test: `python -c "from mcp_servers.servers.your_server import YourServer; s = YourServer(); print(len(s.mcp.tools))"`
-6. Submit PR
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide — project structure, server patterns, adapter templates, naming conventions.
 
-See [Architecture docs](docs/ARCHITECTURE.md) for the server development guide.
+Quick summary:
+
+1. Fork the repo
+2. Create adapter in `mcp_servers/adapters/` + server in `mcp_servers/servers/`
+3. Register in `gateway_server.py` SERVERS list
+4. Test and submit PR
+
+## Changelog
+
+See **[CHANGELOG.md](CHANGELOG.md)** for the full Phase 1-14 evolution history.
 
 ## Star History
 

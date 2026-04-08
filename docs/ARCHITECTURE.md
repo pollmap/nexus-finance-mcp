@@ -20,19 +20,18 @@
 | 포트 | 8100 (localhost) |
 | 외부 접근 | Nginx 프록시 경유 |
 
-### 전체 구조 요약
+### Architecture Diagram
 
-```
-Client (MCP / curl)
-    │
-    ▼
-Gateway (port 8100)          ← 단일 진입점
-    │
-    ├── 64 Sub-servers        ← 도메인별 도구 등록
-    │       │
-    │       └── 48 Adapters  ← 외부 API HTTP 클라이언트
-    │
-    └── Core Infrastructure  ← 캐시 / 레이트 리밋 / 카운터
+> For full visual diagrams (system architecture, request lifecycle, server tree, caching flow), see **[DATA_FLOW.md](DATA_FLOW.md)**.
+
+```mermaid
+graph TD
+    C[MCP Client] -->|HTTP POST /mcp| N[Nginx :80/443]
+    N -->|proxy_pass| G[Gateway :8100]
+    G --> S[64 Sub-Servers]
+    S --> A[60 Adapters]
+    A -->|HTTP| E[External APIs]
+    G --> CORE[Core: Cache + Rate Limiter + Counter]
 ```
 
 ---
@@ -147,32 +146,19 @@ return {"error": True, "message": "Rate limit exceeded"}
 
 ## 3. Caching Architecture (3-Tier)
 
+```mermaid
+flowchart TD
+    REQ[Request] --> L1{L1: LRU<br/>100 items}
+    L1 -->|HIT| R1[Return]
+    L1 -->|MISS| L2{L2: TTL<br/>1000 items, 1hr}
+    L2 -->|HIT| R2[Promote L1 + Return]
+    L2 -->|MISS| L3{L3: DiskCache<br/>SQLite, persistent}
+    L3 -->|HIT| R3[Promote L1/L2 + Return]
+    L3 -->|MISS| API[External API]
+    API --> STORE[Store L1 + L2 + L3]
 ```
-Request
-  │
-  ▼
-L1: In-Memory LRU
-    - 용량: 100 items
-    - TTL: 없음 (LRU 기반 교체)
-    - 히트 시: 즉시 반환
-  │ miss
-  ▼
-L2: In-Memory TTL Cache
-    - 용량: 1,000 items
-    - 기본 TTL: 1시간
-    - 히트 시: 반환 + L1 승격
-  │ miss
-  ▼
-L3: DiskCache (SQLite)
-    - 용량: 디스크 제한
-    - 영속성: 재시작 후에도 유지
-    - 히트 시: 반환 + L1/L2 승격
-  │ miss
-  ▼
-외부 API 호출 (fresh fetch)
-    │
-    └──→ L1 + L2 + L3 모두 저장
-```
+
+> For the full caching diagram with TTL table, see [DATA_FLOW.md](DATA_FLOW.md#4-caching-architecture-3-tier).
 
 ### 데이터 타입별 TTL
 
@@ -313,9 +299,11 @@ Client → Nginx (443/HTTPS)
 
 ---
 
-## 9. 관련 문서
+## 9. Related Docs
 
-- [README.md](README.md) — 문서 인덱스
-- [PARSING_GUIDE.md](PARSING_GUIDE.md) — 응답 파싱 실전 가이드
-- [ERROR_REFERENCE.md](ERROR_REFERENCE.md) — 에러 코드 및 재시도 전략
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — 디버깅 가이드
+- [DATA_FLOW.md](DATA_FLOW.md) — Visual Mermaid diagrams (system, request lifecycle, server tree, caching)
+- [TOOL_CATALOG.md](TOOL_CATALOG.md) — All 396 tools by domain and complexity
+- [PARSING_GUIDE.md](PARSING_GUIDE.md) — Response format spec and parsing strategies
+- [ERROR_REFERENCE.md](ERROR_REFERENCE.md) — Error codes and retry strategies
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — Operational debugging guide
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — How to add servers/adapters/tools
