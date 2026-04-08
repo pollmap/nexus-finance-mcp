@@ -18,6 +18,7 @@
     <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python 3.12+">
     <img src="https://img.shields.io/badge/transport-streamable--http-purple" alt="Transport">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
+    <img src="https://img.shields.io/badge/tests-11%20passed%2C%201%20skipped-brightgreen" alt="Tests">
     <a href="https://smithery.ai"><img src="https://img.shields.io/badge/Smithery-registered-orange" alt="Smithery"></a>
   </p>
 </p>
