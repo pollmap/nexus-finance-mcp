@@ -55,7 +55,7 @@ Built for AI agents by [Luxon AI](https://github.com/pollmap).
 | **33 Chart Types** | Line, candlestick, heatmap, treemap, sankey, choropleth map, violin, radar, and more |
 | **Semantic Memory** | Hybrid vector + BM25 search, Obsidian Vault integration, ontology graph |
 | **Smithery Ready** | Listed on [Smithery](https://smithery.ai) marketplace — plug and play |
-| **Bearer Auth** | Optional token-based authentication for production deployments |
+| **Open Access** | No authentication required — connect instantly from any MCP client |
 
 ## Supported Clients
 
@@ -84,7 +84,7 @@ Connect instantly — no installation required.
 **Claude Code (one command):**
 
 ```bash
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp --header "Authorization: Bearer YOUR_TOKEN"
+claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
 ```
 
 **Claude Desktop (`claude_desktop_config.json`):**
@@ -94,10 +94,7 @@ claude mcp add nexus-finance --transport streamable-http --url http://62.171.141
   "mcpServers": {
     "nexus-finance": {
       "url": "http://62.171.141.206/mcp",
-      "transport": "streamable-http",
-      "headers": {
-        "Authorization": "Bearer YOUR_TOKEN"
-      }
+      "transport": "streamable-http"
     }
   }
 }
@@ -105,7 +102,7 @@ claude mcp add nexus-finance --transport streamable-http --url http://62.171.141
 
 > **Config location:** Windows `%APPDATA%\Claude\claude_desktop_config.json` · macOS `~/Library/Application Support/Claude/claude_desktop_config.json`
 >
-> Bearer 토큰은 관리자에게 문의하세요.
+> No authentication required. Just add the URL and connect.
 
 ### Option 2: Self-Hosted
 
