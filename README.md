@@ -69,7 +69,7 @@ Connect any MCP client and start asking questions — about Korean equities, US 
 | **Research Intelligence** | arXiv, Semantic Scholar, RISS, PubMed, GDELT, Google Trends, patents, 14 RSS feeds |
 | **Semantic Memory** | Hybrid vector + BM25 search, Obsidian Vault integration, ontology graph |
 | **Smithery Ready** | Listed on [Smithery](https://smithery.ai) marketplace — plug and play |
-| **Open Access** | No authentication required — connect instantly from any MCP client |
+| **Open Access** | No authentication required — connect instantly from any MCP client ([Connection Guide](CONNECT.md)) |
 
 ## Supported Clients
 
@@ -116,7 +116,14 @@ claude mcp add nexus-finance --transport streamable-http --url http://62.171.141
 
 > **Config location:** Windows `%APPDATA%\Claude\claude_desktop_config.json` · macOS `~/Library/Application Support/Claude/claude_desktop_config.json`
 >
-> No authentication required. Just add the URL and connect.
+> No authentication required. Just add the URL and connect.  
+> For Cursor, Windsurf, Python/TS SDK, and cURL examples, see the **[Connection Guide](CONNECT.md)**.
+
+**Hosted server notes:**
+- HTTP only (HTTPS coming soon) — do not send sensitive data in tool parameters
+- Rate limit: 5 req/s per IP on `/mcp` endpoint (burst 10)
+- Best-effort uptime — single VPS, no SLA
+- All API keys pre-configured — all 396 tools work immediately
 
 ### Option 2: Self-Hosted
 
