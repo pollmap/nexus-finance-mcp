@@ -33,7 +33,7 @@
 **설정 30초:**
 
 ```
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 ```
 
 API 키 필요없음. 인증 없음. 그냥 복붙하면 됨.

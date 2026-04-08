@@ -26,7 +26,7 @@ After months of building, I'm open-sourcing **nexus-finance-mcp** — a single M
 **Setup (30 seconds):**
 
 ```
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 ```
 
 That's it. No API keys needed. No auth. Just connect and start asking.

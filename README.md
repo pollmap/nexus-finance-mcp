@@ -100,7 +100,7 @@ Connect instantly — no installation required.
 **Claude Code (one command):**
 
 ```bash
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 ```
 
 **Claude Desktop (`claude_desktop_config.json`):**

@@ -72,7 +72,7 @@ All real data. Zero mocks.
 
 Setup takes 30 seconds:
 
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 
 Works with Claude Desktop, Cursor, Windsurf, Cline, Continue — any MCP client.
 

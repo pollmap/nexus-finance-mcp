@@ -22,7 +22,7 @@ Coverage: Korean equities (DART, ECOS, KRX), US macro (FRED, SEC EDGAR), crypto 
 
 No authentication required. Connect in 30 seconds:
 
-    claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+    claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 
 Architecture: FastMCP gateway mounts 64 sub-servers, streamable-http transport. Each server is a self-contained module with standardized adapters. Real data only — zero mock/sample responses.
 

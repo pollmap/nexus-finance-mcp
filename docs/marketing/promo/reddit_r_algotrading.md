@@ -49,7 +49,7 @@ I built an open-source MCP server that gives any AI client (Claude, Cursor, etc.
 **Connect in 30 seconds:**
 
 ```
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 ```
 
 No API keys. No auth. Works with Claude Desktop, Cursor, Windsurf, or any MCP client.

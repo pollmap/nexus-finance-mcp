@@ -99,7 +99,7 @@ After months of building, I'm open-sourcing nexus-finance-mcp — a single MCP e
 
 **Setup (30 seconds):**
 ```
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 ```
 
 No API keys needed. No auth. Just connect and ask.
@@ -193,7 +193,7 @@ Black-Litterman, HRP), 33 chart types, academic paper search, climate/energy/
 agriculture alternative data.
 
 No authentication required. Connect in 30 seconds:
-  claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+  claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 
 Architecture: FastMCP gateway mounts 64 sub-servers, streamable-http transport.
 Each server is a self-contained module with standardized adapters. Real data only —
@@ -280,7 +280,7 @@ Here's what it can do 🧵
 
 6/ Setup takes 30 seconds:
 
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 
 Works with Claude Desktop, Cursor, Windsurf, Cline, Continue — any MCP client.
 
@@ -351,7 +351,7 @@ Hey everyone! I built an open-source MCP server with 396 financial tools:
 
 Works with Claude Desktop, Cursor, Windsurf, any MCP client.
 
-Setup: claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+Setup: claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 
 GitHub: https://github.com/pollmap/nexus-finance-mcp
 
@@ -482,7 +482,7 @@ Current Smithery listing needs:
 ```
 [0-5s] Title card: "396 Financial Tools in One MCP Server"
 
-[5-15s] Show terminal: claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+[5-15s] Show terminal: claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 Voice: "One command. 396 tools. No API keys."
 
 [15-25s] Type in Claude: "What's Samsung Electronics' current price and key financials?"

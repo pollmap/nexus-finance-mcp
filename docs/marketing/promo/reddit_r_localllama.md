@@ -56,7 +56,7 @@ python -m nexus_finance_mcp.main
 Or connect to the hosted instance instantly:
 
 ```
-claude mcp add nexus-finance --transport streamable-http --url http://62.171.141.206/mcp
+claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 ```
 
 No API keys needed. No auth required. MIT licensed.
