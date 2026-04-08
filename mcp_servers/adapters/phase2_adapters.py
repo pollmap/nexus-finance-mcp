@@ -107,7 +107,7 @@ class FinnhubAdapter:
             return error_response("FINNHUB_API_KEY not set")
         try:
             resp = _session.get(f"{self.BASE}/calendar/economic", params=self._params(), timeout=10)
-            events = resp.json().get("economicCalendar", [])[:30]
+            events = resp.json().get("economicCalendar", [])
             return success_response(events, source="Finnhub", count=len(events))
         except Exception as e:
             return error_response(str(e))
@@ -118,7 +118,7 @@ class FinnhubAdapter:
         try:
             resp = _session.get(f"{self.BASE}/news", params=self._params(category=category), timeout=10)
             news = [{"headline": n.get("headline"), "source": n.get("source"),
-                     "url": n.get("url"), "datetime": n.get("datetime")} for n in resp.json()[:20]]
+                     "url": n.get("url"), "datetime": n.get("datetime")} for n in resp.json()]
             return success_response(news, source="Finnhub")
         except Exception as e:
             return error_response(str(e))
@@ -140,7 +140,7 @@ class MOLITAdapter:
                            sigungu_code=sigungu_code, year_month=year_month)
             if df is None or df.empty:
                 return success_response([], source="MOLIT", message="No data")
-            records = sanitize_records(df.head(30))
+            records = sanitize_records(df)
             return success_response(records, source="MOLIT", sigungu=sigungu_code, period=year_month)
         except ImportError:
             return error_response("PublicDataReader not installed")
@@ -156,13 +156,24 @@ class FSCAdapter:
         self._api_key = os.getenv("MOLIT_API_KEY", os.getenv("DATA_GO_KR_API_KEY", ""))
 
     def get_stock_price(self, stock_code: str = "005930", num_of_rows: int = 20) -> Dict[str, Any]:
+        if not self._api_key:
+            return error_response("DATA_GO_KR_API_KEY not set")
         try:
             url = f"{self.BASE}/GetStockSecuritiesInfoService/getStockPriceInfo"
             params = {"serviceKey": self._api_key, "resultType": "json",
                       "likeSrtnCd": stock_code, "numOfRows": num_of_rows}
             resp = _session.get(url, params=params, timeout=15)
-            data = resp.json()
+            if resp.status_code != 200:
+                return error_response(f"FSC API returned {resp.status_code}: {resp.text[:200]}")
+            try:
+                data = resp.json()
+            except Exception:
+                return error_response(f"FSC API returned non-JSON response: {resp.text[:300]}")
             items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
+            if not items:
+                err_msg = data.get("response", {}).get("header", {}).get("resultMsg", "")
+                if err_msg:
+                    return error_response(f"FSC API error: {err_msg}")
             return success_response(items[:num_of_rows], source="FSC", stock_code=stock_code)
         except Exception as e:
             return error_response(str(e))

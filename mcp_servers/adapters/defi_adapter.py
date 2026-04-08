@@ -71,7 +71,7 @@ class DefiLlamaAdapter:
             data = resp.json()
             chains = [
                 {"name": c.get("name"), "tvl": c.get("tvl")}
-                for c in sorted(data, key=lambda x: -(x.get("tvl") or 0))[:30]
+                for c in sorted(data, key=lambda x: -(x.get("tvl") or 0))
             ]
             return success_response(chains, source="DefiLlama")
         except Exception as e:
@@ -84,7 +84,7 @@ class DefiLlamaAdapter:
             resp.raise_for_status()
             data = resp.json()
             stables = []
-            for s in data.get("peggedAssets", [])[:20]:
+            for s in data.get("peggedAssets", []):
                 stables.append({
                     "name": s.get("name"),
                     "symbol": s.get("symbol"),

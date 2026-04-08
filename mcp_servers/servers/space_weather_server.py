@@ -14,21 +14,21 @@ class SpaceWeatherServer:
         logger.info("Space Weather MCP Server initialized")
     def _register(self):
         @self.mcp.tool()
-        def space_sunspot_data(period: str = "monthly") -> dict:
-            """SILSO 월별 태양흑점 수 (최근 120개월). 태양 활동 주기 분석."""
-            return self._a.get_sunspot_data(period)
+        def space_sunspot_data(period: str = "monthly", limit: int = 0) -> dict:
+            """SILSO 월별 태양흑점 수. limit=0이면 전체 반환 (1749년~현재)."""
+            return self._a.get_sunspot_data(period, limit)
         @self.mcp.tool()
         def space_solar_flares(days: int = 30) -> dict:
             """NASA DONKI 태양 플레어 이벤트 (classType, 시작/피크 시각)."""
             return self._a.get_solar_flares(days)
         @self.mcp.tool()
-        def space_geomagnetic() -> dict:
-            """NOAA SWPC 행성 Kp 지수 — 지자기 폭풍 수준 (0~9)."""
-            return self._a.get_geomagnetic_index()
+        def space_geomagnetic(limit: int = 0) -> dict:
+            """NOAA SWPC 행성 Kp 지수 — 지자기 폭풍 수준 (0~9). limit=0이면 전체 반환."""
+            return self._a.get_geomagnetic_index(limit)
         @self.mcp.tool()
-        def space_solar_wind() -> dict:
-            """NOAA SWPC 태양풍 플라즈마 (밀도, 속도, 온도) 최근 48건."""
-            return self._a.get_solar_wind()
+        def space_solar_wind(limit: int = 0) -> dict:
+            """NOAA SWPC 태양풍 플라즈마 (밀도, 속도, 온도). limit=0이면 전체(7일) 반환."""
+            return self._a.get_solar_wind(limit)
         @self.mcp.tool()
         def space_cme_events(days: int = 30) -> dict:
             """NASA DONKI 코로나 질량 방출(CME) 이벤트."""

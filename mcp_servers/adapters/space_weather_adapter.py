@@ -23,8 +23,8 @@ class SpaceWeatherAdapter:
     def __init__(self):
         self._nasa_key = os.getenv("NASA_API_KEY", "DEMO_KEY")
 
-    def get_sunspot_data(self, period: str = "monthly") -> Dict[str, Any]:
-        """SILSO 월별 태양흑점 수 (최근 120개월)."""
+    def get_sunspot_data(self, period: str = "monthly", limit: int = 0) -> Dict[str, Any]:
+        """SILSO 월별 태양흑점 수. limit=0이면 전체 반환."""
         try:
             url = "https://www.sidc.be/SILSO/INFO/snmtotcsv.php"
             resp = _session.get(url, timeout=20)
@@ -50,9 +50,9 @@ class SpaceWeatherAdapter:
                 except (ValueError, IndexError):
                     continue
 
-            # Return last 120 months
-            records = records[-120:]
-            return success_response(records, source="SILSO/WDC-SILSO", period=period)
+            if limit > 0:
+                records = records[-limit:]
+            return success_response(records, source="SILSO/WDC-SILSO", period=period, total_records=len(records))
         except Exception as e:
             return error_response(str(e))
 
@@ -88,8 +88,8 @@ class SpaceWeatherAdapter:
         except Exception as e:
             return error_response(str(e))
 
-    def get_geomagnetic_index(self) -> Dict[str, Any]:
-        """NOAA SWPC 행성 Kp 지수 (지자기 활동)."""
+    def get_geomagnetic_index(self, limit: int = 0) -> Dict[str, Any]:
+        """NOAA SWPC 행성 Kp 지수 (지자기 활동). limit=0이면 전체 반환."""
         try:
             url = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
             resp = _session.get(url, timeout=15)
@@ -117,14 +117,14 @@ class SpaceWeatherAdapter:
                         "station_count": row[4] if len(row) > 4 else None,
                     })
 
-            # Return last 24 entries
-            records = records[-24:]
-            return success_response(records, source="NOAA/SWPC")
+            if limit > 0:
+                records = records[-limit:]
+            return success_response(records, source="NOAA/SWPC", total_records=len(records))
         except Exception as e:
             return error_response(str(e))
 
-    def get_solar_wind(self) -> Dict[str, Any]:
-        """NOAA SWPC 태양풍 플라즈마 데이터 (7일)."""
+    def get_solar_wind(self, limit: int = 0) -> Dict[str, Any]:
+        """NOAA SWPC 태양풍 플라즈마 데이터 (7일). limit=0이면 전체 반환."""
         try:
             url = "https://services.swpc.noaa.gov/products/solar-wind/plasma-7-day.json"
             resp = _session.get(url, timeout=15)
@@ -147,10 +147,11 @@ class SpaceWeatherAdapter:
                     "temperature": row[3],
                 })
 
-            # Return last 48 entries (roughly 1 day at ~30min intervals)
-            records = records[-48:]
+            if limit > 0:
+                records = records[-limit:]
             return success_response(records, source="NOAA/SWPC",
-                                    description="Solar wind plasma (density p/cm3, speed km/s, temperature K)")
+                                    description="Solar wind plasma (density p/cm3, speed km/s, temperature K)",
+                                    total_records=len(records))
         except Exception as e:
             return error_response(str(e))
 

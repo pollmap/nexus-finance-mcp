@@ -56,7 +56,7 @@ class EDINETAdapter:
 
             results = data.get("results", [])
             records = []
-            for r in results[:30]:
+            for r in results:
                 # Filter out empty/null entries
                 if not r.get("edinetCode"):
                     continue
@@ -159,7 +159,7 @@ class EDINETAdapter:
             matches = [r for r in results if str(r.get("secCode", "")).startswith(str(security_code))]
 
             records = []
-            for r in matches[:10]:
+            for r in matches:
                 records.append({
                     "edinet_code": r.get("edinetCode", ""),
                     "company": r.get("filerName", ""),

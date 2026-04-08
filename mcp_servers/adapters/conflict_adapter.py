@@ -215,7 +215,7 @@ class ConflictAdapter:
             data = resp.json()
             results = data.get("Result", [])
             records = []
-            for ev in results[:50]:
+            for ev in results:
                 records.append({
                     "conflict_name": ev.get("dyad_name", ""),
                     "country": ev.get("country", ""),

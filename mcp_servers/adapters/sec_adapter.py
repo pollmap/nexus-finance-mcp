@@ -155,7 +155,7 @@ class SECAdapter:
             facts = data.get("facts", {})
             ns_facts = facts.get(namespace, {})
             if concept not in ns_facts:
-                available = [k for k in ns_facts if concept.lower() in k.lower()][:10]
+                available = [k for k in ns_facts if concept.lower() in k.lower()]
                 msg = f"Concept '{concept}' not found in {namespace} for {ticker.upper()}"
                 if available:
                     msg += f". Similar: {', '.join(available)}"
@@ -275,10 +275,10 @@ class SECAdapter:
 
             data = resp.json()
             recent = data.get("filings", {}).get("recent", {})
-            forms = recent.get("form", [])[:20]
-            dates = recent.get("filingDate", [])[:20]
-            accessions = recent.get("accessionNumber", [])[:20]
-            descriptions = recent.get("primaryDocDescription", [])[:20]
+            forms = recent.get("form", [])
+            dates = recent.get("filingDate", [])
+            accessions = recent.get("accessionNumber", [])
+            descriptions = recent.get("primaryDocDescription", [])
             filings_list = [
                 {"form": f, "date": d, "accession": a, "description": desc}
                 for f, d, a, desc in zip(forms, dates, accessions, descriptions)
@@ -365,7 +365,7 @@ class SECAdapter:
             resp = _session.get(url, params=params, headers=HEADERS, timeout=15)
 
             data = resp.json() if resp.status_code == 200 else {}
-            hits = data.get("hits", {}).get("hits", [])[:20]
+            hits = data.get("hits", {}).get("hits", [])
 
             records = []
             for hit in hits:

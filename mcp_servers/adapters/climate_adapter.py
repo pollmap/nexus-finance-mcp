@@ -62,8 +62,8 @@ class ClimateAdapter:
         except Exception as e:
             return error_response(str(e))
 
-    def get_temperature_anomaly(self, period: str = "monthly") -> Dict[str, Any]:
-        """NASA GISS global temperature anomaly — last 120 months."""
+    def get_temperature_anomaly(self, period: str = "monthly", limit: int = 0) -> Dict[str, Any]:
+        """NASA GISS global temperature anomaly. limit=0이면 전체 반환."""
         try:
             resp = _session.get(self._giss_url, timeout=20)
             if resp.status_code != 200:
@@ -109,12 +109,12 @@ class ClimateAdapter:
                     except ValueError:
                         continue
 
-            # Return last 120 months
-            records = records[-120:]
+            if limit > 0:
+                records = records[-limit:]
 
             return success_response(records, source="NASA/GISS",
                                     description="Global Land-Ocean Temperature Anomaly (base: 1951-1980)",
-                                    period_type=period)
+                                    period_type=period, total_records=len(records))
         except Exception as e:
             return error_response(str(e))
 
@@ -210,11 +210,9 @@ class ClimateAdapter:
                     "classification": classification,
                 })
 
-            # Return last 24 quarters
-            records = records[-24:]
-
             return success_response(records, source="NOAA/CPC",
-                                    description="Oceanic Nino Index (ONI): +0.5=El Nino, -0.5=La Nina")
+                                    description="Oceanic Nino Index (ONI): +0.5=El Nino, -0.5=La Nina",
+                                    total_records=len(records))
         except Exception as e:
             return error_response(str(e))
 
@@ -225,7 +223,7 @@ class ClimateAdapter:
             start_date = (datetime.now() - timedelta(days=370)).strftime("%Y-%m-%d")
             results = []
 
-            for city in cities[:10]:  # max 10 cities
+            for city in cities:
                 name = city.get("name", "Unknown")
                 lat = city.get("lat")
                 lon = city.get("lon")

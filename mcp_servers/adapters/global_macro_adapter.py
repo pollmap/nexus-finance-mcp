@@ -286,7 +286,7 @@ class GlobalMacroAdapter:
             client = self._sdmx.Client(source, timeout=30)
             flows = client.dataflow()
             datasets = []
-            for key, flow in list(flows.dataflow.items())[:50]:
+            for key, flow in list(flows.dataflow.items()):
                 datasets.append({"id": str(key), "name": str(flow.name)})
             return success_response(datasets, count=len(datasets), source="OECD/IMF/BIS/World Bank")
         except Exception as e:

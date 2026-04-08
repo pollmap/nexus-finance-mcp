@@ -74,7 +74,7 @@ class GDELTAdapter:
             data = resp.json()
             timeline = data.get("timeline", [{}])
             series = timeline[0].get("data", []) if timeline else []
-            return success_response(series[:60], count=len(series), source="GDELT/Academic", query=query)
+            return success_response(series, count=len(series), source="GDELT/Academic", query=query)
         except Exception as e:
             return error_response(str(e))
 
@@ -256,7 +256,7 @@ class AcademicAdapter:
 
         # Referenced works (top 10)
         refs = []
-        ref_ids = work.get("referenced_works", [])[:10]
+        ref_ids = work.get("referenced_works", [])
         for ref_id in ref_ids:
             try:
                 r = _session.get(ref_id, headers=headers, timeout=10)

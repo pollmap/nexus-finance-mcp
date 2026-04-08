@@ -81,7 +81,7 @@ class CryptoQuantAdapter:
             # Funding rate history (if available)
             history = []
             try:
-                rates = exchange.fetch_funding_rate_history(symbol, limit=30)
+                rates = exchange.fetch_funding_rate_history(symbol, limit=200)
                 for r in rates:
                     fr = r.get("fundingRate", 0) or 0
                     history.append({

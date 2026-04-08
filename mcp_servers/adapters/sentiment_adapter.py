@@ -69,7 +69,7 @@ class SentimentAdapter:
             end_str = end_dt.strftime("%Y%m%d")
 
             results = []
-            for article in articles[:10]:  # max 10 articles
+            for article in articles:
                 # Replace spaces with underscores for Wikipedia API
                 article_clean = article.replace(" ", "_")
                 url = (
@@ -124,7 +124,7 @@ class SentimentAdapter:
             results = []
             compound_sum = 0.0
 
-            for headline in headlines[:50]:  # max 50 headlines
+            for headline in headlines:
                 scores = analyzer.polarity_scores(headline)
                 results.append({
                     "headline": headline,

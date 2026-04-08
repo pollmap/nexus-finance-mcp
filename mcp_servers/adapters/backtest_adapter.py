@@ -856,7 +856,7 @@ class BacktestAdapter:
                     "best_return_pct": best["total_return_pct"],
                     "combinations_tested": len(all_results),
                     "top_10": all_results[:10],
-                    "all_results": all_results[:50],  # cap response size
+                    "all_results": all_results,
                 },
                 source="Backtest Engine",
             )
@@ -1182,7 +1182,7 @@ class BacktestAdapter:
                     "params": {**STRATEGIES[strategy_name]["params"], **(params or {})},
                     "total_signals": len(signal_records),
                     "avg_returns": avg_returns,
-                    "signals": signal_records[-100:],  # last 100 signals to limit size
+                    "signals": signal_records,
                 },
                 source="Backtest Engine",
             )
@@ -1275,7 +1275,7 @@ class BacktestAdapter:
                     "avg_drawdown_pct": round(np.mean([d["depth_pct"] for d in drawdowns]), 2) if drawdowns else 0.0,
                     "avg_duration_days": round(np.mean([d["duration_days"] for d in drawdowns])) if drawdowns else 0,
                     "current_drawdown": current_dd,
-                    "drawdowns": drawdowns[:20],  # top 20 worst
+                    "drawdowns": drawdowns,
                 },
                 source="Backtest Engine",
             )

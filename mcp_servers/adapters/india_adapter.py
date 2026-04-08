@@ -184,7 +184,7 @@ class IndiaAdapter:
                 })
 
             result = success_response(
-                data=records[-60:] if len(records) > 60 else records,
+                data=records,
                 source="Yahoo Finance",
                 market="India NSE/BSE",
                 symbol=symbol,

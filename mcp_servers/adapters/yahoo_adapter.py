@@ -266,7 +266,7 @@ class YahooAdapter:
             self._limiter.acquire("yahoo")
 
             quotes = []
-            for ticker in tickers[:20]:  # Limit to 20
+            for ticker in tickers:
                 info = self.get_stock_info(ticker)
                 if info.get("success"):
                     quotes.append({
@@ -303,7 +303,7 @@ class YahooAdapter:
         try:
             comparison = []
 
-            for ticker in tickers[:10]:  # Limit to 10
+            for ticker in tickers:
                 info = self.get_stock_info(ticker)
                 if info.get("success"):
                     comparison.append({

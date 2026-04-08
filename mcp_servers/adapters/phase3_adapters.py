@@ -89,7 +89,7 @@ class AviationAdapter:
             begin = end - (hours * 3600)
             resp = _session.get(f"{self.BASE}/flights/departure", params={"airport": airport, "begin": begin, "end": end}, timeout=20)
             if resp.status_code == 200:
-                flights = resp.json()[:30]
+                flights = resp.json()
                 return success_response(flights, source="OpenSky", airport=airport)
             return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
@@ -104,7 +104,7 @@ class AviationAdapter:
             resp = _session.get(f"{self.BASE}/states/all", params=params, timeout=20)
             if resp.status_code == 200:
                 data = resp.json()
-                states = data.get("states", [])[:50]
+                states = data.get("states", [])
                 aircraft = [{"icao24": s[0], "callsign": (s[1] or "").strip(), "country": s[2],
                             "longitude": s[5], "latitude": s[6], "altitude": s[7]}
                            for s in states if len(s) >= 8]
@@ -197,7 +197,7 @@ class EnergyAdapter:
 
     def get_opec_production(self) -> Dict[str, Any]:
         """OPEC 원유 생산량 — EIA 국제 데이터."""
-        return self.get_eia_series("international", series_id="INTL.57-1-OPEC-TBPD.M", frequency="monthly", limit=24)
+        return self.get_eia_series("international", series_id="INTL.57-1-OPEC-TBPD.M", frequency="monthly", limit=120)
 
 
 # ============================================================
@@ -245,9 +245,9 @@ class AgricultureAdapter:
             data = resp.json()
             raw = data.get("data", {})
             if isinstance(raw, list):
-                items = raw[:20]
+                items = raw
             elif isinstance(raw, dict):
-                items = raw.get("item", [])[:20]
+                items = raw.get("item", [])
             else:
                 items = []
             return success_response(items, source="KAMIS")
@@ -299,7 +299,7 @@ class AgricultureAdapter:
             resp = _session.get(url, params=params, timeout=20)
             if resp.status_code == 200:
                 raw = resp.json()
-                data = raw[:20] if isinstance(raw, list) else []
+                data = raw if isinstance(raw, list) else []
                 return success_response(data, source="USDA/PSD", commodity=commodity, country=country)
             return error_response(f"HTTP {resp.status_code}")
         except Exception as e:
@@ -325,7 +325,7 @@ class TradeAdapter:
                 result = resp.json()
                 data = result.get("data", [])
                 records = []
-                for r in data[:20]:
+                for r in data:
                     records.append({
                         "period": r.get("period"),
                         "reporter": r.get("reporterCode"),

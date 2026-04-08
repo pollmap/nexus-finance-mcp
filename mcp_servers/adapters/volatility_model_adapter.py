@@ -142,9 +142,9 @@ class VolatilityModelAdapter:
             )
             persistence = round(alpha_sum + beta_sum, 6)
 
-            # Conditional volatility (last 20, convert back from % to decimal)
+            # Conditional volatility (convert back from % to decimal)
             cond_vol = result.conditional_volatility
-            cond_vol_tail = cond_vol.iloc[-20:]
+            cond_vol_tail = cond_vol
             cond_vol_list = [
                 {
                     "date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d),
@@ -312,9 +312,9 @@ class VolatilityModelAdapter:
                 for i, v in enumerate(variance_forecast[:horizon])
             ]
 
-            # Conditional vol last 20
+            # Conditional vol
             cond_vol = result.conditional_volatility
-            cond_vol_tail = cond_vol.iloc[-20:]
+            cond_vol_tail = cond_vol
             cond_vol_list = [
                 {
                     "date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d),
@@ -559,12 +559,13 @@ class VolatilityModelAdapter:
             # Current regime
             current = int(sorted_states[-1])
 
-            # State sequence (last 60 days)
-            dates = returns.index[-60:]
+            # State sequence
+            dates = returns.index
+            n = len(dates)
             state_seq = [
                 {
                     "date": d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d),
-                    "regime": int(sorted_states[-(60 - i)]) if len(sorted_states) >= 60 else int(sorted_states[i]),
+                    "regime": int(sorted_states[-(n - i)]) if len(sorted_states) >= n else int(sorted_states[i]),
                 }
                 for i, d in enumerate(dates)
             ]

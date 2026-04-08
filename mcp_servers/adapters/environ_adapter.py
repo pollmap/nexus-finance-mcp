@@ -38,7 +38,7 @@ class EnvironAdapter:
             resp = _session.get(url, params=params, timeout=60)
             data = resp.json() if resp.status_code == 200 else {}
 
-            results = data.get("Data", [])[:20]
+            results = data.get("Data", [])
             records = []
             for r in results:
                 records.append({

@@ -149,7 +149,7 @@ class CCXTAdapter:
                     "volume": t.get("quoteVolume"),
                 })
             return success_response(
-                data=summary[:50],
+                data=summary,
                 count=len(summary),
                 source="CCXT",
                 exchange=exchange_id,

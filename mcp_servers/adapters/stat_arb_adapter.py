@@ -298,10 +298,10 @@ class StatArbAdapter:
                 signal = "HOLD"
                 action = "No action"
 
-            # Recent z-score history (last 20)
+            # Z-score history
             recent_z = [
                 {"date": d.strftime("%Y-%m-%d"), "zscore": round(float(v), 3)}
-                for d, v in zscore.iloc[-20:].items()
+                for d, v in zscore.items()
             ]
 
             return success_response(

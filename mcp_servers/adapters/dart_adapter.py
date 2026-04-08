@@ -430,7 +430,7 @@ class DARTAdapter:
                 matches = result
 
             if hasattr(matches, 'to_dict'):
-                records = _sanitize_records(matches.head(20))
+                records = _sanitize_records(matches)
             else:
                 records = []
 

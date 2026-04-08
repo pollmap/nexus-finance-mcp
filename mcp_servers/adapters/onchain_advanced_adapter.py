@@ -116,7 +116,7 @@ class OnchainAdvancedAdapter:
                     "volume_trend_pct": round(float(vol_trend), 1),
                     "unique_addresses": addr_count,
                     "flow_signal": flow_signal,
-                    "recent_activity": activity_ts[-10:],
+                    "recent_activity": activity_ts,
                     "interpretation": interpretation_flow,
                 },
                 source="On-Chain",
@@ -194,7 +194,7 @@ class OnchainAdvancedAdapter:
                     "realized_cap_proxy_usd": round(float(realized_cap_proxy), 0),
                     "zone": zone,
                     "signal": signal,
-                    "history": mvrv_history[-30:],
+                    "history": mvrv_history,
                     "method": "200-day SMA proxy for realized cap",
                     "interpretation": (
                         f"MVRV: {mvrv:.2f} ({zone}). "
@@ -244,7 +244,7 @@ class OnchainAdvancedAdapter:
                     "realized_cap_proxy_usd": round(float(realized), 0),
                     "market_cap_usd": round(float(current_mc), 0),
                     "unrealized_profit_pct": round(float(unrealized_profit), 1),
-                    "history": rc_history[-20:],
+                    "history": rc_history,
                     "method": "200-day SMA of market cap as realized cap proxy",
                     "interpretation": (
                         f"Realized cap proxy: ${realized/1e9:.1f}B. "
@@ -316,7 +316,7 @@ class OnchainAdvancedAdapter:
                     "avg_bdd_90d": round(float(avg_older), 0),
                     "phase": phase,
                     "signal": signal,
-                    "recent_bdd": bdd_ts[-10:],
+                    "recent_bdd": bdd_ts,
                     "method": "Bitcoin Days Destroyed ratio as HODL wave proxy",
                     "interpretation": (
                         f"BDD ratio (30d/90d): {bdd_ratio:.2f}. "
@@ -365,7 +365,7 @@ class OnchainAdvancedAdapter:
 
             return success_response(
                 {
-                    "whale_transactions": whales[:20],
+                    "whale_transactions": whales,
                     "n_whales_found": len(whales),
                     "threshold_btc": threshold_btc,
                     "total_txs_scanned": len(txs),
@@ -443,7 +443,7 @@ class OnchainAdvancedAdapter:
                     "median_nvt": round(float(median_nvt), 1),
                     "zone": zone,
                     "signal": signal,
-                    "history": nvt_series[-30:],
+                    "history": nvt_series,
                     "interpretation": (
                         f"NVT: {current_nvt:.0f} ({zone}). "
                         f"Average: {avg_nvt:.0f}, Median: {median_nvt:.0f}. "

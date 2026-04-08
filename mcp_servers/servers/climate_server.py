@@ -19,16 +19,16 @@ class ClimateServer:
             """특정 위치의 과거 날씨 데이터 (기온/강수/풍속). Open-Meteo archive API."""
             return self._a.get_historical_weather(latitude, longitude, start_date, end_date)
         @self.mcp.tool()
-        def climate_temperature_anomaly(period: str = "monthly") -> dict:
-            """NASA GISS 글로벌 기온 편차 (1951-1980 기준). 최근 120개월."""
-            return self._a.get_temperature_anomaly(period)
+        def climate_temperature_anomaly(period: str = "monthly", limit: int = 0) -> dict:
+            """NASA GISS 글로벌 기온 편차 (1951-1980 기준). limit=0이면 전체(1880년~) 반환."""
+            return self._a.get_temperature_anomaly(period, limit)
         @self.mcp.tool()
         def climate_extreme_events(latitude: float, longitude: float, start_date: str, end_date: str) -> dict:
             """극한 기상 일수 카운트: 폭염(>35C), 한파(<-10C), 폭우(>50mm)."""
             return self._a.get_extreme_events(latitude, longitude, start_date, end_date)
         @self.mcp.tool()
         def climate_enso_index() -> dict:
-            """NOAA 엘니뇨/라니냐 지수 (ONI). 최근 24분기."""
+            """NOAA 엘니뇨/라니냐 지수 (ONI). 전체 기간 반환."""
             return self._a.get_enso_index()
         @self.mcp.tool()
         def climate_city_comparison(cities: list) -> dict:

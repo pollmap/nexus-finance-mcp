@@ -166,7 +166,7 @@ class AsiaMarketAdapter:
                 })
 
             result = success_response(
-                data=records[-60:] if len(records) > 60 else records,
+                data=records,
                 source="Yahoo Finance",
                 market=market,
                 symbol=symbol,
@@ -276,7 +276,7 @@ class AsiaMarketAdapter:
             rows = data.get("data", [])
 
             records = []
-            for row in rows[:20]:
+            for row in rows:
                 record = {}
                 for i, field in enumerate(fields):
                     if i < len(row):
