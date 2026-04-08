@@ -1,6 +1,6 @@
-# Nexus Finance MCP 문서
+# Nexus Finance MCP 문서 — v8.0.0-phase14
 
-> **396 tools / 64 servers** — AI 에이전트를 위한 글로벌 퀀트 금융 플랫폼
+> **396 tools / 64 servers** — Finance & Research Intelligence Platform
 
 ## Quick Start (3단계)
 

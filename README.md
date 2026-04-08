@@ -1,11 +1,14 @@
 <p align="center">
-  <h1 align="center">Nexus Finance MCP Server</h1>
+  <h1 align="center">Nexus Finance MCP</h1>
   <p align="center">
-    <strong>The most comprehensive financial MCP server — 396 tools across 64 servers</strong>
+    <strong>Finance & Research Intelligence Platform</strong>
+  </p>
+  <p align="center">
+    396 tools · 64 servers · One endpoint · Ask anything about markets, macro, quant, or research.
   </p>
   <p align="center">
     <a href="#quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start"></a>
-    <a href="#tools-396"><img src="https://img.shields.io/badge/Tools-396-green?style=for-the-badge" alt="396 Tools"></a>
+    <a href="#tool-overview"><img src="https://img.shields.io/badge/Tools-396-green?style=for-the-badge" alt="396 Tools"></a>
     <a href="#api-keys"><img src="https://img.shields.io/badge/API_Keys-optional-orange?style=for-the-badge" alt="API Keys"></a>
   </p>
   <p align="center">
@@ -21,20 +24,18 @@
 
 ---
 
-Korean/global macro, equities, crypto, real estate, energy, climate, disasters, space weather, geopolitics, sentiment, quant analysis, time series, backtesting, factor models, portfolio optimization, 150-year historical data, GARCH volatility, PhD-level math, statistical arbitrage, Black-Litterman, HRP, Heston stochastic vol, Almgren-Chriss execution, market microstructure (VPIN/Kyle's λ), crypto derivatives (funding rate arb), on-chain analytics (MVRV/NVT), López de Prado ML pipeline, alpha research toolkit, and 33 visualization types — all through a single MCP gateway.
-
-Built for AI agents by [Luxon AI](https://github.com/pollmap).
+Connect any MCP client and start asking questions — about Korean equities, US macro, crypto derivatives, academic papers, climate data, or portfolio optimization. Built for AI agents by [Luxon AI](https://github.com/pollmap).
 
 ## Table of Contents
 
+- [What You Can Do](#what-you-can-do)
 - [Features](#features)
 - [Supported Clients](#supported-clients)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Tool Overview](#tool-overview)
-- [Tools (396)](#tools-396)
-- [Response Format](#response-format)
 - [Example Workflows](#example-workflows)
+- [Getting the Best Output](#getting-the-best-output)
 - [API Keys](#api-keys)
 - [Architecture](#architecture)
 - [Documentation](#documentation)
@@ -43,6 +44,17 @@ Built for AI agents by [Luxon AI](https://github.com/pollmap).
 - [Star History](#star-history)
 - [License](#license)
 
+## What You Can Do
+
+| Ask your AI... | What happens behind the scenes | What you get |
+|---|---|---|
+| "Analyze Samsung Electronics as an investment" | `stocks_quote` → `dart_financial_statements` → `dart_financial_ratios` → `val_dcf_valuation` → `val_peer_comparison` → `viz_bar_chart` | DCF fair value + peer multiples chart |
+| "Compare US and Korean interest rate policy" | `ecos_get_base_rate` → `macro_fred` → `quant_granger_causality` → `ts_forecast` → `viz_dual_axis` | Granger causality test + 12-month forecast + dual-axis chart |
+| "Survey recent papers on transformer financial forecasting" | `academic_multi_search` → `academic_citations` → `academic_paper_detail` | Top 10 papers ranked by citations with abstracts |
+| "Is BTC funding rate signaling a reversal?" | `cquant_funding_rate` → `cquant_basis_term` → `onchain_adv_mvrv` → `cquant_open_interest` | Multi-signal quant dashboard |
+| "Build a momentum + value factor portfolio" | `factor_score` → `factor_correlation` → `portadv_hrp` → `backtest_portfolio` → `backtest_drawdown` | Optimized portfolio with Sharpe ratio + drawdown analysis |
+| "How does El Nino affect Korean agriculture prices?" | `climate_enso_index` → `agri_kamis_prices` → `quant_lagged_correlation` → `viz_heatmap` | Climate-price correlation heatmap |
+
 ## Features
 
 | Feature | Description |
@@ -50,9 +62,10 @@ Built for AI agents by [Luxon AI](https://github.com/pollmap).
 | **396 Tools / 64 Servers** | World's largest financial MCP — Korean + global markets, quant, crypto, alternative data |
 | **Single Gateway** | One endpoint, all tools — FastMCP mount architecture with streamable-http transport |
 | **Real Data Only** | Zero mock/sample data. Every response comes from live APIs with graceful error handling |
-| **PhD-Level Quant** | GARCH, Heston, Black-Litterman, HRP, Kalman filter, López de Prado ML pipeline |
+| **PhD-Level Quant** | GARCH, Heston, Black-Litterman, HRP, Kalman filter, Lopez de Prado ML pipeline |
 | **150+ Year History** | Shiller (1871~), NBER cycles (1854~), French factors (1926~), FRED century-scale |
 | **33 Chart Types** | Line, candlestick, heatmap, treemap, sankey, choropleth map, violin, radar, and more |
+| **Research Intelligence** | arXiv, Semantic Scholar, RISS, PubMed, GDELT, Google Trends, patents, 14 RSS feeds |
 | **Semantic Memory** | Hybrid vector + BM25 search, Obsidian Vault integration, ontology graph |
 | **Smithery Ready** | Listed on [Smithery](https://smithery.ai) marketplace — plug and play |
 | **Open Access** | No authentication required — connect instantly from any MCP client |
@@ -125,6 +138,14 @@ docker run -p 8100:8100 --env-file .env nexus-finance-mcp
 
 Search "nexus-finance" on [smithery.ai](https://smithery.ai) and install directly.
 
+### Your First Query
+
+After connecting, try:
+
+> "What's Samsung Electronics' current stock price and key financial ratios?"
+
+Claude will automatically call `stocks_quote("005930")` and `dart_financial_ratios("삼성전자")` to get live data.
+
 ## Installation
 
 ### Requirements
@@ -189,155 +210,11 @@ At a glance — 396 tools across 15 domains:
 | **Professional Quant** | 3 | 18 | Factor engine, signal lab, portfolio optimization |
 | **PhD-Level Math** | 3 | 18 | GARCH, Kalman, Hurst, wavelets, 150-year history |
 | **Academic Alpha** | 4 | 24 | Stat arb, Black-Litterman, Heston, microstructure VPIN |
-| **Crypto Quant + ML** | 4 | 24 | López de Prado ML, alpha research, funding arb |
+| **Crypto Quant + ML** | 4 | 24 | Lopez de Prado ML, alpha research, funding arb |
 | **Infrastructure** | 5 | 25 | Obsidian Vault, semantic memory, ontology, gateway meta |
 | | **64** | **396** | |
 
-> Full tool details with function names below. See also [Tool Catalog](docs/TOOL_CATALOG.md) for domain/complexity classification.
-
-## Tools (396)
-
-### Korean Economy (한국 경제) — 41 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **ECOS** | 9 | `ecos_search_stat_list`, `ecos_get_stat_data`, `ecos_get_base_rate`, `ecos_get_m2`, `ecos_get_gdp`, `ecos_get_macro_snapshot`, `ecos_get_exchange_rate`, `ecos_get_bond_yield`, `ecos_list_indicators` | 한국은행 ECOS |
-| **KOSIS** | 5 | `kosis_search_tables`, `kosis_get_population`, `kosis_get_unemployment`, `kosis_get_housing_price`, `kosis_get_table` | 통계청 KOSIS |
-| **DART** | 20 | `dart_company_info`, `dart_financial_statements`, `dart_financial_ratios`, `dart_major_shareholders`, `dart_search_company`, `dart_cash_flow`, `dart_dividend`, `dart_executives`, `dart_executive_compensation`, `dart_shareholder_changes`, `dart_capital_changes`, `dart_mergers`, `dart_convertible_bonds`, `dart_treasury_stock`, `dart_related_party`, `dart_5pct_disclosure`, `dart_disclosure_search`, `dart_events`, `dart_full_financial`, `dart_document` | 금융감독원 OpenDART |
-| **FSC** | 2 | `fsc_stock_price`, `fsc_bond_price` | 금융위원회 data.go.kr |
-| **Stocks** | 5 | `stocks_quote`, `stocks_search`, `stocks_history`, `stocks_beta`, `stocks_market_overview` | KIS + pykrx + Yahoo |
-
-### Korean Real Estate (부동산) — 8 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **R-ONE** | 6 | `rone_get_apt_price_index`, `rone_get_jeonse_index`, `rone_get_pir`, `rone_get_price_comparison`, `rone_get_market_summary`, `rone_list_regions` | KOSIS (부동산원 orgId=408) |
-| **Realestate** | 2 | `realestate_apt_trades`, `realestate_sigungu_codes` | 국토부 MOLIT |
-
-### Global Markets — 37 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **Global Macro** | 10 | `macro_oecd`, `macro_imf`, `macro_bis`, `macro_worldbank`, `macro_datasets`, `macro_search_indicators`, `macro_country_compare`, `macro_fred`, `macro_fred_search`, `macro_korea_snapshot` | OECD, IMF, BIS, World Bank, FRED |
-| **US Equity** | 4 | `us_stock_quote`, `us_company_profile`, `us_economic_calendar`, `us_market_news` | Finnhub |
-| **Asia Market** | 8 | `asia_china_quote`, `asia_china_index`, `asia_china_history`, `asia_taiwan_quote`, `asia_taiwan_index`, `asia_hk_quote`, `asia_hk_index`, `asia_market_overview` | Yahoo Finance |
-| **India** | 3 | `india_stock_quote`, `india_index`, `india_stock_history` | Yahoo Finance |
-| **SEC** | 8 | `sec_company_filings`, `sec_company_facts`, `sec_xbrl_concept`, `sec_list_concepts`, `sec_filing_text`, `sec_submission_metadata`, `sec_insider_transactions`, `sec_institutional_holders` | SEC EDGAR |
-| **EDINET** | 4 | `edinet_filings`, `edinet_company`, `edinet_document`, `edinet_search` | 일본 EDINET |
-
-### Crypto & DeFi — 36 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **Crypto Exchange** | 14 | `crypto_ticker`, `crypto_orderbook`, `crypto_ohlcv`, `crypto_all_tickers`, `crypto_kimchi_premium`, `crypto_exchange_compare`, `crypto_volume_ranking`, `crypto_spread`, `crypto_list_exchanges`, `crypto_list_symbols`, `crypto_recent_trades`, `crypto_funding_rate`, `crypto_ticker_24h`, `crypto_market_structure` | CCXT (100+ exchanges) |
-| **Hist Crypto** | 3 | `crypto_daily_history`, `crypto_hourly_history`, `crypto_top_coins` | CoinGecko |
-| **DeFi** | 4 | `defi_protocols`, `defi_protocol_detail`, `defi_chains`, `defi_feargreed` | DefiLlama |
-| **OnChain** | 3 | `onchain_balance`, `onchain_transactions`, `onchain_gas` | Etherscan |
-| **OnChain Advanced** | 6 | `onchain_adv_exchange_flow`, `onchain_adv_mvrv`, `onchain_adv_realized_cap`, `onchain_adv_hodl_waves`, `onchain_adv_whale_alert`, `onchain_adv_nvt` | Blockchain.com |
-| **Crypto Quant** | 6 | `cquant_funding_rate`, `cquant_basis_term`, `cquant_funding_arb`, `cquant_open_interest`, `cquant_liquidation_levels`, `cquant_carry_backtest` | CCXT Derivatives |
-
-### News & Research — 31 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **News** | 4 | `news_search`, `news_trend`, `news_market_sentiment`, `news_keyword_volume` | Naver API |
-| **Global News** | 3 | `global_news_search`, `global_news_timeline`, `global_news_korea` | GDELT |
-| **RSS** | 4 | `rss_financial_news`, `rss_search_news`, `rss_available_feeds`, `rss_crypto_news` | Bloomberg, WSJ, CNBC, Reuters, FT 등 14개 피드 |
-| **Academic** | 9 | `academic_arxiv`, `academic_semantic_scholar`, `academic_openalex`, `academic_multi_search`, `academic_trending`, `academic_paper_detail`, `academic_citations`, `academic_author`, `academic_concepts` | arXiv, Semantic Scholar, OpenAlex |
-| **Research** | 6 | `research_riss`, `research_nkis`, `research_prism`, `research_nl`, `research_nanet`, `research_scholar` | RISS, NKIS, PRISM, 국립중앙도서관, NANET |
-| **Sentiment** | 5 | `sentiment_google_trends`, `sentiment_wiki_pageviews`, `sentiment_news_score`, `sentiment_fear_greed_multi`, `sentiment_keyword_correlation` | pytrends, Wikipedia, VADER |
-
-### Real Economy — 31 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **Energy** | 9 | `energy_crude_oil`, `energy_natural_gas`, `energy_price_snapshot`, `energy_eia_series`, `energy_electricity`, `energy_bunker_fuel`, `energy_opec_production`, `energy_weather_forecast`, `energy_weather_cities` | EIA + Open-Meteo |
-| **Agriculture** | 7 | `agri_kamis_prices`, `agri_fao_info`, `agri_product_codes`, `agri_snapshot`, `agri_fao_production`, `agri_fao_trade`, `agri_usda_psd` | KAMIS + FAO + USDA |
-| **Maritime** | 4 | `maritime_bdi`, `maritime_container_index`, `maritime_ports`, `maritime_freight_snapshot` | FRED |
-| **Aviation** | 3 | `aviation_departures`, `aviation_live_aircraft`, `aviation_korea_airports` | OpenSky |
-| **Trade** | 3 | `trade_korea_exports`, `trade_korea_imports`, `trade_country_codes` | UN Comtrade |
-| **Consumer** | 4 | `consumer_us_retail`, `consumer_us_sentiment`, `consumer_us_housing`, `consumer_eu_hicp` | FRED + Eurostat |
-| **Prediction** | 3 | `prediction_markets`, `prediction_market_detail`, `prediction_events` | Polymarket |
-
-### Regulatory & Environment — 26 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **Valuation** | 10 | `val_calculate_wacc`, `val_dcf_valuation`, `val_dcf_sample`, `val_sensitivity_analysis`, `val_peer_comparison`, `val_peer_comparison_sample`, `val_cross_market_comparison`, `val_normalize_gaap`, `val_get_market_assumptions`, `val_refresh_market_data` | DART + ECOS |
-| **Regulation** | 4 | `regulation_eu_search`, `regulation_eu_text`, `regulation_key_financial`, `regulation_finra_info` | EUR-Lex + FINRA |
-| **Politics** | 3 | `politics_bills`, `politics_recent_bills`, `politics_finance_bills` | 국회 API |
-| **Health** | 5 | `health_fda_drugs`, `health_fda_recalls`, `health_clinical_trials`, `health_pubmed_search`, `health_who_indicators` | openFDA + NCBI + WHO |
-| **Environ** | 2 | `environ_epa_air_quality`, `environ_carbon_price` | EPA + KRBN ETF |
-| **Patent** | 2 | `patent_search`, `patent_trending` | KIPRIS |
-
-### Quant Alternative Data — 32 tools
-
-| Server | Count | Tools | Data Source | API Key |
-|--------|-------|-------|------------|---------|
-| **Space Weather** | 5 | `space_sunspot_data`, `space_solar_flares`, `space_geomagnetic`, `space_solar_wind`, `space_cme_events` | SILSO + NASA + NOAA | Not required |
-| **Disaster** | 6 | `disaster_earthquakes`, `disaster_volcanoes`, `disaster_wildfires`, `disaster_floods`, `disaster_active_events`, `disaster_history` | USGS + NASA EONET + GDACS | Not required |
-| **Climate** | 6 | `climate_historical_weather`, `climate_temperature_anomaly`, `climate_extreme_events`, `climate_enso_index`, `climate_city_comparison`, `climate_crop_weather` | Open-Meteo + NASA GISS | Not required |
-| **Conflict** | 5 | `conflict_active_wars`, `conflict_battle_deaths`, `conflict_country_risk`, `conflict_peace_index`, `conflict_geopolitical_events` | UCDP + GPI | Token required |
-| **Power Grid** | 5 | `power_grid_eu_generation`, `power_grid_eu_price`, `power_grid_carbon_intensity`, `power_grid_nuclear_status`, `power_grid_renewable_forecast` | ENTSO-E + EIA | Optional |
-
-### Analysis & Visualization — 38 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **Technical** | 5 | `ta_indicators`, `ta_rsi`, `ta_macd`, `ta_bollinger`, `ta_summary` | pykrx |
-| **Viz** | 33 | **Basic(10):** `viz_line_chart`, `viz_bar_chart`, `viz_candlestick`, `viz_heatmap`, `viz_scatter`, `viz_waterfall`, `viz_dual_axis`, `viz_pie_chart`, `viz_correlation_matrix`, `viz_sensitivity_heatmap` · **Advanced(8):** `viz_radar`, `viz_bubble`, `viz_lollipop`, `viz_slope`, `viz_parallel`, `viz_combo`, `viz_gantt`, `viz_marimekko` · **Hierarchical(6):** `viz_treemap`, `viz_sunburst`, `viz_funnel`, `viz_gauge`, `viz_bullet`, `viz_sankey` · **Map(3):** `viz_map_choropleth`, `viz_map_scatter`, `viz_map_flow` · **Statistical(6):** `viz_area_chart`, `viz_stacked_bar`, `viz_histogram`, `viz_box_plot`, `viz_violin`, `viz_density` | Plotly + Matplotlib |
-
-### Quant Analysis Engine (Phase 8) — 22 tools
-
-| Server | Count | Tools | Description |
-|--------|-------|-------|-------------|
-| **Quant Analysis** | 8 | `quant_correlation`, `quant_lagged_correlation`, `quant_regression`, `quant_granger_causality`, `quant_cointegration`, `quant_var_decomposition`, `quant_event_study`, `quant_regime_detection` | Relationship analysis between any two series |
-| **Time Series** | 6 | `ts_decompose`, `ts_stationarity`, `ts_forecast`, `ts_seasonality`, `ts_changepoint`, `ts_cross_correlation` | Pattern analysis & ARIMA forecasting |
-| **Backtest** | 8 | `backtest_run`, `backtest_compare`, `backtest_optimize`, `backtest_portfolio`, `backtest_benchmark`, `backtest_risk`, `backtest_signal_history`, `backtest_drawdown` | Full simulation with fees & taxes |
-
-### Professional Quant (Phase 9) — 18 tools
-
-| Server | Count | Tools | Description |
-|--------|-------|-------|-------------|
-| **Factor Engine** | 6 | `factor_score`, `factor_backtest`, `factor_correlation`, `factor_exposure`, `factor_timing`, `factor_custom` | Fama-French style factor analysis |
-| **Signal Lab** | 6 | `signal_scan`, `signal_combine`, `signal_decay`, `signal_capacity`, `signal_regime_select`, `signal_walkforward` | Alpha signal discovery + ensemble |
-| **Portfolio Optimizer** | 6 | `portfolio_optimize`, `portfolio_risk_parity`, `portfolio_kelly`, `portfolio_correlation_matrix`, `portfolio_stress_test`, `portfolio_rebalance` | Markowitz, risk parity, Kelly criterion |
-
-### PhD-Level Quant Math (Phase 10) — 18 tools
-
-| Server | Count | Tools | Description |
-|--------|-------|-------|-------------|
-| **Historical Data** | 6 | `historical_shiller`, `historical_french_factors`, `historical_nber_cycles`, `historical_fred_century`, `historical_gold_oil`, `historical_crisis_comparison` | 150-year data (Shiller 1871~, NBER 1854~) |
-| **Volatility Model** | 6 | `vol_garch`, `vol_egarch`, `vol_surface`, `vol_regime`, `vol_forecast_ensemble`, `vol_vix_term` | GARCH, EGARCH, HMM regime, VIX term structure |
-| **Advanced Math** | 6 | `math_kalman`, `math_hurst`, `math_entropy`, `math_wavelets`, `math_fractal`, `math_monte_carlo` | Kalman filter, Hurst, entropy, wavelets, fractal, MC |
-
-### Academic Alpha Core (Phase 11) — 24 tools
-
-| Server | Count | Tools | Key Methods |
-|--------|-------|-------|-------------|
-| **Stat Arb** | 6 | `stat_arb_ou_fit`, `stat_arb_pairs_distance`, `stat_arb_spread_zscore`, `stat_arb_copula`, `stat_arb_halflife`, `stat_arb_backtest` | OU MLE, Gatev distance, Clayton/Gumbel copula |
-| **Portfolio Advanced** | 6 | `portadv_rmt_clean`, `portadv_black_litterman`, `portadv_hrp`, `portadv_johansen`, `portadv_info_theory`, `portadv_compare` | Marchenko-Pastur, BL posterior, HRP, transfer entropy |
-| **StochVol** | 6 | `stochvol_heston`, `stochvol_jump_diffusion`, `stochvol_var_premium`, `stochvol_exec_optimal`, `stochvol_exec_vwap`, `stochvol_impact` | Heston calibration, Merton jump, Almgren-Chriss |
-| **Microstructure** | 6 | `micro_kyle_lambda`, `micro_lee_ready`, `micro_roll_spread`, `micro_amihud`, `micro_orderbook_imbalance`, `micro_toxicity` | Kyle's λ, VPIN, trade classification |
-
-### Crypto Quant + ML Pipeline (Phase 12) — 24 tools
-
-| Server | Count | Tools | Key Methods |
-|--------|-------|-------|-------------|
-| **Crypto Quant** | 6 | `cquant_funding_rate`, `cquant_basis_term`, `cquant_funding_arb`, `cquant_open_interest`, `cquant_liquidation_levels`, `cquant_carry_backtest` | Perp funding, cash-and-carry, leverage cascade |
-| **OnChain Advanced** | 6 | `onchain_adv_exchange_flow`, `onchain_adv_mvrv`, `onchain_adv_realized_cap`, `onchain_adv_hodl_waves`, `onchain_adv_whale_alert`, `onchain_adv_nvt` | MVRV, NVT, HODL waves, BDD ratio |
-| **ML Pipeline** | 6 | `mlpipe_volume_bars`, `mlpipe_frac_diff`, `mlpipe_triple_barrier`, `mlpipe_meta_label`, `mlpipe_purged_cv`, `mlpipe_feature_importance` | López de Prado AFML full pipeline |
-| **Alpha Research** | 6 | `alpha_turnover`, `alpha_decay`, `alpha_crowding`, `alpha_capacity`, `alpha_regime_switch`, `alpha_combine` | Grinold-Kahn, IC decay, IR optimization |
-
-### Infrastructure & Knowledge — 25 tools
-
-| Server | Count | Tools | Data Source |
-|--------|-------|-------|------------|
-| **Vault** | 6 | `vault_search`, `vault_read`, `vault_list`, `vault_recent`, `vault_tags`, `vault_write` | Obsidian Vault (PARA) |
-| **Vault Index** | 3 | `vault_index`, `vault_semantic_search`, `vault_related` | Ollama bge-m3 |
-| **Memory** | 5 | `memory_store`, `memory_search`, `memory_list`, `memory_forget`, `memory_stats` | SQLite + Ollama vector |
-| **Ontology** | 5 | `ontology_map`, `ontology_chain`, `ontology_impact`, `ontology_suggest`, `ontology_save` | 17-domain knowledge graph |
-| **Gateway** | 6 | `gateway_status`, `list_available_tools`, `api_call_stats`, `list_tools_by_domain`, `list_tools_by_pattern`, `tool_info` | Internal meta |
+> **Full tool reference with function signatures:** [Tool Catalog](docs/TOOL_CATALOG.md)
 
 ## Response Format
 
@@ -386,48 +263,82 @@ All tools return structured JSON. Example:
 
 ## Example Workflows
 
-### 1. Korean Equity Research
+### 1. Korean Equity Deep Dive
 
-```
-stocks_quote("005930")                          → 삼성전자 현재가
-dart_financial_statements("삼성전자", "2024")    → 재무제표
-dart_financial_ratios("삼성전자")                → ROE, PER, PBR
-val_dcf_valuation("005930")                     → DCF 적정가
-val_peer_comparison("005930")                   → 피어 비교
-viz_bar_chart(peer_data)                        → 시각화
-```
+> **Scenario**: Your investment club asks you to evaluate Samsung Electronics for the next quarter.
 
-### 2. Macro Analysis Pipeline
+**Ask Claude:**
+> "Analyze Samsung Electronics (005930) — get current price, 3-year financials, DCF valuation, and compare against semiconductor peers with a bar chart."
 
-```
-ecos_get_base_rate()                            → 한국 기준금리
-macro_fred("FEDFUNDS")                          → 미국 기준금리
-quant_granger_causality(fed_rate, bok_rate)      → 인과관계 검정
-ts_forecast(bok_rate, horizon=12)               → 금리 예측
-viz_dual_axis(bok_rate, fed_rate)               → 한미 금리 비교 차트
-```
+**What runs:** `stocks_quote` → `dart_financial_statements` → `val_dcf_valuation` → `val_peer_comparison` → `viz_bar_chart`
 
-### 3. Crypto Quant Pipeline
+**You get:** DCF-based fair value estimate, peer multiples comparison, and a publication-ready chart.
 
-```
-crypto_market_structure("BTC")                  → BTC 시장 구조
-cquant_funding_rate("BTC")                      → 펀딩비
-cquant_basis_term("BTC")                        → 선현물 괴리
-onchain_adv_mvrv("BTC")                         → MVRV 비율
-mlpipe_triple_barrier(btc_data)                 → 트리플 배리어 레이블링
-alpha_decay(signal)                             → 알파 디케이 분석
-stochvol_exec_optimal(trade_params)             → 최적 실행
-```
+### 2. Macro Policy Research
 
-### 4. Alternative Data & Quant
+> **Scenario**: You're writing a research note on whether the Fed leads or follows the BOK.
 
-```
-space_sunspot_data()                            → 흑점 데이터 (1818~)
-quant_lagged_correlation(sunspot, kospi, 24)    → 흑점-코스피 시차상관
-climate_enso_index()                            → ENSO 지수
-disaster_earthquakes()                          → 최근 지진
-conflict_country_risk("KOR")                    → 한국 지정학 리스크
-```
+**Ask Claude:**
+> "Compare US and Korean base interest rates over the past 5 years. Run a Granger causality test and forecast Korean rates for 12 months."
+
+**What runs:** `ecos_get_base_rate` → `macro_fred` → `quant_granger_causality` → `ts_forecast` → `viz_dual_axis`
+
+**You get:** Causality test result, 12-month rate forecast, and a dual-axis chart showing the rate spread.
+
+### 3. Academic Literature Survey
+
+> **Scenario**: You need to survey recent ML papers on financial time series for a seminar presentation.
+
+**Ask Claude:**
+> "Search arXiv and Semantic Scholar for 'transformer financial forecasting' papers from 2024-2025. Get citation counts and rank the top 10."
+
+**What runs:** `academic_multi_search` → `academic_citations` → `academic_paper_detail`
+
+**You get:** Ranked list of papers with abstracts, citation counts, and direct links.
+
+### 4. Crypto Quant Signal Pipeline
+
+> **Scenario**: You manage a crypto fund and want to check if BTC perpetual funding rates indicate a crowded long.
+
+**Ask Claude:**
+> "Analyze BTC market structure: funding rates across exchanges, basis term structure, MVRV ratio, and open interest. Is there a funding rate arbitrage opportunity?"
+
+**What runs:** `crypto_market_structure` → `cquant_funding_rate` → `cquant_basis_term` → `onchain_adv_mvrv` → `cquant_funding_arb`
+
+**You get:** Multi-signal dashboard showing funding, basis, on-chain metrics, and a specific arb opportunity with expected carry.
+
+### 5. Alternative Data Correlation
+
+> **Scenario**: Your quant team hypothesizes that solar activity correlates with market volatility.
+
+**Ask Claude:**
+> "Get sunspot data from 1950 to present and compare with KOSPI returns using lagged correlation. Also check ENSO index and Korea's geopolitical risk score."
+
+**What runs:** `space_sunspot_data` → `quant_lagged_correlation` → `climate_enso_index` → `conflict_country_risk` → `viz_heatmap`
+
+**You get:** Correlation heatmap across lags, showing whether the sunspot-market hypothesis holds.
+
+### 6. Competition Report Pipeline
+
+> **Scenario**: You're preparing a finance competition submission analyzing Korean household debt risk.
+
+**Ask Claude:**
+> "Collect Korean household debt data from ECOS, compare with Japan/US/EU levels, run a time series decomposition, and create a choropleth map of regional debt concentration."
+
+**What runs:** `ecos_get_stat_data` → `macro_country_compare` → `ts_decompose` → `viz_map_choropleth`
+
+**You get:** Full data package with international comparison, trend decomposition, and geographic visualization.
+
+### 7. Multi-Factor Portfolio Construction
+
+> **Scenario**: You want to build and backtest a multi-factor Korean equity portfolio.
+
+**Ask Claude:**
+> "Score the top 50 KOSPI stocks on momentum, value, and quality factors. Optimize using Hierarchical Risk Parity and backtest against KOSPI for 3 years with drawdown analysis."
+
+**What runs:** `factor_score` → `factor_correlation` → `portadv_hrp` → `backtest_portfolio` → `backtest_drawdown` → `viz_line_chart`
+
+**You get:** Optimized portfolio with Sharpe ratio, maximum drawdown, and benchmark comparison chart.
 
 ### Built-in Backtest Strategies
 
@@ -441,6 +352,17 @@ conflict_country_risk("KOR")                    → 한국 지정학 리스크
 | `Momentum` | N-day positive return | Momentum |
 
 > All backtests include commission (0.18%) and tax (0.18%) by default.
+
+## Getting the Best Output
+
+| Tip | Example |
+|-----|---------|
+| **Be specific about assets** | Use stock codes (`005930`) or full names (`Samsung Electronics`) |
+| **Specify time ranges** | "last 3 years" or "2020-2024" helps tools fetch the right window |
+| **Ask for visualization** | Say "chart", "heatmap", or "plot" — Claude auto-calls viz tools |
+| **Chain naturally** | "Get the data, analyze it, and show me a chart" triggers multi-tool pipelines |
+| **Use Korean for Korean data** | `삼성전자`, `기준금리` — tools accept Korean names natively |
+| **Explore first** | Start with `gateway_status()` to see all 64 servers and 396 tools |
 
 ## API Keys
 
@@ -464,14 +386,14 @@ conflict_country_risk("KOR")                    → 한국 지정학 리스크
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Client Layer                       │
-│  Claude Desktop · Claude Code · HTTP · Smithery       │
+│  Claude Desktop · Claude Code · Cursor · Smithery     │
 └────────────────────────┬────────────────────────────┘
                          │
-                    HTTPS (443)
+                    HTTP / HTTPS
                          │
 ┌────────────────────────▼────────────────────────────┐
 │              nginx Reverse Proxy                      │
-│         IP Restriction + Basic Auth                   │
+│              TLS + Rate Limiting                      │
 └────────────────────────┬────────────────────────────┘
                          │
 ┌────────────────────────▼────────────────────────────┐
@@ -484,10 +406,6 @@ conflict_country_risk("KOR")                    → 한국 지정학 리스크
 │  │  mount)      │  │  pattern,     │  │  stats)     │ │
 │  │              │  │  complexity)  │  │             │ │
 │  └─────────────┘  └──────────────┘  └─────────────┘ │
-│                                                       │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │              Bearer Token Auth (opt-in)          │ │
-│  └─────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -500,7 +418,7 @@ gateway_status()                    → Server health + version
 list_available_tools()              → All 396 tool names
 list_tools_by_domain("crypto")      → Filter by domain
 list_tools_by_pattern("snapshot")   → Filter by input pattern
-tool_info("stocks_quote")           → Tool schema + metadata
+tool_info("stocks_quote")          → Tool schema + metadata
 api_call_stats()                    → Daily call counts
 ```
 
@@ -514,6 +432,8 @@ api_call_stats()                    → Daily call counts
 | [Error Reference](docs/ERROR_REFERENCE.md) | Error codes, retry strategies |
 | [Architecture](docs/ARCHITECTURE.md) | System architecture, caching, rate limiting |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Operational debugging guide |
+| [Competitive Analysis](docs/COMPETITIVE_ANALYSIS.md) | Benchmarking vs other financial APIs |
+| [Coverage Audit](docs/COVERAGE_AUDIT.md) | API coverage by source + improvement roadmap |
 
 ## Data Policy
 
@@ -552,5 +472,5 @@ MIT
 ---
 
 <p align="center">
-  <strong>v8.0.0-phase14</strong> · 396 tools · 64 servers · Built by <a href="https://github.com/pollmap">Luxon AI</a>
+  <strong>v8.0.0-phase14</strong> · 396 tools · 64 servers · Finance & Research Intelligence · Built by <a href="https://github.com/pollmap">Luxon AI</a>
 </p>

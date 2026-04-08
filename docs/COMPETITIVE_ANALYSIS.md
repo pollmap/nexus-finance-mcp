@@ -1,10 +1,10 @@
-# Competitive Analysis — Financial MCP Servers
+# Competitive Analysis — Finance & Research Intelligence Platform
 
-> 2026-04-07 기준 경쟁 환경 분석
+> v8.0.0-phase14 / 2026-04-08 기준 경쟁 환경 분석
 
 ## Nexus Finance MCP 포지셔닝
 
-**364 tools / 64 servers / 48 adapters** — 금융 MCP 서버 중 도구 수 1위.
+**396 tools / 64 servers / 48 adapters** — Finance & Research Intelligence Platform 중 도구 수 1위.
 
 ---
 
@@ -35,8 +35,8 @@
 
 ### 도구 수 비교
 ```
-Nexus Finance  ████████████████████████████████████ 364
-FMP MCP        █████████████████████████           250
+Nexus Finance  ████████████████████████████████████████ 396
+FMP MCP        █████████████████████████               250
 EODHD MCP      ████████                             77
 QuantConnect   ██████                               60
 Alpaca MCP     █████                                50
@@ -48,7 +48,7 @@ Alpha Vantage  ███                                  25
 
 | 차원 | Nexus | 최고 경쟁사 | 격차 |
 |------|-------|-------------|------|
-| **도구 수** | 364 | FMP 250 | **+46% (1위)** |
+| **도구 수** | 396 | FMP 250 | **+58% (1위)** |
 | **데이터 소스 수** | 64 | EODHD 1, FMP 1 | **독보적** |
 | **한국 시장** | ECOS+DART+KOSIS+KRX+네이버 | 없음 | **독점** |
 | **퀀트 분석** | 88 tools (Tier 3-4) | QuantConnect 60 | **+47%** |
@@ -63,7 +63,7 @@ Alpha Vantage  ███                                  25
 ## SWOT 분석
 
 ### Strengths (강점)
-- **도구 수 1위** (364 vs 2위 FMP 250)
+- **도구 수 1위** (396 vs 2위 FMP 250)
 - **64개 데이터 소스 통합** — 단일 게이트웨이로 접근
 - **한국 시장 유일한 MCP** — ECOS, DART, KOSIS, KRX
 - **대안 데이터 독점** — 우주기상, 재해, 기후, 분쟁 (API 키 불필요)
