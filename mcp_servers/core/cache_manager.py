@@ -65,7 +65,13 @@ class CacheManager:
         if cache_dir is None:
             cache_dir = Path(__file__).parent.parent.parent / ".cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        self._l3: diskcache.Cache = diskcache.Cache(str(cache_dir / "diskcache"))
+        disk_path = cache_dir / "diskcache"
+        disk_path.mkdir(parents=True, exist_ok=True)
+        try:
+            self._l3: diskcache.Cache = diskcache.Cache(str(disk_path))
+        except Exception as e:
+            logger.warning(f"DiskCache init failed ({e}), using fallback empty cache")
+            self._l3 = None
 
         self._stats = {
             "l1_hits": 0,
@@ -114,6 +120,9 @@ class CacheManager:
             return value
 
         # L3 check
+        if self._l3 is None:
+            self._stats["misses"] += 1
+            return None
         value = self._l3.get(cache_key)
         if value is not None:
             self._stats["l3_hits"] += 1
@@ -158,7 +167,11 @@ class CacheManager:
         if ttl >= self._l2_ttl:
             self._l2[cache_key] = value
         # L3: DiskCache supports per-key TTL
-        self._l3.set(cache_key, value, expire=ttl)
+        if self._l3 is not None:
+            try:
+                self._l3.set(cache_key, value, expire=ttl)
+            except Exception as e:
+                logger.warning(f"L3 cache write failed: {e}")
 
         logger.debug(f"Cache set: {cache_key} (TTL={ttl}s)")
 
@@ -168,7 +181,8 @@ class CacheManager:
 
         self._l1.pop(cache_key, None)
         self._l2.pop(cache_key, None)
-        self._l3.delete(cache_key)
+        if self._l3 is not None:
+            self._l3.delete(cache_key)
 
         logger.debug(f"Cache delete: {cache_key}")
 

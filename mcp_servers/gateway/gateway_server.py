@@ -170,12 +170,21 @@ class GatewayServer:
 
         @self.mcp.tool()
         def list_tools_by_domain(domain: str) -> dict:
-            """도메인별 도구 조회. 도메인: korean_macro, korean_equity, crypto, quant, alternative, news, real_economy, regulatory, infrastructure, global_markets, real_estate, visualization"""
+            """도메인별 도구 조회. 도메인: korean_macro, korean_equity, crypto, quant, alternative, news, real_economy, regulatory, infrastructure, global_markets, real_estate, visualization. 도구명 접두사(dart, ecos 등)로도 검색 가능."""
             try:
                 from mcp_servers.core.tool_metadata import TOOL_METADATA
+                # Exact domain match first
                 matches = {k: v for k, v in TOOL_METADATA.items() if v.get("domain") == domain}
+                # If no exact match, try prefix search (e.g., "dart" → tools starting with "dart_")
+                if not matches:
+                    prefix = domain.lower().rstrip("_") + "_"
+                    matches = {k: v for k, v in TOOL_METADATA.items() if k.startswith(prefix)}
+                # If still no match, try substring in domain name (e.g., "equity" → "korean_equity")
+                if not matches:
+                    matches = {k: v for k, v in TOOL_METADATA.items() if domain.lower() in v.get("domain", "")}
                 domains = sorted(set(v.get("domain", "") for v in TOOL_METADATA.values()))
-                return {"domain": domain, "count": len(matches), "tools": list(matches.keys()), "available_domains": domains}
+                resolved_domain = domain if any(v.get("domain") == domain for v in matches.values()) else f"{domain} (prefix/substring match)"
+                return {"domain": resolved_domain, "count": len(matches), "tools": list(matches.keys()), "available_domains": domains}
             except ImportError:
                 return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}
 
@@ -191,14 +200,20 @@ class GatewayServer:
                 return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}
 
         @self.mcp.tool()
-        def tool_info(tool_name: str) -> dict:
-            """특정 도구의 메타데이터 조회 (도메인, 복잡도, 입력패턴, 필요 키)."""
+        async def tool_info(tool_name: str) -> dict:
+            """특정 도구의 메타데이터 + inputSchema 조회 (도메인, 복잡도, 입력패턴, 필요 키, 파라미터 스키마)."""
             try:
                 from mcp_servers.core.tool_metadata import TOOL_METADATA
-                meta = TOOL_METADATA.get(tool_name)
-                if not meta:
+                meta = TOOL_METADATA.get(tool_name, {})
+                # Get inputSchema from FastMCP tool registry
+                tools = await self.mcp.list_tools()
+                mcp_tool = next((t for t in tools if t.name == tool_name), None)
+                if not meta and not mcp_tool:
                     return {"error": True, "message": f"Unknown tool: {tool_name}"}
-                return {"tool": tool_name, **meta}
+                result = {"tool": tool_name, **meta}
+                if mcp_tool and hasattr(mcp_tool, 'inputSchema'):
+                    result["inputSchema"] = mcp_tool.inputSchema
+                return result
             except ImportError:
                 return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}
 

@@ -34,6 +34,14 @@ from mcp_servers.core.responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_records(df) -> list:
+    """Convert DataFrame to records with NaN → None for valid JSON."""
+    if df is None or not hasattr(df, 'to_dict'):
+        return []
+    import numpy as np
+    return df.where(pd.notna(df), None).replace({np.nan: None, np.inf: None, -np.inf: None}).to_dict("records")
+
+
 class DARTAdapter:
     """
     Adapter for OpenDART API.
@@ -192,7 +200,7 @@ class DARTAdapter:
                 return success_response([], source="OpenDART", message=f"No financial data for {stock_code} in {year}")
 
             # Convert to records
-            records = fs.to_dict("records") if hasattr(fs, 'to_dict') else []
+            records = _sanitize_records(fs)
 
             result = success_response(
                 records, count=len(records), source="OpenDART",
@@ -312,7 +320,7 @@ class DARTAdapter:
             if sh is None or (hasattr(sh, 'empty') and sh.empty):
                 return success_response([], source="OpenDART", message="No shareholder data")
 
-            records = sh.to_dict("records") if hasattr(sh, 'to_dict') else []
+            records = _sanitize_records(sh)
 
             result = success_response(
                 records, count=len(records), source="OpenDART",
@@ -355,7 +363,7 @@ class DARTAdapter:
             else:
                 cf_df = fs
 
-            records = cf_df.to_dict("records") if hasattr(cf_df, 'to_dict') else []
+            records = _sanitize_records(cf_df)
 
             result = success_response(
                 records, count=len(records), source="OpenDART",
@@ -387,7 +395,7 @@ class DARTAdapter:
             if div is None or (hasattr(div, 'empty') and div.empty):
                 return success_response([], source="OpenDART", message=f"No dividend data for {stock_code}")
 
-            records = div.to_dict("records") if hasattr(div, 'to_dict') else []
+            records = _sanitize_records(div)
             result = success_response(
                 records, count=len(records), source="OpenDART",
                 stock_code=stock_code, year=year,
@@ -427,7 +435,7 @@ class DARTAdapter:
                 matches = result
 
             if hasattr(matches, 'to_dict'):
-                records = matches.head(20).to_dict("records")
+                records = _sanitize_records(matches.head(20))
             else:
                 records = []
 
@@ -463,7 +471,7 @@ class DARTAdapter:
                 return success_response([], source="OpenDART",
                                         message=f"No {section} data for {stock_code}")
 
-            records = data.to_dict("records") if hasattr(data, 'to_dict') else []
+            records = _sanitize_records(data)
             result = success_response(
                 records, count=len(records), source="OpenDART",
                 stock_code=stock_code, year=year, section=section,
@@ -592,7 +600,7 @@ class DARTAdapter:
                     start_date=start_date, end_date=end_date,
                 )
 
-            records = df.to_dict("records") if hasattr(df, 'to_dict') else []
+            records = _sanitize_records(df)
 
             result = success_response(
                 records, count=len(records), source="OpenDART",
@@ -659,7 +667,7 @@ class DARTAdapter:
                     message=f"No financial data for {stock_code} in {year} ({fs_div})",
                 )
 
-            records = fs.to_dict("records") if hasattr(fs, 'to_dict') else []
+            records = _sanitize_records(fs)
 
             result = success_response(
                 records, count=len(records), source="OpenDART",
@@ -850,7 +858,7 @@ class DARTAdapter:
             if hasattr(df, 'head'):
                 df = df.head(limit)
 
-            records = df.to_dict("records") if hasattr(df, 'to_dict') else []
+            records = _sanitize_records(df)
 
             result = success_response(
                 records, count=len(records), source="OpenDART",

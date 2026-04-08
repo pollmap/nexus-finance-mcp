@@ -73,7 +73,9 @@ class DARTServer(BaseMCPServer):
             report_type: str = "11011",
         ) -> dict:
             """
-            재무제표 조회 (OpenDART).
+            재무제표 조회 (OpenDART). 1회 호출 시 당기/전기/전전기 최대 3개년 반환.
+            5개년 데이터가 필요하면 year를 바꿔 2회 호출 후 병합하세요.
+            금액은 콤마 포함 문자열 (예: "69,458,073,000,000").
 
             Args:
                 stock_code: 종목코드 (예: 005930)
@@ -148,6 +150,7 @@ class DARTServer(BaseMCPServer):
         ) -> dict:
             """
             현금흐름표 조회 (OpenDART). OCF, 투자CF, 재무CF, FCF 분석용.
+            1회 호출 시 최대 3개년. 금액은 콤마 포함 문자열.
 
             Args:
                 stock_code: 종목코드 (예: 005930)
@@ -292,7 +295,10 @@ class DARTServer(BaseMCPServer):
             report_type: str = "11011",
             fs_div: str = "CFS",
         ) -> dict:
-            """전체 재무제표 조회 (연결/개별 선택). BS+IS+CF 모두 포함.
+            """전체 재무제표 조회 (연결/개별 선택). BS+CIS+CF+SCE 포함.
+            1회 호출 시 최대 3개년. 금액은 숫자 문자열 (콤마 없음, 예: "176107659000000").
+            sj_div 값: BS(재무상태표), CIS(포괄손익), CF(현금흐름), SCE(자본변동).
+            IS가 아닌 CIS로 분류됨에 주의.
 
             Args:
                 stock_code: 종목코드 (예: 005930)
