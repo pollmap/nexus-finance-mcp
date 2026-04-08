@@ -1,6 +1,6 @@
 # Nexus Finance MCP — Connection Guide
 
-> 396 Tools · 64 Servers · Streamable HTTP  
+> 398 Tools · 64 Servers · Streamable HTTP  
 > Financial data infrastructure — Korean/Global markets, quant, crypto, alternative data
 
 ## Quick Connect
@@ -12,7 +12,7 @@ No API keys needed. No authentication. Just connect and start querying.
 ```bash
 # Test it right now
 curl http://62.171.141.206/health
-# → {"status":"ok","version":"8.0.0-phase12","loaded_servers":64,"tool_count":396}
+# → {"status":"ok","version":"8.0.0-phase14","loaded_servers":64,"tool_count":398}
 ```
 
 ---
@@ -329,7 +329,7 @@ Each tool has a JSON Schema for its parameters:
 }
 ```
 
-Use `tools/list` to discover all 396 tool schemas programmatically.
+Use `tools/list` to discover all 398 tool schemas programmatically.
 
 ---
 
@@ -393,13 +393,13 @@ Ollama/llama.cpp alone can't use MCP. But these **frontends** add MCP support on
   ]
 }
 ```
-5. Now your local LLM can call 396 financial tools
+5. Now your local LLM can call 398 financial tools
 
 > **Note:** Tool calling quality depends on the LLM's capability. Large models (Llama 3.1 70B+, Qwen 2.5 72B+) handle tool calls well. Smaller models may struggle with complex multi-tool workflows.
 
 ---
 
-## Available Tools (396 total)
+## Available Tools (398 total)
 
 | Category | Servers | Tools | Description |
 |----------|---------|-------|-------------|

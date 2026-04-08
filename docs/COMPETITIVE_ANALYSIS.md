@@ -4,7 +4,7 @@
 
 ## Nexus Finance MCP 포지셔닝
 
-**396 tools / 64 servers / 48 adapters** — Finance & Research Intelligence Platform 중 도구 수 1위.
+**398 tools / 64 servers / 48 adapters** — Finance & Research Intelligence Platform 중 도구 수 1위.
 
 ---
 

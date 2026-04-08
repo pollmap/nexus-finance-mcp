@@ -48,7 +48,9 @@ else:
 |--------|------|-------------|
 | **Korean Macro** | `ecos_get_macro_snapshot()` | GDP, CPI, rates — zero params |
 | **Korean Equity** | `stocks_quote("005930")` | Samsung live price + ratios |
-| **Disclosures** | `dart_financial_statements("삼성전자")` | 3-year financials |
+| **Disclosures** | `dart_financial_statements("005930")` | 3-year financials |
+| **Multi-Year** | `dart_financial_multi_year("000660", 5)` | 5-year financials (auto-merge) ★ |
+| **Equity All-in-1** | `dart_equity_analysis("005930")` | Company+financials+ratios+CF+dividend ★ |
 | **US Macro** | `macro_fred("GDP")` | FRED data (any series ID) |
 | **Crypto** | `crypto_ticker("binance", "BTC/USDT")` | Real-time price |
 | **Quant** | `quant_correlation(series1, series2)` | Pearson/Spearman/Kendall |
@@ -120,7 +122,7 @@ else:
 | Need | Read |
 |------|------|
 | Full usage patterns & workflows | [USAGE_GUIDE.md](USAGE_GUIDE.md) |
-| All 396 tools listed | [TOOL_CATALOG.md](TOOL_CATALOG.md) |
+| All 398 tools listed | [TOOL_CATALOG.md](TOOL_CATALOG.md) |
 | Response format spec | [PARSING_GUIDE.md](PARSING_GUIDE.md) |
 | Error codes & retry | [ERROR_REFERENCE.md](ERROR_REFERENCE.md) |
 | Architecture diagrams | [DATA_FLOW.md](DATA_FLOW.md) |

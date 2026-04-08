@@ -120,7 +120,7 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    GW[Gateway<br/>64 servers / 396 tools]
+    GW[Gateway<br/>64 servers / 398 tools]
 
     subgraph KR["Korean Finance (8 servers)"]
         ecos[ecos<br/>한국은행 ECOS]
@@ -266,7 +266,7 @@ flowchart TD
 ## 5. Tool Complexity Distribution
 
 ```mermaid
-pie title 396 Tools by Complexity Tier
+pie title 398 Tools by Complexity Tier
     "Tier 1 — Simple (86)" : 86
     "Tier 2 — Parameterized (120)" : 120
     "Tier 3 — Analytical (80)" : 80

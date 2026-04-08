@@ -1,4 +1,4 @@
-# Tool Catalog — 396 Tools across 64 Servers
+# Tool Catalog — 398 Tools across 64 Servers
 
 > Complete reference for every tool in the Nexus Finance MCP platform.  
 > For visual architecture, see [DATA_FLOW.md](DATA_FLOW.md). For a cheat sheet, see [QUICK_REFERENCE.md](QUICK_REFERENCE.md).
@@ -9,7 +9,7 @@
 
 ```mermaid
 graph LR
-    GW[Gateway<br/>396 tools]
+    GW[Gateway<br/>398 tools]
 
     KF[Korean Finance<br/>49 tools]
     GM[Global Markets<br/>37 tools]
@@ -95,15 +95,19 @@ Output of one tool becomes input of the next.
 
 ## Domain Catalog
 
-### 1. Korean Economy (한국 경제) — 41 tools
+### 1. Korean Economy (한국 경제) — 43 tools
 
 | Server | Count | Tools | Data Source |
 |--------|-------|-------|------------|
 | **ECOS** | 9 | `ecos_search_stat_list`, `ecos_get_stat_data`, `ecos_get_base_rate`, `ecos_get_m2`, `ecos_get_gdp`, `ecos_get_macro_snapshot`, `ecos_get_exchange_rate`, `ecos_get_bond_yield`, `ecos_list_indicators` | 한국은행 ECOS |
 | **KOSIS** | 5 | `kosis_search_tables`, `kosis_get_population`, `kosis_get_unemployment`, `kosis_get_housing_price`, `kosis_get_table` | 통계청 KOSIS |
-| **DART** | 20 | `dart_company_info`, `dart_financial_statements`, `dart_financial_ratios`, `dart_major_shareholders`, `dart_search_company`, `dart_cash_flow`, `dart_dividend`, `dart_executives`, `dart_executive_compensation`, `dart_shareholder_changes`, `dart_capital_changes`, `dart_mergers`, `dart_convertible_bonds`, `dart_treasury_stock`, `dart_related_party`, `dart_5pct_disclosure`, `dart_disclosure_search`, `dart_events`, `dart_full_financial`, `dart_document` | 금융감독원 OpenDART |
+| **DART** | 22 | `dart_company_info`, `dart_financial_statements`, `dart_financial_ratios`, `dart_major_shareholders`, `dart_search_company`, `dart_cash_flow`, `dart_dividend`, `dart_executives`, `dart_executive_compensation`, `dart_shareholder_changes`, `dart_capital_changes`, `dart_mergers`, `dart_convertible_bonds`, `dart_treasury_stock`, `dart_related_party`, `dart_5pct_disclosure`, `dart_disclosure_search`, `dart_events`, `dart_full_financial`, `dart_document`, **`dart_financial_multi_year`** ★, **`dart_equity_analysis`** ★ | 금융감독원 OpenDART |
 | **FSC** | 2 | `fsc_stock_price`, `fsc_bond_price` | 금융위원회 data.go.kr |
 | **Stocks** | 5 | `stocks_quote`, `stocks_search`, `stocks_history`, `stocks_beta`, `stocks_market_overview` | KIS + pykrx + Yahoo |
+
+> ★ **New tools:**
+> - `dart_financial_multi_year(stock_code, years=5)` — 5~10개년 재무제표 자동 병합. DART 3년 제한 자동 우회.
+> - `dart_equity_analysis(stock_code)` — 1회 호출로 기업개황 + 재무제표 + 재무비율 + 현금흐름 + 배당 통합 조회.
 
 ### 2. Korean Real Estate (부동산) — 8 tools
 

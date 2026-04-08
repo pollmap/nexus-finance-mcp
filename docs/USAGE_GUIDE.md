@@ -1,7 +1,7 @@
 # Nexus Finance MCP — 사용 가이드 (USAGE GUIDE)
 
 > 대상: Nexus Finance MCP를 처음 사용하거나 체계적인 활용 패턴을 익히고 싶은 개발자/분석가
-> 기준: 396 tools / 48 adapters / 64 servers (v8.0.0-phase14)
+> 기준: 398 tools / 48 adapters / 64 servers (v8.0.0-phase14)
 
 ---
 
@@ -31,13 +31,13 @@
 curl http://127.0.0.1:8100/health
 ```
 
-정상 응답: `{"status": "ok", "tools": 396}`
+정상 응답: `{"status": "ok", "tools": 398}`
 
 ### 첫 3번의 호출 (필수 워밍업)
 
 ```
 1. gateway_status()          # 서버 상태, 도구 수, 버전 확인
-2. list_available_tools()    # 전체 396개 도구 이름 목록
+2. list_available_tools()    # 전체 398개 도구 이름 목록
 3. api_call_stats()          # 호출량 통계 및 도메인별 분포
 ```
 
@@ -51,8 +51,8 @@ curl http://127.0.0.1:8100/health
 
 | 도구 | 설명 | 반환값 예시 |
 |------|------|------------|
-| `gateway_status()` | 서버/도구 수, 버전, 가동 시간 | `{"tools": 396, "version": "8.0.0"}` |
-| `list_available_tools()` | 전체 도구 이름 목록 (396개) | `["ecos_get_base_rate", "dart_company_info", ...]` |
+| `gateway_status()` | 서버/도구 수, 버전, 가동 시간 | `{"tools": 398, "version": "8.0.0"}` |
+| `list_available_tools()` | 전체 도구 이름 목록 (398개) | `["ecos_get_base_rate", "dart_company_info", ...]` |
 | `api_call_stats()` | 도메인별 호출량, 에러율, 응답시간 | `{"ecos": 1204, "dart": 893, ...}` |
 
 ### 도구 네이밍 규칙 (Tool Naming Convention)
@@ -82,7 +82,7 @@ curl http://127.0.0.1:8100/health
 
 ## 3. 5가지 입력 패턴 (Input Patterns)
 
-396개 도구를 리버스 엔지니어링해 도출한 입력 패턴 분류.  
+398개 도구를 리버스 엔지니어링해 도출한 입력 패턴 분류.  
 도구 docstring을 보기 전에 이 패턴부터 매핑하면 파라미터 파악 시간이 크게 줄어든다.
 
 ---

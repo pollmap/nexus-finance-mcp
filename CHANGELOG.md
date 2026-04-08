@@ -4,17 +4,30 @@ All notable changes to Nexus Finance MCP are documented here.
 
 ## v8.0.0-phase14 (2026-04)
 
-**396 tools / 64 servers**
+**398 tools / 64 servers**
 
 ### Added
-- DART expanded (20 disclosure tools)
+- DART expanded (22 disclosure tools including 2 new pipeline tools)
+- `dart_financial_multi_year` — 5~10yr financial data, auto-merges DART 3yr API limit
+- `dart_equity_analysis` — one-call pipeline: company + financials + ratios + cash flow + dividend
 - CCXT multi-exchange support (100+ exchanges)
 - SEC EDGAR expanded filings
 - ECOS expanded macro indicators
 - FRED Federal Reserve integration
-- Public MCP endpoint (no auth, CORS-enabled)
-- CONNECT.md connection guide
-- public-deploy.sh (domain + SSL automation)
+- Public MCP endpoint (no auth, CORS-enabled, stateless HTTP)
+- CONNECT.md connection guide with compatibility matrix
+- Comprehensive documentation: DATA_FLOW.md (6 Mermaid diagrams), QUICK_REFERENCE.md, CHANGELOG.md, CONTRIBUTING.md
+
+### Fixed
+- Stateless mode enabled — eliminates session expiry on consecutive calls
+- DiskCache crash on first access — graceful fallback with auto-create
+- NaN/Inf → null conversion across all 18 DataFrame serialization sites
+- `sanitize_records()` centralized in core/responses.py
+- tool_info now returns live description + parameter schema from FastMCP
+- list_tools_by_domain supports prefix/substring alias search
+- DART tool descriptions: document 3yr limit, CIS vs IS, amount format differences
+- stocks_quote pykrx fallback: explicit delay time + change_pct from previous close
+- maritime dead tools: DEPRECATED tag in description and error messages
 
 ---
 

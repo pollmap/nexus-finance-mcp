@@ -1,6 +1,6 @@
 # Documentation
 
-> Nexus Finance MCP — 396 tools / 64 servers  
+> Nexus Finance MCP — 398 tools / 64 servers  
 > Navigate to the right doc for your use case.
 
 ## Which Doc Should I Read?
@@ -12,7 +12,7 @@ flowchart TD
     Q1 -->|No| Q2{What are you doing?}
 
     Q2 -->|Using tools| QR[QUICK_REFERENCE.md<br/>Cheat sheet]
-    Q2 -->|Finding a tool| TC[TOOL_CATALOG.md<br/>All 396 tools]
+    Q2 -->|Finding a tool| TC[TOOL_CATALOG.md<br/>All 398 tools]
     Q2 -->|Parsing responses| PG[PARSING_GUIDE.md<br/>Response format]
     Q2 -->|Debugging errors| ER[ERROR_REFERENCE.md<br/>Error codes]
     Q2 -->|Understanding architecture| DF[DATA_FLOW.md<br/>Visual diagrams]
@@ -37,7 +37,7 @@ flowchart TD
 
 | Doc | Description |
 |-----|-------------|
-| [TOOL_CATALOG.md](TOOL_CATALOG.md) | All 396 tools by domain and complexity tier |
+| [TOOL_CATALOG.md](TOOL_CATALOG.md) | All 398 tools by domain and complexity tier |
 | [PARSING_GUIDE.md](PARSING_GUIDE.md) | Response format spec, domain-specific fields, parsing strategies |
 | [ERROR_REFERENCE.md](ERROR_REFERENCE.md) | 5 error categories, retry strategies, rate limit handling |
 

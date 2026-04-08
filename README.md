@@ -4,17 +4,17 @@
     <strong>Finance & Research Intelligence Platform</strong>
   </p>
   <p align="center">
-    396 tools · 64 servers · One endpoint · Ask anything about markets, macro, quant, or research.
+    398 tools · 64 servers · One endpoint · Ask anything about markets, macro, quant, or research.
   </p>
   <p align="center">
     <a href="#quick-start"><img src="https://img.shields.io/badge/Quick_Start-blue?style=for-the-badge" alt="Quick Start"></a>
-    <a href="#tool-overview"><img src="https://img.shields.io/badge/Tools-396-green?style=for-the-badge" alt="396 Tools"></a>
+    <a href="#tool-overview"><img src="https://img.shields.io/badge/Tools-398-green?style=for-the-badge" alt="398 Tools"></a>
     <a href="#api-keys"><img src="https://img.shields.io/badge/API_Keys-optional-orange?style=for-the-badge" alt="API Keys"></a>
   </p>
   <p align="center">
     <img src="https://img.shields.io/badge/version-v8.0.0--phase14-blue" alt="Version">
     <img src="https://img.shields.io/badge/servers-64-brightgreen" alt="64 Servers">
-    <img src="https://img.shields.io/badge/tools-396-brightgreen" alt="396 Tools">
+    <img src="https://img.shields.io/badge/tools-398-brightgreen" alt="398 Tools">
     <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python 3.12+">
     <img src="https://img.shields.io/badge/transport-streamable--http-purple" alt="Transport">
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License">
@@ -62,7 +62,7 @@ Connect any MCP client and start asking questions — about Korean equities, US 
 
 | Feature | Description |
 |---------|-------------|
-| **396 Tools / 64 Servers** | World's largest financial MCP — Korean + global markets, quant, crypto, alternative data |
+| **398 Tools / 64 Servers** | World's largest financial MCP — Korean + global markets, quant, crypto, alternative data |
 | **Single Gateway** | One endpoint, all tools — FastMCP mount architecture with streamable-http transport |
 | **Real Data Only** | Zero mock/sample data. Every response comes from live APIs with graceful error handling |
 | **PhD-Level Quant** | GARCH, Heston, Black-Litterman, HRP, Kalman filter, Lopez de Prado ML pipeline |
@@ -128,7 +128,7 @@ claude mcp add nexus-finance --transport http http://62.171.141.206/mcp
 - HTTP only (HTTPS coming soon) — do not send sensitive data in tool parameters
 - Rate limit: 5 req/s per IP on `/mcp` endpoint (burst 10)
 - Best-effort uptime — single VPS, no SLA
-- All API keys pre-configured — all 396 tools work immediately
+- All API keys pre-configured — all 398 tools work immediately
 
 ### Option 2: Self-Hosted
 
@@ -206,7 +206,7 @@ MCP_AUTH_TOKEN=          # Bearer token (optional)
 
 ## Tool Overview
 
-At a glance — 396 tools across 15 domains:
+At a glance — 398 tools across 15 domains:
 
 | Domain | Servers | Tools | Highlights |
 |--------|---------|-------|------------|
@@ -375,7 +375,7 @@ All tools return structured JSON. Example:
 | **Ask for visualization** | Say "chart", "heatmap", or "plot" — Claude auto-calls viz tools |
 | **Chain naturally** | "Get the data, analyze it, and show me a chart" triggers multi-tool pipelines |
 | **Use Korean for Korean data** | `삼성전자`, `기준금리` — tools accept Korean names natively |
-| **Explore first** | Start with `gateway_status()` to see all 64 servers and 396 tools |
+| **Explore first** | Start with `gateway_status()` to see all 64 servers and 398 tools |
 
 ## API Keys
 
@@ -447,7 +447,7 @@ The gateway itself provides 6 tools for discovery and monitoring:
 
 ```
 gateway_status()                    → Server health + version
-list_available_tools()              → All 396 tool names
+list_available_tools()              → All 398 tool names
 list_tools_by_domain("crypto")      → Filter by domain
 list_tools_by_pattern("snapshot")   → Filter by input pattern
 tool_info("stocks_quote")          → Tool schema + metadata
@@ -463,7 +463,7 @@ api_call_stats()                    → Daily call counts
 | [Quick Reference](docs/QUICK_REFERENCE.md) | One-page cheat sheet — top tools, patterns, limits |
 | [Usage Guide](docs/USAGE_GUIDE.md) | 5 input patterns, workflow examples |
 | **Reference** | |
-| [Tool Catalog](docs/TOOL_CATALOG.md) | All 396 tools by domain and complexity tier |
+| [Tool Catalog](docs/TOOL_CATALOG.md) | All 398 tools by domain and complexity tier |
 | [Parsing Guide](docs/PARSING_GUIDE.md) | Response format spec, parsing strategies |
 | [Error Reference](docs/ERROR_REFERENCE.md) | Error codes, retry strategies |
 | **Architecture** | |
@@ -516,5 +516,5 @@ MIT
 ---
 
 <p align="center">
-  <strong>v8.0.0-phase14</strong> · 396 tools · 64 servers · Finance & Research Intelligence · Built by <a href="https://github.com/pollmap">Luxon AI</a>
+  <strong>v8.0.0-phase14</strong> · 398 tools · 64 servers · Finance & Research Intelligence · Built by <a href="https://github.com/pollmap">Luxon AI</a>
 </p>
