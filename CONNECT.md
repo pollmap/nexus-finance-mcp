@@ -163,21 +163,31 @@ const tools = await client.listTools();
 
 ## cURL (Manual Testing)
 
+Full 4-step protocol handshake:
+
 ```bash
-# 1. Initialize session
-curl -X POST http://62.171.141.206/mcp \
+# 1. Initialize session — get Mcp-Session-Id from response header
+curl -v -X POST http://62.171.141.206/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+# → Look for "mcp-session-id: xxx" in response headers
 
-# 2. List tools (use Mcp-Session-Id from step 1 response header)
+# 2. Send initialized notification (REQUIRED — server won't accept tool calls without this)
 curl -X POST http://62.171.141.206/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: <session-id-from-step-1>" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+
+# 3. List available tools
+curl -X POST http://62.171.141.206/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: <session-id>" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 
-# 3. Call a tool
+# 4. Call a tool
 curl -X POST http://62.171.141.206/mcp \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
@@ -185,13 +195,141 @@ curl -X POST http://62.171.141.206/mcp \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"gateway_status","arguments":{}}}'
 ```
 
-> **Important:** The `Accept: application/json, text/event-stream` header is required. Without it you'll get a 406 error.
+> **Required headers:**
+> - `Accept: application/json, text/event-stream` — without this you get 406
+> - `Mcp-Session-Id` — from step 1 response header, required for all subsequent requests
 
 ## Health Check
 
 ```bash
 curl http://62.171.141.206/health
 ```
+
+---
+
+## Response Format
+
+When you call a tool via MCP, the response follows this structure:
+
+### Transport Layer — SSE
+
+All responses arrive as **Server-Sent Events** (SSE):
+
+```
+event: message
+data: {"jsonrpc":"2.0","id":3,"result":{...}}
+```
+
+MCP SDK clients (Claude Code, Cursor, etc.) handle SSE parsing automatically. You only need to care about this if using raw HTTP/cURL.
+
+### Tool Response Envelope
+
+Inside the JSON-RPC `result`, the tool data is wrapped in the MCP content envelope:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\":true,\"data\":{...}}"
+      }
+    ],
+    "structuredContent": {
+      "success": true,
+      "data": { ... }
+    },
+    "isError": false
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `result.content[0].text` | Tool output as JSON string (always present) |
+| `result.structuredContent` | Same data as parsed object (when available) |
+| `result.isError` | `false` for success, `true` for errors |
+
+### Tool Data Format
+
+Inside `structuredContent` (or parsed from `content[0].text`), each tool returns:
+
+```json
+// Success
+{
+  "success": true,
+  "data": { ... },
+  "source": "ECOS"
+}
+
+// Error
+{
+  "error": true,
+  "message": "Human-readable error description"
+}
+```
+
+### Parsing in Code
+
+```python
+# With MCP SDK — handles SSE and envelope automatically
+result = await session.call_tool("ecos_get_macro_snapshot", {})
+data = json.loads(result.content[0].text)
+
+if data.get("error"):
+    print(f"Error: {data['message']}")
+else:
+    print(data["data"])
+```
+
+```python
+# With raw HTTP — parse SSE manually
+import httpx, json
+
+resp = httpx.post(url, headers=headers, json=payload)
+for line in resp.text.split("\n"):
+    if line.startswith("data: "):
+        msg = json.loads(line[6:])
+        tool_data = json.loads(msg["result"]["content"][0]["text"])
+```
+
+### Error Responses
+
+| Error Type | Example |
+|------------|---------|
+| Unknown tool | `{"isError": true, "content": [{"text": "Unknown tool: 'foo'"}]}` |
+| Invalid params | `{"isError": true, "content": [{"text": "Missing required argument..."}]}` |
+| API failure | `{"isError": false, "content": [{"text": "{\"error\":true,\"message\":\"Rate limit exceeded\"}"}]}` |
+| 406 HTTP | Missing `Accept` header — add `application/json, text/event-stream` |
+| 429 HTTP | Rate limited — wait 1 second and retry |
+
+> **Important:** API-level errors (rate limit, missing key) come inside a successful MCP response (`isError: false`) with `{"error": true}` in the tool data. Protocol-level errors (unknown tool, bad params) set `isError: true` at the MCP level.
+
+### Tool Schema Discovery
+
+Each tool has a JSON Schema for its parameters:
+
+```json
+{
+  "name": "ecos_get_stat_data",
+  "description": "ECOS 통계 데이터 조회...",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "stat_code": { "type": "string" },
+      "item_code": { "type": "string" },
+      "start_date": { "type": "string" },
+      "end_date": { "type": "string" },
+      "frequency": { "type": "string" }
+    },
+    "required": ["stat_code", "item_code", "start_date"]
+  }
+}
+```
+
+Use `tools/list` to discover all 396 tool schemas programmatically.
 
 ---
 
