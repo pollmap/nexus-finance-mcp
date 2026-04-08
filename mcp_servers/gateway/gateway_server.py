@@ -201,18 +201,23 @@ class GatewayServer:
 
         @self.mcp.tool()
         async def tool_info(tool_name: str) -> dict:
-            """특정 도구의 메타데이터 + inputSchema 조회 (도메인, 복잡도, 입력패턴, 필요 키, 파라미터 스키마)."""
+            """특정 도구의 메타데이터 + 파라미터 스키마 + 실시간 description 조회."""
             try:
                 from mcp_servers.core.tool_metadata import TOOL_METADATA
                 meta = TOOL_METADATA.get(tool_name, {})
-                # Get inputSchema from FastMCP tool registry
+                # Get live schema from FastMCP tool registry
                 tools = await self.mcp.list_tools()
                 mcp_tool = next((t for t in tools if t.name == tool_name), None)
                 if not meta and not mcp_tool:
-                    return {"error": True, "message": f"Unknown tool: {tool_name}"}
+                    return {"error": True, "message": f"Unknown tool: {tool_name}. Use list_available_tools() to see all tools."}
                 result = {"tool": tool_name, **meta}
-                if mcp_tool and hasattr(mcp_tool, 'inputSchema'):
-                    result["inputSchema"] = mcp_tool.inputSchema
+                if mcp_tool:
+                    # Override stale TOOL_METADATA description with live docstring
+                    if hasattr(mcp_tool, 'description') and mcp_tool.description:
+                        result["description"] = mcp_tool.description
+                    # Add parameter schema (inputSchema)
+                    if hasattr(mcp_tool, 'parameters') and mcp_tool.parameters:
+                        result["parameters"] = mcp_tool.parameters
                 return result
             except ImportError:
                 return {"error": True, "message": "tool_metadata not installed. Run scripts/generate_tool_metadata.py first."}

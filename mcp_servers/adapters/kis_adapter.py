@@ -218,13 +218,24 @@ class KISAdapter:
             data_date = str(df.index[-1].date()) if hasattr(df.index[-1], 'date') else str(df.index[-1])
             delay_hours = max(1, (datetime.now() - df.index[-1]).total_seconds() / 3600) if hasattr(df.index[-1], 'date') else 24
 
+            # Calculate change_pct from previous day's close for accuracy
+            close_price = int(latest.get("종가", 0))
+            if len(df) >= 2:
+                prev_close = int(df.iloc[-2].get("종가", 0))
+                change_pct = round((close_price - prev_close) / prev_close * 100, 2) if prev_close else 0.0
+                change_amount = close_price - prev_close
+            else:
+                change_pct = float(latest.get("등락률", 0))
+                change_amount = 0
+
             return success_response(
                 None,
                 source="pykrx_fallback",
                 stock_code=stock_code,
                 stock_name=name or stock_code,
-                current_price=int(latest.get("종가", 0)),
-                change_pct=float(latest.get("등락률", 0)),
+                current_price=close_price,
+                change_pct=change_pct,
+                change_amount=change_amount,
                 volume=int(latest.get("거래량", 0)),
                 high=int(latest.get("고가", 0)),
                 low=int(latest.get("저가", 0)),
