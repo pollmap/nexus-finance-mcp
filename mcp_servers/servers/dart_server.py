@@ -322,6 +322,125 @@ class DARTServer(BaseMCPServer):
                 return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
             return adapter.get_document(rcp_no, max_chars)
 
+        @self.mcp.tool()
+        def dart_financial_multi_year(
+            stock_code: str,
+            years: int = 5,
+            report_type: str = "11011",
+            fs_div: str = "CFS",
+        ) -> dict:
+            """복수연도 재무제표 조회 (최대 5~10개년). DART 3년 제한을 자동 우회.
+            내부에서 필요한 만큼 API를 호출하고 중복 제거 후 병합하여 반환.
+
+            Args:
+                stock_code: 종목코드 (예: 000660 = SK하이닉스)
+                years: 조회 연수 (기본: 5년, 최대 10년)
+                report_type: 11011=사업보고서, 11012=반기
+                fs_div: CFS=연결, OFS=개별
+
+            Returns:
+                years개년 재무제표 데이터 (BS+CIS+CF+SCE 통합)
+            """
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+
+            from datetime import datetime
+            current_year = datetime.now().year
+            years = min(years, 10)
+
+            all_records = []
+            seen_keys = set()
+
+            # DART returns 3 years per call. Stagger calls to cover requested range.
+            for base_year in range(current_year, current_year - years, -3):
+                result = adapter.get_full_financial_statements(stock_code, base_year, report_type, fs_div)
+                if result.get("error"):
+                    continue
+                records = result.get("data", [])
+                if isinstance(records, list):
+                    for r in records:
+                        # Deduplicate by (sj_div, account_nm, bsns_year)
+                        key = (r.get("sj_div", ""), r.get("account_nm", ""), r.get("bsns_year", ""))
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            all_records.append(r)
+
+            # Sort by year descending, then by statement type
+            sj_order = {"BS": 0, "CIS": 1, "IS": 1, "CF": 2, "SCE": 3}
+            all_records.sort(key=lambda r: (
+                -int(r.get("bsns_year", "0") or "0"),
+                sj_order.get(r.get("sj_div", ""), 9),
+            ))
+
+            return {
+                "success": True,
+                "data": all_records,
+                "count": len(all_records),
+                "source": "OpenDART",
+                "stock_code": stock_code,
+                "years_covered": years,
+                "fs_div": fs_div,
+                "note": f"Merged from multiple API calls. {len(all_records)} records across up to {years} years.",
+            }
+
+        @self.mcp.tool()
+        def dart_equity_analysis(stock_code: str) -> dict:
+            """기업 종합 분석 — 1회 호출로 기업개황 + 재무제표 + 재무비율 + 현금흐름 + 배당 통합 조회.
+            개별적으로 5개 도구를 호출할 필요 없이 한번에 전체 데이터를 반환.
+
+            Args:
+                stock_code: 종목코드 (예: 005930 = 삼성전자, 000660 = SK하이닉스)
+
+            Returns:
+                company_info, financial_statements, financial_ratios, cash_flow, dividend 통합 dict
+            """
+            if not adapter or not adapter._dart:
+                return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
+
+            results = {}
+
+            # 1. Company info
+            try:
+                results["company_info"] = adapter.get_company_info(stock_code)
+            except Exception as e:
+                results["company_info"] = {"error": True, "message": str(e)}
+
+            # 2. Financial statements (latest year)
+            try:
+                results["financial_statements"] = adapter.get_financial_statements(stock_code)
+            except Exception as e:
+                results["financial_statements"] = {"error": True, "message": str(e)}
+
+            # 3. Financial ratios
+            try:
+                results["financial_ratios"] = adapter.get_financial_ratios(stock_code)
+            except Exception as e:
+                results["financial_ratios"] = {"error": True, "message": str(e)}
+
+            # 4. Cash flow
+            try:
+                results["cash_flow"] = adapter.get_cash_flow(stock_code)
+            except Exception as e:
+                results["cash_flow"] = {"error": True, "message": str(e)}
+
+            # 5. Dividend
+            try:
+                results["dividend"] = adapter.get_dividend(stock_code)
+            except Exception as e:
+                results["dividend"] = {"error": True, "message": str(e)}
+
+            success_count = sum(1 for v in results.values() if not v.get("error"))
+
+            return {
+                "success": True,
+                "data": results,
+                "stock_code": stock_code,
+                "source": "OpenDART",
+                "sections": list(results.keys()),
+                "sections_ok": success_count,
+                "sections_total": len(results),
+            }
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

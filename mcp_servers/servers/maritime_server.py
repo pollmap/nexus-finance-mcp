@@ -15,12 +15,18 @@ class MaritimeServer:
     def _register(self):
         @self.mcp.tool()
         def maritime_bdi() -> dict:
-            """Baltic Dry Index (FRED). 벌크선 운임 지표. [주의: FRED 시리즈 중단으로 데이터 없을 수 있음]"""
-            return self._a.get_bdi_proxy()
+            """Baltic Dry Index (FRED). 벌크선 운임 지표. [DEPRECATED: FRED 시리즈 DBDI 중단됨. 데이터 없을 가능성 높음.]"""
+            result = self._a.get_bdi_proxy()
+            if result.get("error"):
+                result["message"] = f"[DEPRECATED] {result.get('message', '')}. FRED series DBDI discontinued."
+            return result
         @self.mcp.tool()
         def maritime_container_index() -> dict:
-            """Freightos Baltic Container Index. 컨테이너 운임. [주의: FRED 시리즈 중단으로 데이터 없을 수 있음]"""
-            return self._a.get_container_index()
+            """Freightos Baltic Container Index. 컨테이너 운임. [DEPRECATED: FRED 시리즈 중단됨.]"""
+            result = self._a.get_container_index()
+            if result.get("error"):
+                result["message"] = f"[DEPRECATED] {result.get('message', '')}. FRED series discontinued."
+            return result
         @self.mcp.tool()
         def maritime_ports() -> dict:
             """한국 주요 항만 정보."""

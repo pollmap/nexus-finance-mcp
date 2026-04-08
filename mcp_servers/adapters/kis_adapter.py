@@ -215,6 +215,8 @@ class KISAdapter:
 
             latest = df.iloc[-1]
             name = stock.get_market_ticker_name(stock_code)
+            data_date = str(df.index[-1].date()) if hasattr(df.index[-1], 'date') else str(df.index[-1])
+            delay_hours = max(1, (datetime.now() - df.index[-1]).total_seconds() / 3600) if hasattr(df.index[-1], 'date') else 24
 
             return success_response(
                 None,
@@ -228,7 +230,9 @@ class KISAdapter:
                 low=int(latest.get("저가", 0)),
                 open=int(latest.get("시가", 0)),
                 timestamp=datetime.now().isoformat(),
-                note="Delayed data (pykrx fallback)",
+                data_date=data_date,
+                delay_hours=round(delay_hours, 1),
+                note=f"Delayed data (pykrx fallback, data from {data_date}, ~{round(delay_hours)}h delay). KIS API key not configured.",
             )
         except Exception as e:
             logger.error(f"pykrx fallback error: {e}")
