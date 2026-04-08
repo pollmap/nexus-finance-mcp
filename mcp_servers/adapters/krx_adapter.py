@@ -30,7 +30,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
-from mcp_servers.core.responses import error_response, success_response
+from mcp_servers.core.responses import error_response, success_response, sanitize_records
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class KRXAdapter:
 
             # Convert to records
             df["date"] = df["date"].astype(str)
-            records = df.to_dict("records")
+            records = sanitize_records(df)
 
             result = success_response(
                 data=records,
@@ -309,7 +309,7 @@ class KRXAdapter:
             if "date" not in df.columns and len(df.columns) > 0:
                 df.columns = ["date"] + list(df.columns[1:])
             df["date"] = df["date"].astype(str)
-            records = df.to_dict("records")
+            records = sanitize_records(df)
 
             # Find index name
             index_name = next((k for k, v in self.INDICES.items() if v == index_code), index_code)

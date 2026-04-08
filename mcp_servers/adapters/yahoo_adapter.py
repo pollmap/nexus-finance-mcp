@@ -29,7 +29,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from mcp_servers.core.cache_manager import CacheManager, get_cache
 from mcp_servers.core.rate_limiter import RateLimiter, get_limiter
-from mcp_servers.core.responses import error_response, success_response
+from mcp_servers.core.responses import error_response, success_response, sanitize_records
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ class YahooAdapter:
                 df["date"] = df["datetime"].astype(str)
                 df = df.drop(columns=["datetime"])
 
-            records = df.to_dict("records")
+            records = sanitize_records(df)
 
             result = success_response(
                 records, count=len(records), source="Yahoo Finance",

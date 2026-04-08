@@ -846,7 +846,8 @@ class ECOSServer:
             df.rename(columns=ECOS_COL_MAP, inplace=True)
 
             # Process dataframe
-            records = df.to_dict("records")
+            from mcp_servers.core.responses import sanitize_records
+            records = sanitize_records(df)
 
             response = {
                 "success": True,

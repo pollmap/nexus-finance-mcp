@@ -149,7 +149,8 @@ class StocksServer:
                 df = df.resample(rule).agg(agg).dropna(subset=["close"])
                 df = df.reset_index()
                 df["date"] = df["date"].astype(str)
-                result["data"] = df.to_dict("records")
+                from mcp_servers.core.responses import sanitize_records
+                result["data"] = sanitize_records(df)
                 result["interval"] = interval
                 result["count"] = len(result["data"])
 

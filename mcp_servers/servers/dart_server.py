@@ -345,15 +345,24 @@ class DARTServer(BaseMCPServer):
                 return {"error": True, "message": "DART client not initialized. Check DART_API_KEY."}
 
             from datetime import datetime
-            current_year = datetime.now().year
+            from mcp_servers.adapters.dart_adapter import _sanitize_records
+            import pandas as pd
+
+            # Latest available fiscal year = last year (current year's report not filed yet)
+            latest_year = datetime.now().year - 1
             years = min(years, 10)
 
             all_records = []
             seen_keys = set()
+            call_years = []
 
-            # DART returns 3 years per call. Stagger calls to cover requested range.
-            for base_year in range(current_year, current_year - years, -3):
-                result = adapter.get_full_financial_statements(stock_code, base_year, report_type, fs_div)
+            # DART returns 3 years per call (당기/전기/전전기).
+            # Query years: latest, latest-3, latest-6, ... to cover full range.
+            # Example (2025, years=5): query 2025 → covers 2023~2025, query 2022 → covers 2020~2022
+            for offset in range(0, years, 3):
+                query_year = latest_year - offset
+                call_years.append(query_year)
+                result = adapter.get_full_financial_statements(stock_code, query_year, report_type, fs_div)
                 if result.get("error"):
                     continue
                 records = result.get("data", [])
@@ -365,6 +374,12 @@ class DARTServer(BaseMCPServer):
                             seen_keys.add(key)
                             all_records.append(r)
 
+            # Sanitize NaN/Inf → None for valid JSON
+            for r in all_records:
+                for k, v in r.items():
+                    if isinstance(v, float) and (v != v or v == float('inf') or v == float('-inf')):
+                        r[k] = None
+
             # Sort by year descending, then by statement type
             sj_order = {"BS": 0, "CIS": 1, "IS": 1, "CF": 2, "SCE": 3}
             all_records.sort(key=lambda r: (
@@ -372,15 +387,21 @@ class DARTServer(BaseMCPServer):
                 sj_order.get(r.get("sj_div", ""), 9),
             ))
 
+            # Extract actual years covered
+            actual_years = sorted(set(r.get("bsns_year", "") for r in all_records if r.get("bsns_year")), reverse=True)
+
             return {
                 "success": True,
                 "data": all_records,
                 "count": len(all_records),
                 "source": "OpenDART",
                 "stock_code": stock_code,
-                "years_covered": years,
+                "years_requested": years,
+                "years_covered": actual_years,
+                "api_calls": len(call_years),
+                "api_call_years": call_years,
                 "fs_div": fs_div,
-                "note": f"Merged from multiple API calls. {len(all_records)} records across up to {years} years.",
+                "note": f"Merged {len(call_years)} API calls. {len(all_records)} records across {len(actual_years)} years ({', '.join(actual_years[:5])}).",
             }
 
         @self.mcp.tool()

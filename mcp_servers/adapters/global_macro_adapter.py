@@ -17,7 +17,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from mcp_servers.core.responses import error_response, success_response
+from mcp_servers.core.responses import error_response, success_response, sanitize_records
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class GlobalMacroAdapter:
                     df = data.to_pandas()
                     if hasattr(df, 'reset_index'):
                         df = df.reset_index()
-                    records = df.tail(recent).to_dict("records") if len(df) > 0 else []
+                    records = sanitize_records(df.tail(recent)) if len(df) > 0 else []
                     return success_response(
                         records[-recent:],
                         count=len(records),
@@ -161,7 +161,7 @@ class GlobalMacroAdapter:
             if hasattr(df, 'reset_index'):
                 df = df.reset_index()
 
-            records = df.tail(recent).to_dict("records") if len(df) > 0 else []
+            records = sanitize_records(df.tail(recent)) if len(df) > 0 else []
 
             return success_response(
                 records[-recent:],
@@ -200,7 +200,7 @@ class GlobalMacroAdapter:
             if hasattr(df, 'reset_index'):
                 df = df.reset_index()
 
-            records = df.tail(recent).to_dict("records") if len(df) > 0 else []
+            records = sanitize_records(df.tail(recent)) if len(df) > 0 else []
 
             return success_response(
                 records[-recent:],

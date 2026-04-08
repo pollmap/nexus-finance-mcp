@@ -11,7 +11,7 @@ import requests
 from utils.http_client import get_session
 from datetime import datetime
 from typing import Any, Dict
-from mcp_servers.core.responses import error_response, success_response
+from mcp_servers.core.responses import error_response, success_response, sanitize_records
 
 logger = logging.getLogger(__name__)
 _session = get_session("phase2_adapters")
@@ -140,7 +140,7 @@ class MOLITAdapter:
                            sigungu_code=sigungu_code, year_month=year_month)
             if df is None or df.empty:
                 return success_response([], source="MOLIT", message="No data")
-            records = df.head(30).to_dict("records")
+            records = sanitize_records(df.head(30))
             return success_response(records, source="MOLIT", sigungu=sigungu_code, period=year_month)
         except ImportError:
             return error_response("PublicDataReader not installed")

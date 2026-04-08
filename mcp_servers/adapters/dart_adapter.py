@@ -34,12 +34,7 @@ from mcp_servers.core.responses import error_response, success_response
 logger = logging.getLogger(__name__)
 
 
-def _sanitize_records(df) -> list:
-    """Convert DataFrame to records with NaN → None for valid JSON."""
-    if df is None or not hasattr(df, 'to_dict'):
-        return []
-    import numpy as np
-    return df.where(pd.notna(df), None).replace({np.nan: None, np.inf: None, -np.inf: None}).to_dict("records")
+from mcp_servers.core.responses import sanitize_records as _sanitize_records
 
 
 class DARTAdapter:
