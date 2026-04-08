@@ -85,11 +85,14 @@ Works with any MCP-compatible client:
 | **Windsurf** | streamable-http | Settings → MCP Servers → Add |
 | **Cline (VS Code)** | streamable-http | Extension settings → MCP Servers |
 | **Continue** | streamable-http | `config.json` → mcpServers |
-| **ChatGPT (Actions)** | HTTP | Via OpenAPI schema wrapper |
-| **Custom HTTP Client** | streamable-http | `POST http://host:8100/mcp` |
+| **Zed** | streamable-http | `settings.json` → context_servers |
+| **OpenClaw** | streamable-http | `openclaw.json` → mcpServers |
+| **Python / TS SDK** | streamable-http | `mcp` package ([code examples](CONNECT.md#python-mcp-sdk)) |
 | **Smithery** | stdio | One-click install on [smithery.ai](https://smithery.ai) |
 
-> Any client supporting [MCP streamable-http transport](https://modelcontextprotocol.io) can connect.
+> Any client supporting [MCP streamable-http transport](https://modelcontextprotocol.io) can connect.  
+> **Not supported:** ChatGPT, Gemini, Copilot, Perplexity (no MCP protocol). See [Compatibility Matrix](CONNECT.md#compatibility-matrix) for details.  
+> **Local LLMs:** Ollama/llama.cpp work via MCP-capable frontends (Continue, Cline). See [CONNECT.md](CONNECT.md#local-llms--how-to-connect).
 
 ## Quick Start
 

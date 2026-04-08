@@ -73,6 +73,67 @@ MCP settings:
 }
 ```
 
+## Cline (VS Code Extension)
+
+VS Code Extension settings → MCP Servers:
+
+```json
+{
+  "mcpServers": {
+    "nexus-finance": {
+      "url": "http://62.171.141.206/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+## Continue (VS Code / JetBrains)
+
+`~/.continue/config.json`:
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "nexus-finance",
+      "url": "http://62.171.141.206/mcp",
+      "transport": "streamable-http"
+    }
+  ]
+}
+```
+
+## Zed
+
+Zed settings (`settings.json`):
+
+```json
+{
+  "context_servers": {
+    "nexus-finance": {
+      "url": "http://62.171.141.206/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+## OpenClaw / OpenRouter
+
+MCP 서버를 OpenClaw `openclaw.json`에 추가:
+
+```json
+{
+  "mcpServers": {
+    "nexus-finance": {
+      "url": "http://62.171.141.206/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
 ## Python (mcp SDK)
 
 ```python
@@ -131,6 +192,72 @@ curl -X POST http://62.171.141.206/mcp \
 ```bash
 curl http://62.171.141.206/health
 ```
+
+---
+
+## Compatibility Matrix
+
+MCP is a protocol — not every AI platform supports it. Here's what works and what doesn't.
+
+### Fully Supported (MCP native)
+
+| Client | Platform | Status |
+|--------|----------|--------|
+| **Claude Code** | CLI (Win/Mac/Linux) | ✅ Works — `claude mcp add` |
+| **Claude Desktop** | App (Win/Mac) | ✅ Works — `claude_desktop_config.json` |
+| **Cursor** | IDE | ✅ Works — settings or `.cursor/mcp.json` |
+| **Windsurf** | IDE | ✅ Works — MCP settings |
+| **Cline** | VS Code extension | ✅ Works — extension settings |
+| **Continue** | VS Code / JetBrains | ✅ Works — `config.json` |
+| **Zed** | IDE | ✅ Works — `settings.json` |
+| **Smithery** | MCP marketplace | ✅ Works — one-click install |
+| **Python/TS SDK** | Custom apps | ✅ Works — `mcp` package |
+| **OpenClaw** | Self-hosted gateway | ✅ Works — `openclaw.json` |
+
+### Not Supported (no MCP protocol)
+
+| Platform | Why | Workaround |
+|----------|-----|------------|
+| **ChatGPT** (web/app) | Uses its own "Actions" system (OpenAPI), not MCP | None — ChatGPT cannot connect to MCP servers directly |
+| **Gemini** (web/app) | Google's own tool system, no MCP support | None |
+| **Copilot** (GitHub/Bing) | Microsoft's own extensions, no MCP | None |
+| **Perplexity** | Search-focused, no tool protocol | None |
+| **Ollama** (standalone) | LLM runner only — no tool calling framework | Use with a frontend that supports MCP (see below) |
+| **llama.cpp** | LLM inference engine, no MCP client | Same — needs an MCP-capable frontend |
+
+### Local LLMs — How to Connect
+
+Ollama/llama.cpp alone can't use MCP. But these **frontends** add MCP support on top of local LLMs:
+
+| Frontend | Local LLM | MCP Support |
+|----------|-----------|-------------|
+| **Continue** (VS Code) | Ollama, llama.cpp, LM Studio | ✅ Full MCP support |
+| **Cline** (VS Code) | Ollama via OpenAI-compatible API | ✅ Full MCP support |
+| **Claude Code** (with `--model`) | Any OpenAI-compatible API | ✅ Full MCP support |
+| **Open WebUI** | Ollama | ⚠️ Limited (plugin-based, not native MCP) |
+| **LM Studio** | Built-in models | ❌ No MCP support yet |
+| **Jan** | Ollama, llama.cpp | ❌ No MCP support yet |
+
+**Example: Ollama + Continue + Nexus Finance MCP**
+
+1. Run Ollama: `ollama serve`
+2. Install Continue extension in VS Code
+3. Configure Continue to use Ollama as LLM
+4. Add MCP server in Continue config:
+```json
+{
+  "mcpServers": [
+    {
+      "name": "nexus-finance",
+      "url": "http://62.171.141.206/mcp",
+      "transport": "streamable-http"
+    }
+  ]
+}
+```
+5. Now your local LLM can call 396 financial tools
+
+> **Note:** Tool calling quality depends on the LLM's capability. Large models (Llama 3.1 70B+, Qwen 2.5 72B+) handle tool calls well. Smaller models may struggle with complex multi-tool workflows.
 
 ---
 
