@@ -225,7 +225,7 @@ At a glance — 398 tools across 15 domains:
 | **Academic Alpha** | 4 | 24 | Stat arb, Black-Litterman, Heston, microstructure VPIN |
 | **Crypto Quant + ML** | 4 | 24 | Lopez de Prado ML, alpha research, funding arb |
 | **Infrastructure** | 5 | 25 | Obsidian Vault, semantic memory, ontology, gateway meta |
-| | **64** | **396** | |
+| | **64** | **398** | |
 
 > **Full tool reference with function signatures:** [Tool Catalog](docs/TOOL_CATALOG.md)
 
@@ -467,6 +467,7 @@ api_call_stats()                    → Daily call counts
 | [Parsing Guide](docs/PARSING_GUIDE.md) | Response format spec, parsing strategies |
 | [Error Reference](docs/ERROR_REFERENCE.md) | Error codes, retry strategies |
 | **Architecture** | |
+| [Full Documentation](docs/FULL_DOCUMENTATION.md) | Complete project anatomy — architecture, modules, data flow, API spec, roadmap |
 | [Architecture Diagrams](docs/DATA_FLOW.md) | Mermaid diagrams — system, data flow, server tree, caching |
 | [Architecture Deep Dive](docs/ARCHITECTURE.md) | Technical internals, caching, rate limiting, dead code audit |
 | [Coverage Audit](docs/COVERAGE_AUDIT.md) | API coverage by source + improvement roadmap |
