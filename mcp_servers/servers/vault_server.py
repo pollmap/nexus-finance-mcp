@@ -26,22 +26,26 @@ VAULT_ROOT = Path("/root/obsidian-vault")
 
 # AGENTS.md 기반 쓰기 권한
 WRITE_PERMS = {
+    # === Karpathy 3-layer structure (2026-04-12 migration) ===
     # VPS agents
-    "hermes": ["00-Inbox/hermes", "01-Projects", "02-Areas/crypto-markets", "02-Areas/macro-analysis"],
-    "nexus": ["00-Inbox/nexus", "02-Areas", "03-Resources/reports", "03-Resources/market-data"],
-    "oracle": ["00-Inbox/oracle", "03-Resources", "02-Areas/personal-finance", "02-Areas/chanhi-profile"],
-    # VPS subagents
-    "merchant": ["00-Inbox/hermes", "01-Projects/acp-marketplace"],
-    "treasurer": ["00-Inbox/hermes", "01-Projects/acp-marketplace"],
-    "prophet": ["00-Inbox/oracle", "03-Resources/research-papers", "01-Projects/decision-arena"],
-    "voyager": ["00-Inbox/nexus", "03-Resources", "01-Projects/cufa-ic-session"],
+    "hermes": ["inbox/hermes", "raw", "wiki", "projects", "memory/agents", "outputs"],
+    "nexus": ["inbox/nexus", "raw", "wiki", "memory/agents"],
+    "oracle": ["inbox/oracle", "raw", "wiki", "memory/agents"],
+    # VPS subagents (legacy, mapped to new paths)
+    "merchant": ["inbox/hermes", "projects"],
+    "treasurer": ["inbox/hermes", "projects"],
+    "prophet": ["inbox/oracle", "raw/research-papers", "projects"],
+    "voyager": ["inbox/nexus", "raw", "wiki"],
     # WSL agents
-    "gate": ["00-Inbox/gate", "01-Projects"],
-    "chief": ["00-Inbox/chief", "01-Projects"],
-    "doge": ["00-Inbox/doge", "03-Resources"],
+    "gate": ["inbox", "projects"],
+    "chief": ["inbox", "projects"],
+    "doge": ["inbox/doge", "raw", "wiki", "memory/agents"],
 }
 
-BLOCKED_PREFIXES = (".obsidian", ".git", "scripts", "templates")
+# Forbidden write paths (agent-proof)
+FORBIDDEN_WRITE = ["memory/chanhi", "_system"]
+
+BLOCKED_PREFIXES = (".obsidian", ".git")
 
 
 GIT_STATUS_FILE = VAULT_ROOT / ".git-push-status"
@@ -363,6 +367,13 @@ class VaultServer:
                     "message": f"{agent}은(는) {rel} 경로에 쓰기 권한 없음. 허용 폴더: {allowed}",
                 }
 
+            # Forbidden paths (memory/chanhi, _system) — agent-proof
+            if any(rel == fp or rel.startswith(fp + "/") for fp in FORBIDDEN_WRITE):
+                return {
+                    "error": True,
+                    "message": f"접근 금지 경로: {rel}. memory/chanhi/와 _system/은 찬희만 수정 가능.",
+                }
+
             # Validate frontmatter
             if not content.startswith("---"):
                 return {"error": True, "message": "frontmatter(---) 필수. date, agent, tags, status 포함해야 함"}
@@ -379,6 +390,18 @@ class VaultServer:
             # Write
             resolved.parent.mkdir(parents=True, exist_ok=True)
             resolved.write_text(content, encoding="utf-8")
+
+            # Append to log.md
+            try:
+                log_path = VAULT_ROOT / "_system" / "log.md"
+                if log_path.exists():
+                    from datetime import datetime as _dt
+                    ts = _dt.now().strftime("%Y-%m-%d %H:%M")
+                    log_entry = f"\n## [{ts}] write | {agent_lower} \u2192 {path}\n"
+                    with open(log_path, "a", encoding="utf-8") as lf:
+                        lf.write(log_entry)
+            except Exception as e:
+                logger.warning(f"log.md append failed: {e}")
 
             # Auto git commit + push
             _git_auto_commit(path, agent_lower)

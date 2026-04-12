@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 VAULT_ROOT = Path("/root/obsidian-vault")
 DB_DIR = Path("/opt/nexus-finance-mcp/vault")
 DB_PATH = DB_DIR / "vault_index.db"
-BLOCKED_PREFIXES = (".obsidian", ".git", "scripts", "templates", ".trash")
+BLOCKED_PREFIXES = (".obsidian", ".git", ".trash")
 MAX_CHUNK_CHARS = 2000  # 청크 최대 길이
 OVERLAP_CHARS = 200     # 청크 간 오버랩
 

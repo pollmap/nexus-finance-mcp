@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "career-ops-kr": {
+      "command": "/opt/career-ops-kr/.venv/bin/python",
+      "args": [
+        "-m",
+        "career_ops_kr.mcp_server"
+      ],
+      "cwd": "/opt/career-ops-kr",
+      "env": {
+        "PYTHONPATH": "/opt/career-ops-kr",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}
