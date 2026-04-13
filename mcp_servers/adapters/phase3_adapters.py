@@ -23,20 +23,40 @@ class MaritimeAdapter:
     """Maritime/shipping data — free sources."""
 
     def get_bdi_proxy(self) -> Dict[str, Any]:
-        """Get Baltic Dry Index proxy from public sources."""
+        """Get Baltic Dry Index proxy - Cass Freight Shipments (FRED) + BDRY ETF (Yahoo)."""
+        results = {}
+        api_key = os.getenv("FRED_API_KEY", "")
+        # 1. Cass Freight Shipments Index (FRGSHPUSM649NCIS) - monthly
         try:
             url = "https://api.stlouisfed.org/fred/series/observations"
-            api_key = os.getenv("FRED_API_KEY", "")
-            params = {"series_id": "DBDI", "api_key": api_key, "file_type": "json",
-                      "sort_order": "desc", "limit": 30}
+            params = {"series_id": "FRGSHPUSM649NCIS", "api_key": api_key, "file_type": "json",
+                      "sort_order": "desc", "limit": 12}
             resp = _session.get(url, params=params, timeout=15)
             data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
-            records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
-            return success_response(records, source="FRED/DBDI")
+            results["cass_freight_shipments"] = [
+                {"date": d["date"], "value": float(d["value"])}
+                for d in data if d["value"] != "."
+            ]
+            results["cass_source"] = "FRED/FRGSHPUSM649NCIS"
         except Exception as e:
-            logger.error(f"BDI proxy error: {e}")
-            return error_response(f"BDI data retrieval failed: {e}")
-
+            logger.warning(f"Cass Freight FRED error: {e}")
+        # 2. BDRY ETF (Breakwave Dry Bulk) - daily, high BDI correlation
+        try:
+            import yfinance as yf
+            df = yf.Ticker("BDRY").history(period="30d")
+            if df is not None and not df.empty:
+                df = df.reset_index()
+                results["bdry_etf"] = [
+                    {"date": str(row["Date"])[:10], "close": round(float(row["Close"]), 4)}
+                    for _, row in df.iterrows()
+                ][-20:]
+                results["bdry_source"] = "Yahoo/BDRY (Breakwave Dry Bulk ETF)"
+        except Exception as e:
+            logger.warning(f"BDRY Yahoo error: {e}")
+        if not results:
+            return error_response("All BDI proxy sources failed")
+        return success_response(results,
+            note="BDI proxy: Cass Freight (monthly) + BDRY ETF. Direct BDI = Baltic Exchange subscription.")
     def get_port_stats(self) -> Dict[str, Any]:
         """Korean port statistics summary."""
         major_ports = [
@@ -60,20 +80,28 @@ class MaritimeAdapter:
         )
 
     def get_container_index(self) -> Dict[str, Any]:
-        """Get Freightos Baltic Index (container shipping) from FRED."""
-        try:
-            url = "https://api.stlouisfed.org/fred/series/observations"
-            api_key = os.getenv("FRED_API_KEY", "")
-            params = {"series_id": "FBXIUS", "api_key": api_key, "file_type": "json",
-                      "sort_order": "desc", "limit": 30}
-            resp = _session.get(url, params=params, timeout=15)
-            data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
-            records = [{"date": d["date"], "value": d["value"]} for d in data if d["value"] != "."]
-            return success_response(records, source="FRED/FBXIUS", index="Freightos Baltic Index (US)")
-        except Exception as e:
-            logger.error(f"Container index error: {e}")
-            return error_response(f"Container index data retrieval failed: {e}")
-
+        """Container shipping index - Cass Freight Expenditure + Marine Cargo PPI (FRED)."""
+        results = {}
+        api_key = os.getenv("FRED_API_KEY", "")
+        fred_url = "https://api.stlouisfed.org/fred/series/observations"
+        for series_id, key, note in [
+            ("FRGEXPUSM649NCIS", "cass_expenditure", "Cass Freight Expenditure Index"),
+            ("PCU4883204883208", "marine_cargo_ppi", "Marine Cargo Handling PPI"),
+        ]:
+            try:
+                params = {"series_id": series_id, "api_key": api_key, "file_type": "json",
+                          "sort_order": "desc", "limit": 12}
+                resp = _session.get(fred_url, params=params, timeout=15)
+                data = (resp.json() if resp.status_code == 200 else {}).get("observations", [])
+                results[key] = [{"date": d["date"], "value": float(d["value"])}
+                                for d in data if d["value"] != "."]
+                results[f"{key}_source"] = f"FRED/{series_id} ({note})"
+            except Exception as e:
+                logger.warning(f"{series_id} FRED error: {e}")
+        if not results:
+            return error_response("All container index sources failed")
+        return success_response(results,
+            note="Container proxy: Cass Freight Expenditure + Marine Cargo PPI. Direct FBX = commercial.")
 
 # ============================================================
 # AVIATION — OpenSky Network
