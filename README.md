@@ -197,6 +197,46 @@ MCP_PORT=8100
 MCP_AUTH_TOKEN=          # Bearer token (optional)
 ```
 
+
+### Windows 로컬 설치 ★ (2026-04-13~)
+
+> VPS 원격 대신 노트북에서 직접 실행 — 레이턴시 200ms+ → ~1ms
+
+```bash
+# 1. 레포 클론
+git clone https://github.com/pollmap/nexus-finance-mcp
+cd nexus-finance-mcp
+
+# 2. 의존성 설치 (Python 3.14 환경)
+pip install -r requirements.txt
+pip install "pandas>=3.0.0"   # Python 3.14 호환 필수
+
+# 3. .env 설정
+cp .env.template .env   # API 키 입력
+
+# 4. 실행 (Obsidian Vault 경로 지정)
+set VAULT_ROOT=C:/Users/YOUR_NAME/obsidian-vault
+set PYTHONIOENCODING=utf-8
+python server.py
+```
+
+**mcp.json 설정 (로컬 primary + VPS 백업):**
+
+```json
+{
+  "nexus-finance": {
+    "type": "http",
+    "url": "http://127.0.0.1:8100/mcp"
+  },
+  "nexus-finance-vps": {
+    "type": "http",
+    "url": "http://YOUR_VPS_IP/mcp"
+  }
+}
+```
+
+> **Windows 자동 시작:** VBS 스크립트를 에 등록
+
 ### Transport Options
 
 | Transport | Command | Use Case |
