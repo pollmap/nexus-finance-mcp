@@ -52,8 +52,9 @@ GIT_STATUS_FILE = VAULT_ROOT / ".git-push-status"
 
 
 def _git_auto_commit(rel_path: str, agent: str):
-    """vault_write 후 비동기 git commit + push. 응답을 블로킹하지 않음."""
+    """vault_write 후 비동기 git commit + push. 3회 retry with exponential backoff."""
     import threading
+    import time as _time
 
     def _run():
         try:
@@ -62,16 +63,31 @@ def _git_auto_commit(rel_path: str, agent: str):
             subprocess.run(["git", "-C", str(VAULT_ROOT), "commit", "-m",
                             f"vault: {agent} wrote {rel_path}"],
                            capture_output=True, timeout=10, check=True)
-            result = subprocess.run(["git", "-C", str(VAULT_ROOT), "push"],
-                                    capture_output=True, timeout=30)
-            if result.returncode != 0:
+
+            # Push with retry (3 attempts, exponential backoff)
+            max_retries = 3
+            for attempt in range(max_retries):
+                # Pull before push to handle divergent histories
+                subprocess.run(["git", "-C", str(VAULT_ROOT), "pull", "--rebase", "--quiet"],
+                               capture_output=True, timeout=30)
+                result = subprocess.run(["git", "-C", str(VAULT_ROOT), "push"],
+                                        capture_output=True, timeout=30)
+                if result.returncode == 0:
+                    logger.info(f"git push OK: {rel_path} by {agent}" +
+                                (f" (attempt {attempt+1})" if attempt > 0 else ""))
+                    if GIT_STATUS_FILE.exists():
+                        GIT_STATUS_FILE.unlink()
+                    return
+
                 err = result.stderr.decode("utf-8", errors="replace").strip()
-                logger.error(f"git push failed for {rel_path}: {err}")
-                GIT_STATUS_FILE.write_text(f"FAIL|{rel_path}|{agent}|{err}\n")
-            else:
-                logger.info(f"git push OK: {rel_path} by {agent}")
-                if GIT_STATUS_FILE.exists():
-                    GIT_STATUS_FILE.unlink()
+                if attempt < max_retries - 1:
+                    wait = 2 ** (attempt + 1)  # 2s, 4s
+                    logger.warning(f"git push retry {attempt+1}/{max_retries} for {rel_path}: {err} (wait {wait}s)")
+                    _time.sleep(wait)
+                else:
+                    logger.error(f"git push FAILED after {max_retries} attempts for {rel_path}: {err}")
+                    GIT_STATUS_FILE.write_text(f"FAIL|{rel_path}|{agent}|{err}\n")
+
         except subprocess.CalledProcessError as e:
             logger.warning(f"git auto-commit failed: {e}")
             GIT_STATUS_FILE.write_text(f"FAIL|{rel_path}|{agent}|{e}\n")
